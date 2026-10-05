@@ -120,8 +120,8 @@ hidden from the list and move together with part 1.
 Safety characteristics of the pipeline:
 
 - **Pre-flight checks** — output-drive free space (size-aware for compressed formats) and FAT32 file-size limits are verified before conversion starts; failures skip the file with a clear message instead of failing late.
-- **Environmental errors are surfaced, not reported** — disk-space and network failures stop or skip with actionable messages and are excluded from automatic bug reports.
-- **Transient failures retry** — locked files and network hiccups use exponential backoff (see `FileExtractorService`, `FileMoverService`); permanent errors are not retried.
+- **Environmental errors are surfaced, not reported** — disk-space, network, and device failures (including `ERROR_IO_DEVICE` `0x45D` and the fatal `ERROR_DEVICE_HARDWARE_ERROR` `0x800701E3`) stop or skip with actionable messages and are excluded from automatic bug reports.
+- **Transient failures retry** — locked files and network hiccups use exponential backoff (see `FileExtractorService`, `FileMoverService`); permanent errors are not retried. A pre-existing output held open by another process is retried briefly before the conversion is reported as failed (`PathHelper.TryDeleteExistingFileWithRetryAsync`).
 - **Atomic replace-originals** — deletion of inputs happens only after the converted file exists and (optionally) passes validation. An archive is removed only when every entry was extracted and every extracted image was converted; skipped entries or unconverted images keep the archive.
 - **Unique output names** — output paths are reserved per batch, so two inputs with the same base name cannot overwrite each other.
 - **Per-file isolation** — an unreadable, missing, or invalid file is reported individually and never aborts the remaining batch.
@@ -165,7 +165,7 @@ Three layers of defense:
 ## Testing
 
 The `XISOStudio.Tests` project (xUnit, Moq) covers models, services, and helper utilities with
-**1,437 tests**:
+**1,452 tests**:
 
 ```bash
 dotnet test CSharp_XISOStudio.sln

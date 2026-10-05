@@ -24,7 +24,7 @@
 [![Powered by ZArchiveSharp](https://img.shields.io/badge/Powered%20by-ZArchiveSharp-8A2BE2.svg)](https://github.com/purelogiccode/ZArchiveSharp)
 [![Powered by SharpCompress](https://img.shields.io/badge/Powered%20by-SharpCompress-8A2BE2.svg)](https://github.com/adamhathcock/sharpcompress)
 [![Formats](https://img.shields.io/badge/formats-ISO%20%7C%20XISO%20%7C%20ZAR%20%7C%20CSO%20%7C%20CHD-orange.svg)](#supported-formats)
-[![Tests](https://img.shields.io/badge/tests-1437%20passing-brightgreen.svg)](https://github.com/purelogiccode/XISOStudio/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-1452%20passing-brightgreen.svg)](https://github.com/purelogiccode/XISOStudio/actions/workflows/ci.yml)
 [![Code analyzers](https://img.shields.io/badge/analyzers-Meziantou%20%7C%20Roslynator-blueviolet)](docs/Architecture.md)
 [![Made with C#](https://img.shields.io/badge/Made%20with-C%23-239120.svg?logo=csharp&logoColor=white)](https://dotnet.microsoft.com/languages/csharp)
 [![Nullable](https://img.shields.io/badge/nullable-enabled-blue.svg)](https://learn.microsoft.com/dotnet/csharp/nullable-references)
@@ -66,6 +66,13 @@ Whether you're managing a large collection of Xbox game backups or verifying the
 ---
 
 ## What's New
+
+### v3.0.2 — post-3.0.1 fixes
+
+- **Fewer false bug reports from failing drives** — a drive reporting a *fatal device hardware error* (`ERROR_DEVICE_HARDWARE_ERROR`, Win32 483 / `0x800701E3`) during archive analysis or extraction now stops the batch with the same drive-health guidance as other hardware I/O errors, and is logged at Information instead of Error, so a dying disk no longer uploads one bug report per file.
+- **Locked output files no longer generate bug reports** — overwriting an existing result briefly retries the delete while another process holds it (an emulator, antivirus, or Explorer preview); a file that stays locked is reported as failed with guidance to close the application using it. The same applies when **Delete Originals** cannot remove a locked source.
+- **XISOSharp 1.4.2** — invalid ZAR inputs are still classified as *invalid image* even though the library now returns a failure result instead of throwing, and device/network failures during archive analysis log at Information.
+- Analyzer packages updated (Meziantou 3.0.294, Roslynator 5.0.1) — build-time only.
 
 ### v3.0.1 — reliability patch
 
@@ -243,7 +250,7 @@ Utilizes `Microsoft.Extensions.DependencyInjection` for comprehensive service ma
 Logging runs through a single [Serilog](https://serilog.net/) pipeline with three sinks: the on-screen log viewer (`UiLogSink`), a rolling daily file log (`%LocalAppData%\XISOStudio\logs`), and a bug-report sink (`BugReportSink`) that forwards every **Warning-or-higher** event to the Bug Report API. Reports include complete environment, error, and exception sections; expected user/environmental errors are logged at Information level so they never generate noise.
 
 ### Testing
-A comprehensive [xUnit](https://xunit.net/) test suite (`XISOStudio.Tests`) covers models, services, and image services with 1,400+ tests, using [Moq](https://github.com/devlooped/moq) for mocking.
+A comprehensive [xUnit](https://xunit.net/) test suite (`XISOStudio.Tests`) covers models, services, and image services with 1,450+ tests, using [Moq](https://github.com/devlooped/moq) for mocking.
 
 ### Technical Documentation
 For a deep dive into the XDVDFS format, binary file structures, and the conversion algorithm, see the [XDVDFS Technical Documentation](docs/XDVDFS-Technical-Documentation.md). The full documentation (including installation, usage, troubleshooting, architecture, and [release notes](docs/Release-Notes.md)) lives in the [docs folder](docs/index.md) and is published both as the repository wiki and as the [GitHub Pages site](https://purelogiccode.github.io/XISOStudio/) — the wiki uses `docs/_Sidebar.md` and the Pages site uses `docs/_layouts/default.html`, so both get the same side menu. Highlights of the latest release are summarized in [What's New](WhatsNew.md).

@@ -12,6 +12,7 @@
 
 | Version | Date | Summary |
 |:---|:---|:---|
+| [3.0.2](#302) | October 2026 | Post-3.0.1 patch: fatal device hardware errors (`0x800701E3`) recognized as environmental, locked output/source files no longer generate bug reports, XISOSharp 1.4.2 ZAR invalid-input handling preserved |
 | [3.0.1](#301) | October 2026 | Reliability patch: locked files and inaccessible Linux/macOS temp roots no longer generate bug reports; synchronous CSO/ZAR/CHD progress reporting fixes out-of-order percentages; platform-dependent tests and CI restored |
 | [3.0.0](#300) | September 2026 | Cross-platform Avalonia port (Windows/Linux/macOS); CHD output, Xbox CHD integrity testing, and CHD exploration; Serilog logging with automatic bug reporting; per-file selection lists; XISO/ZAR/CSO output formats; extensive reliability and bug-fix pass (38 fixes) plus two pre-release reviews |
 | [2.8.0](#280) | September 2026 | XISOSharp migration: in-process conversion, integrity testing, and exploration; external engines removed |
@@ -19,6 +20,63 @@
 | [2.7.0](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.7.0) | June 2026 | Improved ISO compatibility, disk-space detection, cancellation and performance |
 | [2.6.1](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.6.1) | June 2026 | XGD1/XGD2/XGD3 partition offsets, dark-theme tooltip fix |
 | [2.6.0](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.6.0) | June 2026 | 7-Zip CLI fallback, multilingual network errors, disk-space handling |
+
+---
+
+## 3.0.2
+
+*October 2026*
+
+> **Fewer false bug reports and a conversion-engine update.** Fatal device hardware errors from a
+> failing drive are recognized as environmental (with drive-health guidance), locked output and
+> source files no longer upload bug reports, and XISOSharp 1.4.2's new failure result for invalid
+> ZAR inputs is mapped back to *invalid image*.
+
+### Bug Fixes
+
+- **Fatal device hardware errors are classified as environmental.** Windows reports a failing or
+  disconnected drive as `ERROR_DEVICE_HARDWARE_ERROR` (Win32 483, `0x800701E3`, "The request failed
+  due to a fatal device hardware error"). `PathHelper.IsDeviceIoError` now recognizes that code in
+  addition to `ERROR_IO_DEVICE` (`0x45D`), and the localized Italian message from the reports, so:
+  - `FileExtractorService` stops the batch with a drive-health message instead of retrying the read
+    as a transient network glitch (`IsTransientIoError` no longer matches the English message's
+    generic "device" network pattern), and
+  - archive analysis/extraction failures are logged at Information, so a failing disk no longer
+    files one bug report per archive (`FileExtractorService`, `OrchestratorService`).
+- **Locked output files no longer generate bug reports.** `XisoSharpService.ConvertIsoAsync` and
+  `ChdService.ConvertIsoToChdAsync` used to log a Warning — and therefore file a bug report — when a
+  pre-existing result could not be deleted because another process held it (an emulator, antivirus,
+  or Explorer preview). The new shared `PathHelper.TryDeleteExistingFileWithRetryAsync` retries
+  briefly (three attempts with short delays), then logs an actionable message at Information and
+  returns a failed status. The same classification covers deleting the originals when
+  **Delete Originals** is enabled (`OrchestratorService`).
+- **Archive analysis failures from offline devices or network drops** are logged at Information
+  while still falling back to the default temp path, instead of one Warning per file.
+- **XISOSharp 1.4.2 ZAR invalid-input classification.** XISOSharp 1.4.2 maps a structurally invalid
+  image to the documented `false` result of `XisoZarchive.CreateZar` instead of throwing. A failed
+  ZAR pack now audits the source (`XisoReader.AuditXiso`, tag not required) so genuinely invalid
+  inputs are still reported as **invalid image**; audit failures (I/O errors, missing files) keep
+  the generic failed status so environmental problems are not misreported.
+
+### Dependencies
+
+- **XISOSharp 1.4.1 → 1.4.2** (namespace note for developers: `UnpackOptions`,
+  `ProcessRunResult`, `ExplorerNode`, and `XisoExplorerOptions` moved to `XISOSharp.Models`).
+- **Meziantou.Analyzer 3.0.290 → 3.0.294**, **Roslynator.Analyzers 5.0.0 → 5.0.1** (the separate
+  `Roslynator.CodeAnalysis.Analyzers` and `Roslynator.Formatting.Analyzers` references were
+  consolidated into the meta package). Build-time only.
+
+### Tests
+
+- 1,452 tests: new coverage for `ERROR_DEVICE_HARDWARE_ERROR` (message and HResult), file-in-use
+  classification, transient-error exclusion, and locked-output conversions for XISO and CHD (the
+  lock tests skip on non-Windows hosts).
+
+### Upgrading
+
+Download the archive for your platform and replace the previous files. There are no configuration,
+format, or workflow changes — 3.0.2 is a drop-in replacement for 3.0.1. The application reports
+version **3.0.2** (`AssemblyVersion`/`FileVersion`).
 
 ---
 

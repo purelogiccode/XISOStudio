@@ -10,9 +10,9 @@
         <Authors>PureLogicCode</Authors>
         <Company>PureLogicCode.com</Company>
         <IsPackable>false</IsPackable>
-        <Version>3.0.1</Version>
-        <AssemblyVersion>3.0.1</AssemblyVersion>
-        <FileVersion>3.0.1</FileVersion>
+        <Version>3.0.2</Version>
+        <AssemblyVersion>3.0.2</AssemblyVersion>
+        <FileVersion>3.0.2</FileVersion>
         <NeutralLanguage>en</NeutralLanguage>
         <DebugType>embedded</DebugType>
         <DebugSymbols>true</DebugSymbols>

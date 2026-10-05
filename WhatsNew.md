@@ -2,6 +2,28 @@
 
 <!-- Keep this file focused on the newest release. Full history lives in docs/Release-Notes.md. -->
 
+## Version 3.0.2
+
+**Release date:** October 2026
+
+Version 3.0.2 is a **post-3.0.1 reliability patch**. It recognizes fatal device hardware errors from a failing drive, stops locked output and source files from being uploaded as bug reports, and updates the XISOSharp engine to 1.4.2 while keeping invalid ZAR inputs classified as invalid images.
+
+### Fixes
+
+#### Fewer false bug reports
+- **Fatal device hardware errors are recognized.** A drive that reports `ERROR_DEVICE_HARDWARE_ERROR` (Win32 483, `0x800701E3` — "The request failed due to a fatal device hardware error") during archive analysis or extraction is now treated like a failing drive: the batch stops with a drive-health message (check the cable, run `chkdsk`, copy the files to a healthy drive) and the event is logged at Information, so a dying disk no longer uploads one bug report per file. The existing `ERROR_IO_DEVICE` (`0x45D`) handling is unchanged, and the localized Italian message from the reports is recognized as well.
+- **Locked output files no longer generate bug reports.** Before overwriting an existing result, the application briefly retries the delete while another process holds the file (an emulator playing the previous output, antivirus, or an Explorer preview). A file that stays locked is reported as failed with guidance to close the application using it, and is logged at Information instead of Warning. The same classification now covers deleting the originals when **Delete Originals** is enabled.
+- **Device and network failures during archive analysis** are logged at Information while falling back to the default temp path, instead of one Warning per file.
+
+#### Conversion engine
+- **XISOSharp updated to 1.4.2** (from 1.4.1). XISOSharp 1.4.2 now returns its documented failure result for a structurally invalid image instead of throwing, so a failed ZAR pack audits the source and still reports genuinely invalid inputs as **invalid image** rather than a generic unconverted failure.
+- Analyzer packages updated (Meziantou 3.0.294, Roslynator 5.0.1) — build-time only, no runtime impact.
+
+### Upgrading
+Download the archive for your platform and replace the previous files. There are no configuration, format, or workflow changes — 3.0.2 is a drop-in replacement for 3.0.1.
+
+---
+
 ## Version 3.0.1
 
 **Release date:** October 2026

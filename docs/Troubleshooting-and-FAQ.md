@@ -45,6 +45,17 @@ Another program (most commonly antivirus real-time scanning, a cloud-sync client
 - If the message persists, add your working folders to your antivirus exclusion list or close the program that holds the file.
 - Files created moments ago are especially prone to this while the antivirus scans them; the retry logic exists precisely for this case.
 - A file that stays locked after the retries is reported as failed (or left in place) but is **not sent as an automatic bug report** — since 3.0.1 the application treats persistent locks as environmental and logs them at Information level.
+- The same applies to an existing output file that must be replaced: the delete is retried briefly, and if the file stays locked (for example, an emulator is still running the previous result) the conversion is reported as failed with guidance to close the program using it. Locked outputs are never uploaded as bugs.
+
+### The existing output file is in use
+
+**Message pattern:** *"The existing output file ... is in use by another process ..."*
+
+The conversion needs to replace (or delete) an existing result, but another program still has it open — most often an emulator (for example Xenia loading the previous `.zar`/`.iso`), a media player, antivirus scanning, or an Explorer preview.
+
+- Close the program that is using the file and run the conversion again.
+- The delete is retried automatically a few times before giving up; if the file is held continuously, the retry cannot succeed.
+- This is an environmental condition: it is logged at Information level and does **not** generate a bug report.
 
 ### Network errors (UNC paths and mapped drives)
 
@@ -101,14 +112,20 @@ each batch (pre-operation cleanup).
 
 ### The drive reported a hardware I/O error
 
-**Message pattern:** *"The drive reported a hardware I/O error ..."* or an `I/O device error`.
+**Message pattern:** *"The drive reported a hardware I/O error ..."*, an `I/O device error`
+(`ERROR_IO_DEVICE`, `0x45D`), or a *fatal device hardware error* (`ERROR_DEVICE_HARDWARE_ERROR`,
+Win32 483 / `0x800701E3`, for example the Italian *"Richiesta non riuscita a causa di un errore
+hardware del dispositivo irreversibile"*).
 
 The read or write request failed at the hardware level — the drive is failing, was disconnected, or is
-power-cycling. The batch is stopped deliberately because continuing could produce corrupt output.
+power-cycling. External USB drives with a bad cable/port or bad sectors are a common cause. The batch
+is stopped deliberately because continuing could produce corrupt output.
 
-- Check the cable/connection and the drive's health (for example, run `chkdsk`).
+- Check the cable/connection and the drive's health (for example, run `chkdsk`, or check S.M.A.R.T. status).
 - Copy the source files to a healthy local drive and retry.
-- These errors are treated as environmental and are not sent as automatic bug reports.
+- These errors are treated as environmental: they are logged at Information level with the drive-health
+  guidance and are not sent as automatic bug reports. Archive extraction does not retry them as if they
+  were transient network glitches.
 
 ### The output file is missing or the conversion failed after antivirus activity
 
@@ -140,7 +157,7 @@ Yes. The UI is built with Avalonia, and all image libraries are pure managed cod
 The app writes a rolling log under the per-user application-data folder — `%LocalAppData%\XISOStudio\logs\log-*.txt` on Windows, `~/.local/share/XISOStudio/logs` or `~/Library/Application Support/XISOStudio/logs` elsewhere (10 MB per file, 14 files retained). It contains the same messages shown in the log pane, with levels and full exception details.
 
 **Does the application collect my data?**
-It sends an anonymous usage ping and, for warnings and errors, an automatic bug report containing the message, environment details, and exception details. Expected environmental errors (disk space, network) are logged at Information level and are never reported. No personal data or file contents are collected.
+It sends an anonymous usage ping and, for warnings and errors, an automatic bug report containing the message, environment details, and exception details. Expected environmental errors (disk space, network, device/hardware failures, locked files) are logged at Information level and are never reported. No personal data or file contents are collected.
 
 **How do I report a bug?**
 Warnings and errors are reported automatically with environment and exception details. For anything else, open an issue at <https://github.com/purelogiccode/XISOStudio/issues> and include the relevant lines from the log pane or the log file (under the per-user application-data folder, see above).
