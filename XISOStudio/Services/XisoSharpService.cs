@@ -144,18 +144,13 @@ public class XisoSharpService : IXisoSharpService
 
         // Remove any pre-existing output so the conversion starts from a clean file. This runs
         // only after the already-optimized check above, so skipping a file never deletes an
-        // existing result in the output folder.
-        if (File.Exists(outputPath))
+        // existing result in the output folder. A file locked by another process (an emulator
+        // playing the previous result, antivirus, Explorer preview) is environmental and must
+        // not generate an automatic bug report.
+        if (File.Exists(outputPath) &&
+            !await PathHelper.TryDeleteExistingFileWithRetryAsync(outputPath, _logger, token))
         {
-            try
-            {
-                File.Delete(outputPath);
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning(ex, "Could not delete the existing output file '{OutputFileName}'", outputFileName);
-                return FileProcessingStatus.Failed;
-            }
+            return FileProcessingStatus.Failed;
         }
 
         return await Task.Run(
@@ -533,8 +528,20 @@ public class XisoSharpService : IXisoSharpService
 
             if (!zarResult || !File.Exists(outputPath))
             {
-                _logger.Information("XISOSharp could not pack '{FileName}' to ZAR.", fileName);
                 DeletePartialOutput(outputPath);
+
+                // XISOSharp 1.4.2 maps a structurally invalid image to the documented
+                // false result instead of throwing, so audit the source to keep invalid
+                // inputs classified as such rather than as a generic failure.
+                if (IsKnownInvalidImage(inputFile, fileName))
+                {
+                    _logger.Information(
+                        "Failed to convert '{FileName}' to {Format}. The file may not be a valid Xbox/Xbox 360 ISO image, " +
+                        "may be corrupt, or contains a file too large for XISO.", fileName, formatName);
+                    return FileProcessingStatus.InvalidInput;
+                }
+
+                _logger.Information("XISOSharp could not pack '{FileName}' to ZAR.", fileName);
                 return FileProcessingStatus.Failed;
             }
 
@@ -788,6 +795,34 @@ public class XisoSharpService : IXisoSharpService
                    or ExtractErrorException or EndOfStreamException ||
                (ex is IOException ioException &&
                 ioException.Message.StartsWith("Read error", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Checks whether the source image is structurally invalid. XISOSharp 1.4.2 maps a
+    /// corrupt image to a <c>false</c> pack result instead of throwing, so a failed pack
+    /// audits the source to tell an invalid image apart from a transient failure. When the
+    /// audit itself cannot run (I/O error, file removed), the image is treated as
+    /// unverified so an environmental failure is not misreported as invalid input.
+    /// </summary>
+    /// <param name="sourcePath">Path of the source image to audit.</param>
+    /// <param name="fileName">File name used in log messages.</param>
+    /// <returns><c>true</c> when the audit proves the image invalid; otherwise <c>false</c>.</returns>
+    private bool IsKnownInvalidImage(string sourcePath, string fileName)
+    {
+        try
+        {
+            var audit = XisoReader.AuditXiso(sourcePath, requireOptimizedTag: false);
+            if (audit.IsValid) return false;
+
+            _logger.Information("'{FileName}' failed structural validation: {Issues}", fileName,
+                string.Join("; ", audit.Issues));
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.Debug(ex, "Could not audit '{FileName}' after a failed pack", fileName);
+            return false;
+        }
     }
 
     /// <summary>

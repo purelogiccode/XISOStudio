@@ -264,6 +264,12 @@ public static class PathHelper
     private const int ErrorIoDevice = 0x45D;
 
     /// <summary>
+    /// Win32 error code ERROR_DEVICE_HARDWARE_ERROR: the request failed because of a
+    /// fatal device hardware error (e.g. a failing external drive or a disconnected USB disk).
+    /// </summary>
+    private const int ErrorDeviceHardwareError = 0x1E3;
+
+    /// <summary>
     /// Determines if an exception was caused by a hardware I/O failure on the source or
     /// destination device (e.g. a failing, disconnected, or power-cycling drive).
     /// Windows localizes the message, so the Win32 error code is checked first, with
@@ -283,29 +289,90 @@ public static class PathHelper
     }
 
     /// <summary>
-    /// Checks whether an exception is an <see cref="IOException" /> carrying the Win32
-    /// ERROR_IO_DEVICE error code.
+    /// Checks whether an exception is an <see cref="IOException" /> carrying a Win32
+    /// hardware failure code (ERROR_IO_DEVICE or ERROR_DEVICE_HARDWARE_ERROR).
     /// </summary>
     /// <param name="exception">Exception to inspect.</param>
-    /// <returns><c>true</c> when the exception carries the I/O device error code; otherwise <c>false</c>.</returns>
+    /// <returns><c>true</c> when the exception carries a device failure code; otherwise <c>false</c>.</returns>
     private static bool HasDeviceIoErrorCode(Exception exception)
     {
-        return exception is IOException ioException && (ioException.HResult & 0xFFFF) == ErrorIoDevice;
+        if (exception is not IOException ioException) return false;
+
+        var hResult = ioException.HResult & 0xFFFF;
+        return hResult is ErrorIoDevice or ErrorDeviceHardwareError;
     }
 
     /// <summary>
-    /// Checks whether a message contains a localized hardware I/O device error pattern.
+    /// Checks whether a message contains a localized hardware device failure pattern.
     /// </summary>
     /// <param name="message">Message to inspect.</param>
-    /// <returns><c>true</c> when a device I/O pattern matches; otherwise <c>false</c>.</returns>
+    /// <returns><c>true</c> when a device failure pattern matches; otherwise <c>false</c>.</returns>
     private static bool MatchesDeviceIoPatterns(string message)
     {
-        // English, Italian, German, French and Spanish variants of the Windows message
+        // English, Italian, German, French and Spanish variants of the Windows message.
+        // "Fatal device hardware error" (ERROR_DEVICE_HARDWARE_ERROR) and its Italian
+        // translation are matched as well; other locales are covered by the error code.
         return message.Contains("I/O device error", StringComparison.OrdinalIgnoreCase) ||
+               message.Contains("fatal device hardware error", StringComparison.OrdinalIgnoreCase) ||
+               message.Contains("errore hardware del dispositivo", StringComparison.OrdinalIgnoreCase) ||
                message.Contains("dispositivo I/O", StringComparison.OrdinalIgnoreCase) ||
                message.Contains("E/A-Gerät", StringComparison.OrdinalIgnoreCase) ||
                message.Contains("périphérique d'E/S", StringComparison.OrdinalIgnoreCase) ||
                message.Contains("dispositivo de E/S", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Win32 error codes ERROR_SHARING_VIOLATION (0x20) and ERROR_LOCK_VIOLATION (0x21):
+    /// the file is held open by another process (antivirus scanner, emulator, Explorer preview, ...).
+    /// </summary>
+    private const int ErrorSharingViolation = 0x20;
+    private const int ErrorLockViolation = 0x21;
+
+    /// <summary>
+    /// Determines if an exception was caused by a file being held open by another process.
+    /// Windows localizes the message, so the Win32 error code is checked first, with
+    /// localized message patterns as a fallback for wrapped exceptions that lost the code.
+    /// </summary>
+    /// <param name="exception">Exception to inspect; may be <c>null</c>.</param>
+    /// <returns><c>true</c> when the exception or its inner exception indicates a file-in-use error; otherwise <c>false</c>.</returns>
+    public static bool IsFileInUseError(Exception? exception)
+    {
+        if (exception == null) return false;
+
+        if (HasFileInUseErrorCode(exception) || MatchesFileInUsePatterns(exception.Message)) return true;
+
+        return exception.InnerException != null &&
+               (HasFileInUseErrorCode(exception.InnerException) ||
+                MatchesFileInUsePatterns(exception.InnerException.Message));
+    }
+
+    /// <summary>
+    /// Checks whether an exception is an <see cref="IOException" /> carrying a Win32
+    /// sharing-violation or lock-violation code.
+    /// </summary>
+    /// <param name="exception">Exception to inspect.</param>
+    /// <returns><c>true</c> when the exception carries a file-locked error code; otherwise <c>false</c>.</returns>
+    private static bool HasFileInUseErrorCode(Exception exception)
+    {
+        if (exception is not IOException ioException) return false;
+
+        var hResult = ioException.HResult & 0xFFFF;
+        return hResult is ErrorSharingViolation or ErrorLockViolation;
+    }
+
+    /// <summary>
+    /// Checks whether a message contains a localized "file in use" pattern.
+    /// </summary>
+    /// <param name="message">Message to inspect.</param>
+    /// <returns><c>true</c> when a file-in-use pattern matches; otherwise <c>false</c>.</returns>
+    private static bool MatchesFileInUsePatterns(string message)
+    {
+        return message.Contains("being used by another process", StringComparison.OrdinalIgnoreCase) ||
+               message.Contains("used by another process", StringComparison.OrdinalIgnoreCase) ||
+               message.Contains("utilizado por otro proceso", StringComparison.OrdinalIgnoreCase) ||
+               message.Contains("utilizzato da un altro processo", StringComparison.OrdinalIgnoreCase) ||
+               message.Contains("utilisé par un autre processus", StringComparison.OrdinalIgnoreCase) ||
+               message.Contains("von einem anderen Prozess verwendet", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -361,5 +428,60 @@ public static class PathHelper
         var defaultAvailable = Formatter.FormatBytes(diskMonitorService.GetAvailableFreeSpace(defaultTempPath));
         throw new IOException(
             $"Not enough disk space to create temporary files. Required: {requiredFormatted}, Available: {defaultAvailable}. No other local drives have sufficient free space. Please free up disk space and try again.");
+    }
+
+    /// <summary>
+    /// Deletes an existing output file so it can be rewritten, retrying briefly while another
+    /// process holds it (antivirus scanner, emulator, Explorer preview). Locked and
+    /// environmental failures are logged at Information so they do not generate automatic bug
+    /// reports; unexpected failures stay at Warning. Never throws for a failed deletion.
+    /// </summary>
+    /// <param name="filePath">Full path of the file to delete.</param>
+    /// <param name="logger">Logger that receives the outcome.</param>
+    /// <param name="token">Token used to cancel the retry delays.</param>
+    /// <returns><c>true</c> when the file was deleted; otherwise <c>false</c>.</returns>
+    internal static async Task<bool> TryDeleteExistingFileWithRetryAsync(string filePath, ILogger logger,
+        CancellationToken token)
+    {
+        const int maxAttempts = 3;
+        var fileName = Path.GetFileName(filePath);
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                File.Delete(filePath);
+                return true;
+            }
+            catch (IOException ex) when (IsFileInUseError(ex) && attempt < maxAttempts)
+            {
+                var delayMs = 250 * attempt;
+                logger.Information(
+                    "The existing output file '{FileName}' is in use by another process. Retrying in {DelayMs}ms... (attempt {Attempt}/{MaxAttempts})",
+                    fileName, delayMs, attempt, maxAttempts);
+                await Task.Delay(delayMs, token);
+            }
+            catch (Exception ex) when (IsFileInUseError(ex))
+            {
+                logger.Information(
+                    "The existing output file '{FileName}' is in use by another process (for example an emulator, antivirus scanner, or Explorer preview). " +
+                    "Close the application using the file and run the conversion again.", fileName);
+                return false;
+            }
+            catch (Exception ex) when (IsDiskSpaceError(ex) || IsDeviceIoError(ex) || IsNetworkError(ex) ||
+                                       ex is UnauthorizedAccessException or DirectoryNotFoundException)
+            {
+                logger.Information(ex,
+                    "Could not delete the existing output file '{FileName}' due to an environmental error", fileName);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                logger.Warning(ex, "Could not delete the existing output file '{FileName}'", fileName);
+                return false;
+            }
+        }
+
+        return false;
     }
 }

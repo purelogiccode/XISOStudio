@@ -494,10 +494,23 @@ public class OrchestratorService : IOrchestratorService
         }
         catch (Exception ex)
         {
-            // If we can't analyze the archive, fall back to default temp and let ExtractArchiveAsync handle it
+            // If we can't analyze the archive, fall back to default temp and let ExtractArchiveAsync handle it.
+            // Environmental failures (offline drive, device error, network drop) are not application
+            // defects and must not generate automatic bug reports.
             progress.Report(new BatchOperationProgress
                 { LogMessage = $"Could not analyze archive: {ex.Message}. Using default temp path." });
-            _logger.Warning(ex, "Could not analyze archive {ArchivePath}; using default temp path", archivePath);
+
+            if (IsFatalEnvironmentalError(ex) || PathHelper.IsNetworkError(ex) || PathHelper.IsDiskSpaceError(ex))
+            {
+                _logger.Information(ex,
+                    "Could not analyze archive {ArchivePath} due to an environmental error; using default temp path",
+                    archivePath);
+            }
+            else
+            {
+                _logger.Warning(ex, "Could not analyze archive {ArchivePath}; using default temp path", archivePath);
+            }
+
             tempDir = Path.Combine(Path.GetTempPath(), "XISOStudio_Extract", Guid.NewGuid().ToString());
         }
 
@@ -862,7 +875,18 @@ public class OrchestratorService : IOrchestratorService
                 {
                     progress.Report(new BatchOperationProgress
                         { LogMessage = $"Warning: Could not delete original {originalFileName}: {ex.Message}" });
-                    _logger.Warning(ex, "Could not delete original file {FileName}", originalFileName);
+
+                    // A source file held open by another process (emulator, antivirus, Explorer
+                    // preview) is environmental and must not generate an automatic bug report.
+                    if (PathHelper.IsFileInUseError(ex) || PathHelper.IsDeviceIoError(ex) ||
+                        PathHelper.IsNetworkError(ex) || ex is UnauthorizedAccessException)
+                    {
+                        _logger.Information(ex, "Could not delete original file {FileName}", originalFileName);
+                    }
+                    else
+                    {
+                        _logger.Warning(ex, "Could not delete original file {FileName}", originalFileName);
+                    }
                 }
             }
 

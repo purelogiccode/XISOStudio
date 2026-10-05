@@ -191,6 +191,37 @@ public sealed class XisoSharpServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task LockedExistingOutputReturnsFailedWithoutBugReport()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var isoPath = CreateOptimizedXiso();
+
+        // Clear the optimized tag so the image is treated as a standard (non-optimized) XISO
+        // and the conversion reaches the pre-existing-output deletion.
+        await using (var stream = new FileStream(isoPath, FileMode.Open, FileAccess.Write, FileShare.None))
+        {
+            stream.Seek(Constants.OptimizedTagOffset, SeekOrigin.Begin);
+            stream.Write(new byte[Constants.OptimizedTagLength]);
+        }
+
+        var service = CreateService();
+        var outputFolder = Path.Combine(_tempRoot, "out");
+        Directory.CreateDirectory(outputFolder);
+        var outputPath = Path.Combine(outputFolder, "game.iso");
+
+        // Keep the stale output locked for the whole conversion attempt, as an emulator would.
+        await using var lockedOutput = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
+
+        var status = await service.ConvertIsoAsync(isoPath, outputFolder, "game.iso", OutputFormat.Xiso, false,
+            false, new Progress<BatchOperationProgress>(), CancellationToken.None);
+
+        Assert.Equal(FileProcessingStatus.Failed, status);
+        Assert.True(_logger.HasMessage(LogEventLevel.Information, "in use by another process"));
+        Assert.DoesNotContain(_logger.Events, e => e.Level >= LogEventLevel.Warning);
+    }
+
+    [Fact]
     public async Task MissingInputReturnsFailed()
     {
         var service = CreateService();

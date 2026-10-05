@@ -290,11 +290,14 @@ public class FileExtractorService : IFileExtractor
     /// <returns><c>true</c> when the error may resolve on its own; otherwise <c>false</c>.</returns>
     internal static bool IsTransientIoError(IOException ex)
     {
-        if (PathHelper.IsDiskSpaceError(ex)) return false;
+        // Disk-full and hardware device failures are permanent conditions, not transient
+        // glitches: retrying only delays the failure report. Device errors must be excluded
+        // explicitly because the English "fatal device hardware error" message would
+        // otherwise match the generic "device" network pattern below.
+        if (PathHelper.IsDiskSpaceError(ex) || PathHelper.IsDeviceIoError(ex)) return false;
 
-        var hResult = ex.HResult & 0xFFFF;
-        // ERROR_SHARING_VIOLATION (0x20) / ERROR_LOCK_VIOLATION (0x21)
-        if (hResult is 0x20 or 0x21) return true;
+        // A file held open by another process (antivirus, download manager) is usually transient.
+        if (PathHelper.IsFileInUseError(ex)) return true;
 
         return PathHelper.IsNetworkError(ex);
     }
@@ -365,6 +368,15 @@ public class FileExtractorService : IFileExtractor
         catch (OperationCanceledException)
         {
             _logger.Debug("Archive info scan was canceled for {ArchivePath}", archivePath);
+            throw;
+        }
+        catch (Exception ex) when (PathHelper.IsDiskSpaceError(ex) || PathHelper.IsNetworkError(ex) ||
+                                   PathHelper.IsDeviceIoError(ex) || IsCloudFileProviderError(ex))
+        {
+            // Environmental failures (offline drive, network drop, cloud placeholder) are not
+            // application defects and must not generate automatic bug reports.
+            _logger.Information(ex, "Could not analyze archive {ArchivePath} due to an environmental error",
+                archivePath);
             throw;
         }
         catch (Exception ex)
@@ -780,6 +792,14 @@ public class FileExtractorService : IFileExtractor
             var userMessage = $"Not enough disk space to extract {archiveFileName}.\n\n" +
                               "Please free up some space on your drive and try again.";
             _logger.Information("{Message:l}", userMessage);
+            throw new IOException(userMessage, ex);
+        }
+        catch (IOException ex) when (PathHelper.IsDeviceIoError(ex))
+        {
+            var userMessage = $"Error extracting {archiveFileName}: The drive reported a hardware I/O error.\n\n" +
+                              "This usually means the drive is failing, was disconnected, or has a hardware problem.\n" +
+                              "Please check the drive connection and health (e.g. run chkdsk), or copy the archive to a local drive and try again.";
+            _logger.Information(ex, "{Message:l}", userMessage);
             throw new IOException(userMessage, ex);
         }
         catch (IOException ex) when (IsCloudFileProviderError(ex))

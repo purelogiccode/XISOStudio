@@ -2,6 +2,7 @@ using XISOStudio.Interfaces;
 using XISOStudio.Models;
 using XISOSharp;
 using Serilog;
+using XISOSharp.Models;
 
 namespace XISOStudio.Services;
 

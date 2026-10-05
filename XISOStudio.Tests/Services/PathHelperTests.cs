@@ -135,6 +135,14 @@ public class PathHelperTests
     }
 
     [Fact]
+    public void IsNetworkErrorFatalDeviceHardwareErrorReturnsFalse()
+    {
+        var ex = new IOException("The request failed due to a fatal device hardware error.",
+            unchecked((int)0x800701E3));
+        Assert.False(PathHelper.IsNetworkError(ex));
+    }
+
+    [Fact]
     public void IsNetworkErrorDeviceGenericReturnsTrue()
     {
         var ex = new IOException("A device attached to the system is not functioning");
@@ -204,6 +212,8 @@ public class PathHelperTests
     [InlineData("Die Anforderung konnte wegen eines E/A-Gerätefehlers nicht ausgeführt werden.", true)]
     [InlineData("La demande n'a pas pu être exécutée en raison d'une erreur de périphérique d'E/S.", true)]
     [InlineData("No se pudo realizar la solicitud debido a un error de dispositivo de E/S.", true)]
+    [InlineData("The request failed due to a fatal device hardware error.", true)]
+    [InlineData("Richiesta non riuscita a causa di un errore hardware del dispositivo irreversibile.", true)]
     [InlineData("some random error message", false)]
     [InlineData("The device is not ready", false)]
     public void IsDeviceIoErrorWithKnownPatternsReturnsExpectedResult(string message, bool expected)
@@ -212,10 +222,12 @@ public class PathHelperTests
         Assert.Equal(expected, PathHelper.IsDeviceIoError(ex));
     }
 
-    [Fact]
-    public void IsDeviceIoErrorWithWin32ErrorCodeReturnsTrue()
+    [Theory]
+    [InlineData(0x45D)]
+    [InlineData(0x1E3)]
+    public void IsDeviceIoErrorWithWin32ErrorCodeReturnsTrue(int hresult)
     {
-        var ex = new IOException("Impossibile eseguire la richiesta a causa di un errore di dispositivo I/O.", 0x45D);
+        var ex = new IOException("device failure", unchecked((int)(0x80070000u | (uint)hresult)));
         Assert.True(PathHelper.IsDeviceIoError(ex));
     }
 
@@ -225,6 +237,39 @@ public class PathHelperTests
         var inner = new IOException("The request could not be performed because of an I/O device error.", 0x45D);
         var ex = new IOException("outer", inner);
         Assert.True(PathHelper.IsDeviceIoError(ex));
+    }
+
+    [Fact]
+    public void IsFileInUseErrorWithNullReturnsFalse()
+    {
+        Assert.False(PathHelper.IsFileInUseError(null));
+    }
+
+    [Theory]
+    [InlineData(0x20, "The process cannot access the file because it is being used by another process.")]
+    [InlineData(0x21, "The process cannot access the file because another process has locked a portion of the file.")]
+    public void IsFileInUseErrorWithWin32ErrorCodeReturnsTrue(int hresult, string message)
+    {
+        var ex = new IOException(message, unchecked((int)(0x80070000u | (uint)hresult)));
+        Assert.True(PathHelper.IsFileInUseError(ex));
+    }
+
+    [Theory]
+    [InlineData("The process cannot access the file because it is being used by another process.", true)]
+    [InlineData("Il processo non può accedere al file perché è utilizzato da un altro processo.", true)]
+    [InlineData("some random error message", false)]
+    public void IsFileInUseErrorWithKnownPatternsReturnsExpectedResult(string message, bool expected)
+    {
+        var ex = new IOException(message);
+        Assert.Equal(expected, PathHelper.IsFileInUseError(ex));
+    }
+
+    [Fact]
+    public void IsFileInUseErrorChecksInnerException()
+    {
+        var inner = new IOException("The process cannot access the file because it is being used by another process.");
+        var ex = new IOException("outer", inner);
+        Assert.True(PathHelper.IsFileInUseError(ex));
     }
 
     [Fact]

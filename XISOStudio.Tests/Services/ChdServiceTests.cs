@@ -627,4 +627,26 @@ public sealed class ChdServiceTests : IDisposable
         Assert.Equal(FileProcessingStatus.Failed, status);
         Assert.True(File.Exists(isoPath));
     }
+
+    [Fact]
+    public async Task LockedExistingOutputReturnsFailedWithoutBugReport()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var isoPath = CreateOptimizedXiso();
+        var service = CreateService();
+        var outputFolder = Path.Combine(_tempRoot, "out");
+        Directory.CreateDirectory(outputFolder);
+        var outputPath = Path.Combine(outputFolder, "game.chd");
+
+        // Keep the stale output locked for the whole conversion attempt, as an emulator would.
+        await using var lockedOutput = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
+
+        var status = await service.ConvertIsoToChdAsync(isoPath, outputFolder, "game.chd", false, false,
+            new CollectingProgress(), CancellationToken.None);
+
+        Assert.Equal(FileProcessingStatus.Failed, status);
+        Assert.True(_logger.HasMessage(LogEventLevel.Information, "in use by another process"));
+        Assert.DoesNotContain(_logger.Events, e => e.Level >= LogEventLevel.Warning);
+    }
 }

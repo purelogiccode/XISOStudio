@@ -103,18 +103,13 @@ public class ChdService : IChdService
             return FileProcessingStatus.Failed;
         }
 
-        // Remove any pre-existing output so the conversion starts from a clean file.
-        if (File.Exists(outputPath))
+        // Remove any pre-existing output so the conversion starts from a clean file. A file
+        // locked by another process (an emulator playing the previous result, antivirus,
+        // Explorer preview) is environmental and must not generate an automatic bug report.
+        if (File.Exists(outputPath) &&
+            !await PathHelper.TryDeleteExistingFileWithRetryAsync(outputPath, _logger, token))
         {
-            try
-            {
-                File.Delete(outputPath);
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning(ex, "Could not delete the existing output file '{OutputFileName}'", outputFileName);
-                return FileProcessingStatus.Failed;
-            }
+            return FileProcessingStatus.Failed;
         }
 
         string? tempDir = null;

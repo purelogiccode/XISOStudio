@@ -511,6 +511,23 @@ public class FileExtractorServiceTests : IDisposable
     }
 
     [Fact]
+    public void IsTransientIoErrorDeviceHardwareErrorReturnsFalse()
+    {
+        var ex = new IOException("The request failed due to a fatal device hardware error.",
+            unchecked((int)0x800701E3));
+        Assert.False(FileExtractorService.IsTransientIoError(ex));
+    }
+
+    [Fact]
+    public void IsTransientIoErrorLocalizedDeviceHardwareErrorReturnsFalse()
+    {
+        // The Italian message from bug reports must not fall through to the generic
+        // "device" network pattern and be retried as a network glitch.
+        var ex = new IOException("Richiesta non riuscita a causa di un errore hardware del dispositivo irreversibile.");
+        Assert.False(FileExtractorService.IsTransientIoError(ex));
+    }
+
+    [Fact]
     public void IsTransientIoErrorGenericIoReturnsFalse()
     {
         Assert.False(FileExtractorService.IsTransientIoError(new IOException("Something went wrong.")));
