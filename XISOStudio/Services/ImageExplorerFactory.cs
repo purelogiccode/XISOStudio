@@ -32,7 +32,7 @@ public static class ImageExplorerFactory
         }
         catch (Exception ex)
         {
-            logger?.Error(ex, "Failed to open an image explorer for {ImagePath}", imagePath);
+            logger?.Error(ex, "Failed to open an image explorer: {Message}", ex.Message);
             throw;
         }
     }

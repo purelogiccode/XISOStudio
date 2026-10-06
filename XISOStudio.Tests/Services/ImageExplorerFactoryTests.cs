@@ -89,6 +89,7 @@ public sealed class ImageExplorerFactoryTests : IDisposable
 
         Assert.Contains("ZAR archive", exception.Message, StringComparison.Ordinal);
         Assert.True(logger.HasMessage(LogEventLevel.Error, "Failed to open an image explorer"));
+        Assert.True(logger.HasMessage(LogEventLevel.Error, "ZAR archive"));
     }
 
     [Fact]
@@ -110,6 +111,7 @@ public sealed class ImageExplorerFactoryTests : IDisposable
 
         Assert.Contains("Xbox DVD image", exception.Message, StringComparison.Ordinal);
         Assert.True(logger.HasMessage(LogEventLevel.Error, "Failed to open an image explorer"));
+        Assert.True(logger.HasMessage(LogEventLevel.Error, "Xbox DVD image"));
     }
 
     [Theory]

@@ -103,7 +103,7 @@ public partial class MainWindow
                 _explorer = null;
             }
 
-            _logger.Error(ex, "Failed to read image: {ImagePath}", imagePath);
+            _logger.Error(ex, "Failed to read image: {Message}", ex.Message);
             ShowErrorSafe($"Failed to read image: {ex.Message}");
 
             // The grid would otherwise keep showing the previous (now disposed) image.
