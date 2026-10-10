@@ -2,6 +2,31 @@
 
 <!-- Keep this file focused on the newest release. Full history lives in docs/Release-Notes.md. -->
 
+## Version 3.0.3
+
+**Release date:** October 2026
+
+Version 3.0.3 is a **reliability patch for 3.0.2**. It stops expected input problems - files that are not Xbox images (CD/GD-ROM CHD dumps, PS5 packages, corrupt or renamed ISOs) and folder-picker failures - from being uploaded as bug reports, and makes drag-and-drop and extract-to-temp skip drives that cannot be written.
+
+### Fixes
+
+#### Fewer false bug reports
+- **Invalid or unsupported images are recognized as user input.** Opening a `.chd` that is a CD or GD-ROM image (for example Sega Chihiro arcade dumps), or a file that is not an Xbox image at all (a PS5 `.pkg`, a truncated download, a renamed ISO), is now logged at Information and explained with a clear message - "The selected file is not a valid Xbox or Xbox 360 image, or it cannot be read" - instead of being uploaded as an application bug.
+- **Folder-picker failures no longer generate bug reports.** When the selected folder no longer exists (deleted, disconnected drive, unavailable network share), the app now logs at Information and tells you the folder is no longer available instead of reporting a defect.
+- **Closing during a long operation no longer generates a bug report.** The "did not complete within timeout" exit path is normal behavior and is now logged at Information.
+
+#### More reliable drag-and-drop and extraction
+- **Unwritable drives are skipped.** The temp-folder resolver now creates the candidate folder immediately and moves on to the next drive when creation fails (ACL-restricted roots, BitLocker-locked or read-only volumes), instead of failing the whole drag or extraction. Environmental I/O failures are logged at Information with a friendly message.
+- **Drive search is resilient.** A drive that fails inspection while the app looks for free space is skipped instead of aborting the whole search.
+
+#### Dependencies
+- **Avalonia 12.1.4**, **SharpCompress 0.50.5**, **Meziantou.Analyzer 3.0.297**, **xunit.runner.visualstudio 4.0.1** - analyzer and test-runner updates are build-time only.
+
+### Upgrading
+Download the archive for your platform and replace the previous files. There are no configuration, format, or workflow changes - 3.0.3 is a drop-in replacement for 3.0.2.
+
+---
+
 ## Version 3.0.2
 
 **Release date:** October 2026

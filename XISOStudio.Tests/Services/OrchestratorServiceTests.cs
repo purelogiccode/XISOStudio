@@ -1915,8 +1915,8 @@ public class OrchestratorServiceTests : IDisposable
             .ReturnsAsync((long.MaxValue, 1));
         var diskMonitor = new Mock<IDiskMonitorService>();
         diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(0);
-        diskMonitor.Setup(static d => d.FindDriveWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
-            .Returns((string?)null);
+        diskMonitor.Setup(static d => d.FindDrivesWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
+            .Returns(Array.Empty<string>());
         var progress = new CollectingProgress();
         var orchestrator = CreateOrchestrator(extractor, FileProcessingStatus.Converted, diskMonitor: diskMonitor);
 
@@ -1926,7 +1926,7 @@ public class OrchestratorServiceTests : IDisposable
 
         Assert.Contains(progress.Reports,
             p => p.LogMessage?.Contains("Not enough disk space", StringComparison.Ordinal) == true);
-        diskMonitor.Verify(static d => d.FindDriveWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()), Times.Once);
+        diskMonitor.Verify(static d => d.FindDrivesWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()), Times.Once);
     }
 
     [Fact]

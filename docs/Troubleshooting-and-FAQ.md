@@ -89,6 +89,16 @@ The file was read, but no XDVDFS volume descriptor with the `MICROSOFT*XBOX*MEDI
 
 The **"High Rate of Invalid ISOs Detected"** warning counts only images that failed format validation — disk errors, access-denied errors, and move failures do not count toward it.
 
+The explorer shows the same message when you open a file that is not an Xbox image:
+
+- A `.chd` whose media type is **CD** or **GD-ROM** (for example Sega Chihiro arcade dumps) is a valid
+  CHD file, but it is not an Xbox DVD image. The explorer only parses the Xbox XDVDFS filesystem, so
+  it rejects the file and names the detected media type (`cd`, `gd-rom`) in the message.
+- Files for other consoles (a PS5 `.pkg`, a renamed PC ISO) and truncated downloads are rejected the
+  same way.
+- Since **3.0.3**, these expected rejections are logged at Information and are **not** uploaded as
+  bug reports; the message explains what to select instead.
+
 ### Font / rendering error at startup
 
 **Message pattern:** a startup error mentioning fonts or rendering.

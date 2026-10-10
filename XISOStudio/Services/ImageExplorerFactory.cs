@@ -32,7 +32,9 @@ public static class ImageExplorerFactory
         }
         catch (Exception ex)
         {
-            logger?.Error(ex, "Failed to open an image explorer: {Message}", ex.Message);
+            // Invalid, missing, or unreadable user-selected files are expected conditions,
+            // so the failure is logged below the automatic bug-report threshold.
+            logger?.Information(ex, "Failed to open an image explorer: {Message}", ex.Message);
             throw;
         }
     }

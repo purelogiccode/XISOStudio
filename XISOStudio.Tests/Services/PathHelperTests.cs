@@ -1,3 +1,5 @@
+using Moq;
+using XISOStudio.Interfaces;
 using XISOStudio.Services;
 using Xunit;
 
@@ -291,5 +293,74 @@ public class PathHelperTests
     public void AddSafetyBufferMaxValueSaturatesInsteadOfOverflowing()
     {
         Assert.Equal(long.MaxValue, PathHelper.AddSafetyBuffer(long.MaxValue));
+    }
+
+    [Fact]
+    public void ResolveTempDirectoryCreatesFolderUnderDefaultTempWhenSpaceIsAvailable()
+    {
+        var diskMonitor = new Mock<IDiskMonitorService>();
+        string? result = null;
+        try
+        {
+            result = PathHelper.ResolveTempDirectory(0, "PathHelperTests", diskMonitor.Object);
+
+            Assert.True(Directory.Exists(result));
+            Assert.StartsWith(Path.GetTempPath(), result, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("PathHelperTests", result, StringComparison.Ordinal);
+            diskMonitor.Verify(
+                static d => d.FindDrivesWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()), Times.Never);
+        }
+        finally
+        {
+            var parent = result == null ? null : Path.GetDirectoryName(result);
+            if (parent != null && Directory.Exists(parent)) Directory.Delete(parent, true);
+        }
+    }
+
+    [Fact]
+    public void ResolveTempDirectoryFallsBackToAlternativeDriveWhenDefaultHasNoSpace()
+    {
+        var altRoot = Path.Combine(Path.GetTempPath(), $"PathHelperAlt_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(altRoot);
+        try
+        {
+            var diskMonitor = new Mock<IDiskMonitorService>();
+            diskMonitor.Setup(static d => d.FindDrivesWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
+                .Returns(new[] { altRoot });
+
+            // long.MaxValue exceeds any real drive, forcing the alternative-drive path.
+            var result = PathHelper.ResolveTempDirectory(long.MaxValue, "PathHelperAlt", diskMonitor.Object);
+
+            Assert.True(Directory.Exists(result));
+            Assert.StartsWith(altRoot, result, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (Directory.Exists(altRoot)) Directory.Delete(altRoot, true);
+        }
+    }
+
+    [Fact]
+    public void ResolveTempDirectorySkipsUnwritableDriveAndThrowsWhenNoneWorks()
+    {
+        var blockedRoot = Path.Combine(Path.GetTempPath(), $"PathHelperBlocked_{Guid.NewGuid():N}.txt");
+        File.WriteAllText(blockedRoot, "not a directory");
+        try
+        {
+            var diskMonitor = new Mock<IDiskMonitorService>();
+            diskMonitor.Setup(static d => d.FindDrivesWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
+                .Returns(new[] { blockedRoot });
+            diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(0);
+
+            // long.MaxValue exceeds any real drive, forcing the alternative-drive path.
+            var exception = Assert.Throws<IOException>(() =>
+                PathHelper.ResolveTempDirectory(long.MaxValue, "PathHelperBlocked", diskMonitor.Object));
+
+            Assert.Contains("Unable to create temporary files", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (File.Exists(blockedRoot)) File.Delete(blockedRoot);
+        }
     }
 }

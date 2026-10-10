@@ -24,7 +24,7 @@
 [![Powered by ZArchiveSharp](https://img.shields.io/badge/Powered%20by-ZArchiveSharp-8A2BE2.svg)](https://github.com/purelogiccode/ZArchiveSharp)
 [![Powered by SharpCompress](https://img.shields.io/badge/Powered%20by-SharpCompress-8A2BE2.svg)](https://github.com/adamhathcock/sharpcompress)
 [![Formats](https://img.shields.io/badge/formats-ISO%20%7C%20XISO%20%7C%20ZAR%20%7C%20CSO%20%7C%20CHD-orange.svg)](#supported-formats)
-[![Tests](https://img.shields.io/badge/tests-1452%20passing-brightgreen.svg)](https://github.com/purelogiccode/XISOStudio/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-1483%20passing-brightgreen.svg)](https://github.com/purelogiccode/XISOStudio/actions/workflows/ci.yml)
 [![Code analyzers](https://img.shields.io/badge/analyzers-Meziantou%20%7C%20Roslynator-blueviolet)](docs/Architecture.md)
 [![Made with C#](https://img.shields.io/badge/Made%20with-C%23-239120.svg?logo=csharp&logoColor=white)](https://dotnet.microsoft.com/languages/csharp)
 [![Nullable](https://img.shields.io/badge/nullable-enabled-blue.svg)](https://learn.microsoft.com/dotnet/csharp/nullable-references)
@@ -66,6 +66,14 @@ Whether you're managing a large collection of Xbox game backups or verifying the
 ---
 
 ## What's New
+
+### v3.0.3 — fewer false bug reports for expected input problems
+
+- **Invalid or unsupported images are recognized as user input** — a `.chd` that is a CD/GD-ROM image (for example Sega Chihiro arcade dumps), a PS5 `.pkg`, a truncated download, or a renamed ISO is now logged at Information and explained with a clear message instead of being uploaded as an application bug.
+- **Folder-picker failures no longer generate bug reports** — a selected folder that no longer exists (deleted, disconnected drive, unavailable network share) is logged at Information with a friendly message.
+- **Drag-and-drop and extract-to-temp skip unwritable drives** — the temp-folder resolver creates the candidate folder up front and falls back to the next drive when a root cannot be written (ACL restrictions, BitLocker-locked or read-only volumes), and environmental I/O failures are logged at Information.
+- **Closing during a long operation no longer generates a bug report** — the timeout exit path is normal behavior and now logs at Information.
+- Avalonia 12.1.4, SharpCompress 0.50.5, and analyzer/test-runner updates (build-time only).
 
 ### v3.0.2 — post-3.0.1 fixes
 

@@ -389,13 +389,16 @@ public static class PathHelper
     }
 
     /// <summary>
-    /// Resolves a temporary directory path with sufficient disk space.
-    /// First checks the system temp drive, then falls back to other local drives.
+    /// Resolves and creates a temporary directory path with sufficient disk space.
+    /// First checks the system temp drive, then falls back to other local drives. Each
+    /// candidate is created immediately so a drive whose root is not writable (ACL
+    /// restrictions, BitLocker-locked or read-only volumes) is skipped before the caller
+    /// starts extracting into it.
     /// </summary>
     /// <param name="requiredSize">Number of bytes the temporary files will need.</param>
     /// <param name="tempSubfolder">Name of the subfolder created under the selected drive.</param>
-    /// <param name="diskMonitorService">Service used to locate an alternative drive with sufficient free space.</param>
-    /// <returns>The full path of a new unique temporary directory on a drive with sufficient free space.</returns>
+    /// <param name="diskMonitorService">Service used to locate alternative drives with sufficient free space.</param>
+    /// <returns>The full path of a new unique temporary directory, already created.</returns>
     public static string ResolveTempDirectory(long requiredSize, string tempSubfolder,
         IDiskMonitorService diskMonitorService)
     {
@@ -403,13 +406,15 @@ public static class PathHelper
         var defaultTempDriveRoot = Path.GetPathRoot(defaultTempPath);
         var requiredWithBuffer = AddSafetyBuffer(requiredSize);
 
+        var candidateRoots = new List<string>();
+
         if (defaultTempDriveRoot != null)
         {
             try
             {
                 var defaultDrive = new DriveInfo(defaultTempDriveRoot);
                 if (defaultDrive.IsReady && defaultDrive.AvailableFreeSpace >= requiredWithBuffer)
-                    return Path.Combine(defaultTempPath, tempSubfolder, Guid.NewGuid().ToString());
+                    candidateRoots.Add(defaultTempPath);
             }
             catch (Exception ex)
             {
@@ -418,16 +423,46 @@ public static class PathHelper
             }
         }
 
-        var altDrive = diskMonitorService.FindDriveWithFreeSpace(requiredSize, defaultTempDriveRoot);
-        if (altDrive != null)
+        Exception? lastCreationError = null;
+        foreach (var root in Candidates())
         {
-            return Path.Combine(altDrive, tempSubfolder, Guid.NewGuid().ToString());
+            var candidate = Path.Combine(root, tempSubfolder, Guid.NewGuid().ToString());
+            try
+            {
+                Directory.CreateDirectory(candidate);
+                return candidate;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                // The drive has space but cannot host the folder: try the next candidate
+                // instead of failing the whole operation on a drive the user cannot write.
+                lastCreationError = ex;
+                Log.Debug(ex, "Could not create a temporary folder under {Root}; trying the next drive", root);
+            }
+        }
+
+        if (lastCreationError != null)
+        {
+            throw new IOException(
+                $"Unable to create temporary files. No drive with sufficient free space allows writing. {lastCreationError.Message}",
+                lastCreationError);
         }
 
         var requiredFormatted = Formatter.FormatBytes(requiredWithBuffer);
         var defaultAvailable = Formatter.FormatBytes(diskMonitorService.GetAvailableFreeSpace(defaultTempPath));
         throw new IOException(
             $"Not enough disk space to create temporary files. Required: {requiredFormatted}, Available: {defaultAvailable}. No other local drives have sufficient free space. Please free up disk space and try again.");
+
+        // Alternative drives are only scanned when the default temp path is not usable,
+        // so the common case does not inspect every drive.
+        IEnumerable<string> Candidates()
+        {
+            foreach (var root in candidateRoots)
+                yield return root;
+
+            foreach (var root in diskMonitorService.FindDrivesWithFreeSpace(requiredSize, defaultTempDriveRoot))
+                yield return root;
+        }
     }
 
     /// <summary>

@@ -154,6 +154,20 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>Shows a warning message box, logging (not throwing) when the dialog itself fails.</summary>
+    /// <param name="message">Warning message to display.</param>
+    private async Task ShowWarningSafeAsync(string message)
+    {
+        try
+        {
+            await _messageBoxService.ShowWarningAsync(message, "Warning");
+        }
+        catch (Exception ex)
+        {
+            _logger.Information(ex, "Failed to show a warning message box");
+        }
+    }
+
     /// <summary>Opens the donation page in the default browser.</summary>
     /// <param name="sender">The button that raised the event.</param>
     /// <param name="e">The event data.</param>
@@ -185,9 +199,21 @@ public partial class MainWindow
 
             return folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
         }
+        catch (ArgumentException ex)
+        {
+            // Avalonia throws when the picker returns a folder that no longer exists
+            // (deleted, disconnected drive, or unavailable network share).
+            _logger.Information(ex, "Folder picker returned a folder that no longer exists");
+            await ShowWarningSafeAsync(
+                "The selected folder is no longer available. It may have been moved or deleted. Please choose another folder.");
+            return null;
+        }
         catch (Exception ex)
         {
-            _logger.Warning(ex, "Folder picker failed");
+            // A picker failure is environmental, not a defect: keep it below the
+            // automatic bug-report threshold.
+            _logger.Information(ex, "Folder picker failed");
+            await ShowWarningSafeAsync("The folder picker could not be opened. Please try again.");
             return null;
         }
     }

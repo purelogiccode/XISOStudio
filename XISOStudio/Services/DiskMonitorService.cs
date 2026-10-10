@@ -285,6 +285,22 @@ public class DiskMonitorService : IDiskMonitorService, IDisposable
     /// <returns>The name of a suitable drive, or <c>null</c> when none has enough free space.</returns>
     public string? FindDriveWithFreeSpace(long requiredBytes, string? excludeDrive = null)
     {
+        var drives = FindDrivesWithFreeSpace(requiredBytes, excludeDrive);
+        return drives.Count > 0 ? drives[0] : null;
+    }
+
+    /// <summary>
+    /// Finds every eligible local drive with enough free space for the required size plus
+    /// the standard safety buffer, so callers can try the next drive when a candidate is
+    /// not writable (ACL restrictions, BitLocker-locked or read-only volumes).
+    /// </summary>
+    /// <param name="requiredBytes">Number of bytes that must be available.</param>
+    /// <param name="excludeDrive">Optional drive root to skip during the search.</param>
+    /// <returns>The names of the suitable drives; empty when none has enough free space.</returns>
+    public IReadOnlyList<string> FindDrivesWithFreeSpace(long requiredBytes, string? excludeDrive = null)
+    {
+        var candidates = new List<string>();
+
         try
         {
             var excludedRoot = excludeDrive?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -293,27 +309,36 @@ public class DiskMonitorService : IDiskMonitorService, IDisposable
             var drives = DriveInfo.GetDrives();
             foreach (var drive in drives)
             {
-                if (!drive.IsReady)
-                    continue;
-
-                // Windows: only fixed local drives are eligible. Unix: DriveType is not
-                // meaningful, so accept anything that is not removable or networked.
-                if (OperatingSystem.IsWindows())
+                // Inspecting a single drive can fail (a volume can disappear or become
+                // unreadable mid-scan); skip that drive instead of losing the whole search.
+                try
                 {
-                    if (drive.DriveType != DriveType.Fixed)
+                    if (!drive.IsReady)
                         continue;
+
+                    // Windows: only fixed local drives are eligible. Unix: DriveType is not
+                    // meaningful, so accept anything that is not removable or networked.
+                    if (OperatingSystem.IsWindows())
+                    {
+                        if (drive.DriveType != DriveType.Fixed)
+                            continue;
+                    }
+                    else if (drive.DriveType is DriveType.Removable or DriveType.Network)
+                    {
+                        continue;
+                    }
+
+                    var root = drive.Name.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    if (excludedRoot != null && root.Equals(excludedRoot, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    if (drive.AvailableFreeSpace >= requiredWithBuffer)
+                        candidates.Add(drive.Name);
                 }
-                else if (drive.DriveType is DriveType.Removable or DriveType.Network)
+                catch (Exception ex)
                 {
-                    continue;
+                    _logger.Information(ex, "Skipping drive while searching for free space: {Drive}", drive.Name);
                 }
-
-                var root = drive.Name.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                if (excludedRoot != null && root.Equals(excludedRoot, StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                if (drive.AvailableFreeSpace >= requiredWithBuffer)
-                    return drive.Name;
             }
         }
         catch (Exception ex)
@@ -322,7 +347,7 @@ public class DiskMonitorService : IDiskMonitorService, IDisposable
             _logger.Information(ex, "Failed to enumerate drives while searching for free space.");
         }
 
-        return null;
+        return candidates;
     }
 
     /// <summary>

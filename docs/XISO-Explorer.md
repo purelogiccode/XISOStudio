@@ -60,6 +60,12 @@ The selected items are extracted from the ISO to the drop target. This is the qu
   walk is bounded at 1024 levels, mirroring ZArchiveSharp's extractor.
 - Images that fail XDVDFS validation (or ZAR archives with a damaged header/index/tree, or CHD images
   with a damaged container) are rejected with a clear error rather than showing unreliable content.
+- Files that are valid but are not Xbox images — CD/GD-ROM CHD dumps (for example Sega Chihiro arcade
+  games) and packages for other consoles (a PS5 `.pkg`) — are rejected with a message naming the
+  problem. Since **3.0.3** these expected rejections no longer generate automatic bug reports.
+- Drag-and-drop and open-with-default-application extractions create their temp folder on a drive
+  with enough free space and skip drives that cannot be written (ACL-restricted, BitLocker-locked, or
+  read-only volumes).
 - Extracting entries from a ZAR archive validates every entry name and refuses unsafe names
   (`..`, separators, drive-qualified or device names), so a crafted archive cannot write outside the
   chosen destination.

@@ -96,6 +96,25 @@ public partial class MainWindow
 
             await LoadDirectoryAsync("/");
         }
+        catch (Exception ex) when (ImageErrorClassifier.IsUserInputImageError(ex))
+        {
+            lock (_explorerLock)
+            {
+                _explorer = null;
+            }
+
+            // Invalid, missing, or unreadable user-selected files are expected conditions,
+            // so they are logged below the automatic bug-report threshold.
+            _logger.Information(ex, "The selected file is not a supported Xbox image: {Message}", ex.Message);
+            ShowErrorSafe(
+                "The selected file is not a valid Xbox or Xbox 360 image, or it cannot be read. " +
+                $"Please select an Xbox ISO, CSO, ZAR, or CHD file.\n\nDetails: {ex.Message}");
+
+            // The grid would otherwise keep showing the previous (now disposed) image.
+            ExplorerDataGrid.ItemsSource = null;
+            _currentInternalPath = "/";
+            UpdateExplorerUiState();
+        }
         catch (Exception ex)
         {
             lock (_explorerLock)
@@ -206,6 +225,13 @@ public partial class MainWindow
         catch (OperationCanceledException ex)
         {
             _logger.Debug(ex, "Loading directory {InternalPath} was canceled", internalPath);
+            return;
+        }
+        catch (Exception ex) when (ImageErrorClassifier.IsUserInputImageError(ex))
+        {
+            // A corrupt or unreadable image is an expected condition, not an application defect.
+            _logger.Information(ex, "The image could not be read while loading {InternalPath}", internalPath);
+            ShowErrorSafe($"The image appears to be corrupt or unreadable. Details: {ex.Message}");
             return;
         }
         catch (Exception ex)
@@ -320,6 +346,13 @@ public partial class MainWindow
             catch (OperationCanceledException)
             {
                 _logger.Debug("Extracting and opening file from image was canceled: {FileName}", fileName);
+            }
+            catch (Exception ex) when (ImageErrorClassifier.IsEnvironmentalIoError(ex))
+            {
+                // Disk-full, access-denied, and unreadable-path failures are environmental,
+                // not defects, so they are logged below the automatic bug-report threshold.
+                _logger.Information(ex, "Could not extract and open the file from the image: {FileName}", fileName);
+                ShowErrorSafe($"Could not extract and open the file: {ex.Message}");
             }
             catch (Exception ex)
             {
@@ -459,6 +492,13 @@ public partial class MainWindow
             {
                 _logger.Debug("Drag operation canceled");
             }
+            catch (Exception ex) when (ImageErrorClassifier.IsEnvironmentalIoError(ex))
+            {
+                // Disk-full, access-denied, and unreadable-path failures are environmental,
+                // not defects, so they are logged below the automatic bug-report threshold.
+                _logger.Information(ex, "Could not prepare files for drag operation: {Message}", ex.Message);
+                ShowErrorSafe($"Could not prepare files for drag operation: {ex.Message}");
+            }
             catch (Exception ex)
             {
                 _logger.Error(ex, "Failed to prepare files for drag operation");
@@ -521,14 +561,15 @@ public partial class MainWindow
         }
     }
 
-    /// <summary>Chooses a temporary folder with enough free space for an extraction.</summary>
+    /// <summary>Chooses and creates a temporary folder with enough free space for an extraction.</summary>
     /// <param name="requiredSize">Number of bytes the extraction needs.</param>
     /// <param name="tempSubfolder">Subfolder name used under the chosen drive's temp path.</param>
-    /// <returns>Path of the temporary folder to create.</returns>
+    /// <returns>Path of the created temporary folder.</returns>
     private string ResolveExplorerTempDirectory(long requiredSize, string tempSubfolder)
     {
         // Reuse the shared resolver: it applies the same safety buffer and drive selection as
-        // the batch pipeline and never falls back to a drive known to be full.
+        // the batch pipeline, never falls back to a drive known to be full, and creates the
+        // folder so an unwritable drive is skipped before the extraction starts.
         return PathHelper.ResolveTempDirectory(requiredSize, tempSubfolder, _diskMonitorService);
     }
 }

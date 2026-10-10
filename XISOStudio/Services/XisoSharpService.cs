@@ -295,7 +295,7 @@ public class XisoSharpService : IXisoSharpService
                 fileName);
             return FileProcessingStatus.Failed;
         }
-        catch (Exception ex) when (IsInvalidImageError(ex))
+        catch (Exception ex) when (ImageErrorClassifier.IsInvalidImageError(ex))
         {
             DeletePartialOutput(outIsoPath ?? outputPath);
             _logger.Information(ex,
@@ -597,7 +597,7 @@ public class XisoSharpService : IXisoSharpService
                 fileName, formatName);
             return FileProcessingStatus.Failed;
         }
-        catch (Exception ex) when (IsInvalidImageError(ex))
+        catch (Exception ex) when (ImageErrorClassifier.IsInvalidImageError(ex))
         {
             DeletePartialOutput(outputPath);
             _logger.Information(ex,
@@ -780,21 +780,6 @@ public class XisoSharpService : IXisoSharpService
                 : $"Packing: {zarProgress.CurrentFile}";
             progress.Report(new BatchOperationProgress { StatusText = text });
         });
-    }
-
-    /// <summary>
-    /// Errors that indicate the input image itself is unsupported or corrupt rather
-    /// than an application defect. XISOSharp's low-level reader reports truncated
-    /// images as a plain IOException with a "Read error" message.
-    /// </summary>
-    /// <param name="ex">Exception to inspect.</param>
-    /// <returns><c>true</c> when the error indicates an invalid input image; otherwise <c>false</c>.</returns>
-    private static bool IsInvalidImageError(Exception ex)
-    {
-        return ex is XisoFormatException or XisoEmptyException or XisoFileTooLargeException or InvalidDataException
-                   or ExtractErrorException or EndOfStreamException ||
-               (ex is IOException ioException &&
-                ioException.Message.StartsWith("Read error", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

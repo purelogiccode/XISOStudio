@@ -342,7 +342,9 @@ public partial class MainWindow : Window
             var timedOut = completedTask != _operationCompletedTcs.Task;
             if (timedOut)
             {
-                _logger.Warning("Operation did not complete within timeout. Closing anyway.");
+                // Closing during a long operation is a normal exit path, not a defect:
+                // keep it below the automatic bug-report threshold.
+                _logger.Information("Operation did not complete within timeout. Closing anyway.");
             }
             else
             {

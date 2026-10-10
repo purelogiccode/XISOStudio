@@ -52,14 +52,14 @@ public sealed class ImageExplorerFactoryTests : IDisposable
     }
 
     [Fact]
-    public void OpenMissingIsoLogsFactoryError()
+    public void OpenMissingIsoLogsFactoryInformation()
     {
         var path = TempPath("missing-log.iso");
         var logger = new TestLogger();
 
         Assert.Throws<FileNotFoundException>(() => ImageExplorerFactory.Open(path, logger.Logger));
 
-        Assert.True(logger.HasMessage(LogEventLevel.Error, "Failed to open an image explorer"));
+        Assert.True(logger.HasMessage(LogEventLevel.Information, "Failed to open an image explorer"));
         Assert.True(logger.HasMessage(path));
     }
 
@@ -80,7 +80,7 @@ public sealed class ImageExplorerFactoryTests : IDisposable
     }
 
     [Fact]
-    public void OpenMissingZarLogsFactoryError()
+    public void OpenMissingZarLogsFactoryInformation()
     {
         var path = TempPath("missing-log.zar");
         var logger = new TestLogger();
@@ -88,8 +88,8 @@ public sealed class ImageExplorerFactoryTests : IDisposable
         var exception = Assert.Throws<InvalidDataException>(() => ImageExplorerFactory.Open(path, logger.Logger));
 
         Assert.Contains("ZAR archive", exception.Message, StringComparison.Ordinal);
-        Assert.True(logger.HasMessage(LogEventLevel.Error, "Failed to open an image explorer"));
-        Assert.True(logger.HasMessage(LogEventLevel.Error, "ZAR archive"));
+        Assert.True(logger.HasMessage(LogEventLevel.Information, "Failed to open an image explorer"));
+        Assert.True(logger.HasMessage(LogEventLevel.Information, "ZAR archive"));
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public sealed class ImageExplorerFactoryTests : IDisposable
     }
 
     [Fact]
-    public void OpenMissingChdLogsFactoryError()
+    public void OpenMissingChdLogsFactoryInformation()
     {
         var path = TempPath("missing-log.chd");
         var logger = new TestLogger();
@@ -110,8 +110,8 @@ public sealed class ImageExplorerFactoryTests : IDisposable
         var exception = Assert.Throws<InvalidDataException>(() => ImageExplorerFactory.Open(path, logger.Logger));
 
         Assert.Contains("Xbox DVD image", exception.Message, StringComparison.Ordinal);
-        Assert.True(logger.HasMessage(LogEventLevel.Error, "Failed to open an image explorer"));
-        Assert.True(logger.HasMessage(LogEventLevel.Error, "Xbox DVD image"));
+        Assert.True(logger.HasMessage(LogEventLevel.Information, "Failed to open an image explorer"));
+        Assert.True(logger.HasMessage(LogEventLevel.Information, "Xbox DVD image"));
     }
 
     [Theory]
@@ -199,7 +199,7 @@ public sealed class ImageExplorerFactoryTests : IDisposable
     }
 
     [Fact]
-    public void OpenMissingFileLogsExactlyOneErrorEvent()
+    public void OpenMissingFileLogsExactlyOneInformationEvent()
     {
         var path = TempPath("single-error.chd");
         var logger = new TestLogger();
@@ -207,8 +207,8 @@ public sealed class ImageExplorerFactoryTests : IDisposable
         Assert.Throws<InvalidDataException>(() => ImageExplorerFactory.Open(path, logger.Logger));
 
         Assert.Single(logger.Events);
-        Assert.Equal(LogEventLevel.Error, logger.Events[0].Level);
-        Assert.True(logger.HasMessage(LogEventLevel.Error, "Failed to open an image explorer"));
+        Assert.Equal(LogEventLevel.Information, logger.Events[0].Level);
+        Assert.True(logger.HasMessage(LogEventLevel.Information, "Failed to open an image explorer"));
     }
 
     [Fact]

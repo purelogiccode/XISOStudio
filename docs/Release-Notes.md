@@ -12,6 +12,7 @@
 
 | Version | Date | Summary |
 |:---|:---|:---|
+| [3.0.3](#303) | October 2026 | Reliability patch: invalid/unsupported images (CD/GD-ROM CHD, non-Xbox ISO/CSO/PS5 packages) and folder-picker failures no longer generate bug reports; drag/extract temp folders skip unwritable drives; friendlier messages for expected input problems |
 | [3.0.2](#302) | October 2026 | Post-3.0.1 patch: fatal device hardware errors (`0x800701E3`) recognized as environmental, locked output/source files no longer generate bug reports, XISOSharp 1.4.2 ZAR invalid-input handling preserved |
 | [3.0.1](#301) | October 2026 | Reliability patch: locked files and inaccessible Linux/macOS temp roots no longer generate bug reports; synchronous CSO/ZAR/CHD progress reporting fixes out-of-order percentages; platform-dependent tests and CI restored |
 | [3.0.0](#300) | September 2026 | Cross-platform Avalonia port (Windows/Linux/macOS); CHD output, Xbox CHD integrity testing, and CHD exploration; Serilog logging with automatic bug reporting; per-file selection lists; XISO/ZAR/CSO output formats; extensive reliability and bug-fix pass (38 fixes) plus two pre-release reviews |
@@ -20,6 +21,68 @@
 | [2.7.0](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.7.0) | June 2026 | Improved ISO compatibility, disk-space detection, cancellation and performance |
 | [2.6.1](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.6.1) | June 2026 | XGD1/XGD2/XGD3 partition offsets, dark-theme tooltip fix |
 | [2.6.0](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.6.0) | June 2026 | 7-Zip CLI fallback, multilingual network errors, disk-space handling |
+
+---
+
+## 3.0.3
+
+*October 2026*
+
+> **Expected input problems stop generating bug reports.** Opening a file that is not an Xbox
+> image (a CD/GD-ROM CHD, a PS5 package, a corrupt ISO) and folder-picker failures are now
+> recognized as user-input or environmental conditions: they are logged below the automatic
+> report threshold and explained with a clear message. Drag-and-drop and extract-to-temp
+> operations now skip drives that cannot be written instead of failing.
+
+### Bug Fixes
+
+- **Invalid or unsupported images are no longer reported as defects.** Opening a `.chd` whose
+  media type is CD or GD-ROM (for example Sega Chihiro arcade dumps), or a file without an Xbox
+  filesystem (a PS5 `.pkg`, a truncated download, a renamed ISO), threw from the explorer and was
+  logged at Error, so the automatic reporter uploaded it as an application bug. The explorer now
+  classifies these with the shared `ImageErrorClassifier`, logs at Information, and shows
+  "The selected file is not a valid Xbox or Xbox 360 image, or it cannot be read" with the
+  underlying reason. The same classification covers directory-listing failures on corrupt images
+  and the `ImageExplorerFactory` trace.
+- **Folder-picker failures no longer generate bug reports.** When the picker returns a folder
+  that no longer exists (deleted, disconnected drive, unavailable network share), Avalonia throws
+  while wrapping the result. `SelectFolderAsync` now logs at Information and tells the user the
+  folder is no longer available instead of uploading a Warning-level report.
+- **Drag-and-drop and extract-to-temp skip unwritable drives.** `PathHelper.ResolveTempDirectory`
+  now creates the candidate folder immediately and moves on to the next drive when creation fails
+  (ACL-restricted roots, BitLocker-locked or read-only volumes). The new
+  `IDiskMonitorService.FindDrivesWithFreeSpace` returns every eligible drive, and
+  `DiskMonitorService` skips individual drives that fail inspection instead of aborting the whole
+  search. Environmental I/O failures during drag and extract are logged at Information with a
+  friendly message.
+- **Closing during a long operation no longer generates a bug report.** The "Operation did not
+  complete within timeout. Closing anyway." message is a normal exit path and is now logged at
+  Information.
+
+### Internal
+
+- **Shared `ImageErrorClassifier`** — the duplicated invalid-image predicates in
+  `XisoSharpService` and `ChdService` were consolidated into one classifier, now also used by the
+  explorer, with unit tests for invalid-image, missing/unreadable, and environmental I/O errors.
+
+### Dependencies
+
+- **Avalonia 12.1.3 → 12.1.4**, **SharpCompress 0.50.4 → 0.50.5**, **Meziantou.Analyzer
+  3.0.294 → 3.0.297**, **xunit.runner.visualstudio 4.0.0 → 4.0.1**. Analyzer and test-runner
+  updates are build-time only.
+
+### Tests
+
+- 1,483 tests: new coverage for `ImageErrorClassifier` (XisoFormatException, InvalidDataException,
+  EndOfStreamException, "Read error" IOExceptions, missing/unreadable files), the multi-drive temp
+  resolution (`PathHelper.ResolveTempDirectory` creates folders, falls back across drives, and
+  fails with a clear error when none is writable), and `FindDrivesWithFreeSpace`.
+
+### Upgrading
+
+Download the archive for your platform and replace the previous files. There are no configuration,
+format, or workflow changes — 3.0.3 is a drop-in replacement for 3.0.2. The application reports
+version **3.0.3** (`AssemblyVersion`/`FileVersion`).
 
 ---
 
