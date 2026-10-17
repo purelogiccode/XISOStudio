@@ -92,6 +92,63 @@ public sealed class ImageExplorerTests : IDisposable
     }
 
     [Fact]
+    public void XisoImageExplorerOpensWhileImageIsHeldOpenForWriting()
+    {
+        // Reproduces the reported "the process cannot access the file because it is
+        // being used by another process" failure: another process (sync client,
+        // antivirus, in-progress copy) keeps the image open for writing and only
+        // shares reads. The explorer is a pure reader and must coexist with such
+        // writers; opening with FileShare.Read only fails with a sharing violation.
+        var isoPath = CreateXiso();
+        using var writer = new FileStream(isoPath, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
+
+        using var explorer = ImageExplorerFactory.Open(isoPath);
+
+        var root = explorer.ListChildren("/");
+        Assert.Contains(root, static e => e is { Name: "default.xbe", IsDirectory: false });
+
+        var dest = Path.Combine(_tempRoot, "in-use-out", "data.bin");
+        explorer.CopyOut("/media/data.bin", dest);
+        Assert.Equal([1, 2, 3, 4, 5], File.ReadAllBytes(dest));
+    }
+
+    [Fact]
+    public void XisoImageExplorerOpensSplitCisoWhilePartIsHeldOpenForWriting()
+    {
+        // Report follow-up: the image share mode must reach split *.1.cso part sets
+        // too (XISOSharp 1.4.3). A writer (sync client, in-progress copy) keeps the
+        // first part open for write and shares reads only; with XISOSharp 1.4.2 the
+        // part files were opened read-shared regardless of the caller's request, so
+        // this failed with a sharing violation on Windows.
+        var sourceDir = Path.Combine(_tempRoot, "split-source");
+        Directory.CreateDirectory(sourceDir);
+        File.WriteAllText(Path.Combine(sourceDir, "default.xbe"), "fake xbe content");
+        var blob = new byte[300_000];
+        new Random(7).NextBytes(blob);
+        File.WriteAllBytes(Path.Combine(sourceDir, "blob.bin"), blob);
+        var isoPath = Path.Combine(_tempRoot, "split-game.iso");
+        Assert.Equal(0, XisoWriter.PackFromDirectory(sourceDir, isoPath));
+
+        var csoPath = Path.Combine(_tempRoot, "split-game.cso");
+        Assert.Equal(0, CisoWriter.CompressToCso(isoPath, csoPath, level: 9, splitBytes: 64 * 1024));
+        var firstPart = Path.Combine(_tempRoot, "split-game.1.cso");
+        Assert.True(File.Exists(firstPart));
+        Assert.True(File.Exists(Path.Combine(_tempRoot, "split-game.2.cso")), "expected at least two parts");
+
+        using (var writer = new FileStream(firstPart, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
+        {
+            using var explorer = ImageExplorerFactory.Open(firstPart);
+
+            var root = explorer.ListChildren("/");
+            Assert.Contains(root, static e => e is { Name: "default.xbe", IsDirectory: false });
+
+            var dest = Path.Combine(_tempRoot, "split-out", "blob.bin");
+            explorer.CopyOut("/blob.bin", dest);
+            Assert.Equal(blob, File.ReadAllBytes(dest));
+        }
+    }
+
+    [Fact]
     public void CisoImageExplorerListsAndCopiesFiles()
     {
         AssertImageExplorerWorks(CreateCiso());

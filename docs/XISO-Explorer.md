@@ -66,6 +66,13 @@ The selected items are extracted from the ISO to the drop target. This is the qu
 - Drag-and-drop and open-with-default-application extractions create their temp folder on a drive
   with enough free space and skip drives that cannot be written (ACL-restricted, BitLocker-locked, or
   read-only volumes).
+- An image that another program keeps open (sync client, antivirus, another application) can still be
+  browsed: the explorer opens images with read/write sharing, including split `.1.cso` part sets.
+  If the file is held exclusively, the explorer explains that the image is in use — since **3.0.4**
+  this expected condition no longer generates an automatic bug report.
+- Files with no associated application (Xbox `.xex` executables, `*.pak.xen` assets) cannot be launched
+  by the operating system; since **3.0.4** the extracted copy is revealed in your file manager with an
+  explanatory message instead of generating an automatic bug report.
 - Extracting entries from a ZAR archive validates every entry name and refuses unsafe names
   (`..`, separators, drive-qualified or device names), so a crafted archive cannot write outside the
   chosen destination.

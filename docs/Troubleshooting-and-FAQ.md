@@ -79,6 +79,20 @@ The archive cannot be extracted without the password.
 
 - Extract the archive manually with 7-Zip/WinRAR, then run the application on the extracted ISO.
 
+### A game archive fails with an "unsupported compression" notice
+
+**Message pattern:** *"... uses the game-specific Xbox XMem LZX compression (ZIP method 21) ... skipping it."*
+
+Some Xbox 360 titles (for example Forza Horizon) ship game data in `*.zip` files whose entries use the
+Xbox *XMem LZX* codec (ZIP method 21). Despite the extension, these are not standard ZIP archives and
+**no general-purpose extractor — including 7-Zip — can decode them**; they also do not contain an ISO to
+convert.
+
+- Since **3.0.4** these files are skipped with this explanation and do **not** generate a bug report;
+  remove them from the input list (the application converts game images, not game asset archives).
+- Unsupported compression methods that the bundled 7-Zip CLI can handle (for example Zstandard) still
+  extract normally through the automatic fallback.
+
 ### Not a valid Xbox ISO image
 
 The file was read, but no XDVDFS volume descriptor with the `MICROSOFT*XBOX*MEDIA` signature was found at any known partition offset.

@@ -59,6 +59,73 @@ public class FileExtractorServiceTests : IDisposable
         return zipPath;
     }
 
+    /// <summary>
+    /// Creates a structurally valid ZIP with a single entry that claims the given
+    /// (unsupported) compression method, mirroring game archives such as the
+    /// Xbox XMem LZX zips: the archive opens and lists the entry, but SharpCompress
+    /// cannot open the entry stream.
+    /// </summary>
+    private string CreateUnsupportedMethodZip(string zipName, ushort method)
+    {
+        var zipPath = Path.Combine(_tempDir, zipName);
+        using var fs = File.Create(zipPath);
+        using var bw = new BinaryWriter(fs);
+
+        var nameBytes = Encoding.ASCII.GetBytes("payload.bin");
+        const uint compressedSize = 16;
+        const uint uncompressedSize = 32768;
+
+        // Local file header
+        bw.Write(0x04034B50);
+        bw.Write((ushort)20); // version needed
+        bw.Write((ushort)0); // general purpose flags
+        bw.Write(method);
+        bw.Write((ushort)0); // last mod time
+        bw.Write((ushort)0); // last mod date
+        bw.Write((uint)0); // crc32
+        bw.Write(compressedSize);
+        bw.Write(uncompressedSize);
+        bw.Write((ushort)nameBytes.Length);
+        bw.Write((ushort)0); // extra field length
+        bw.Write(nameBytes);
+        bw.Write(new byte[compressedSize]); // placeholder payload
+
+        // Central directory
+        var cdOffset = (uint)fs.Position;
+        bw.Write(0x02014B50);
+        bw.Write((ushort)20); // version made by
+        bw.Write((ushort)20); // version needed
+        bw.Write((ushort)0); // general purpose flags
+        bw.Write(method);
+        bw.Write((ushort)0); // last mod time
+        bw.Write((ushort)0); // last mod date
+        bw.Write((uint)0); // crc32
+        bw.Write(compressedSize);
+        bw.Write(uncompressedSize);
+        bw.Write((ushort)nameBytes.Length);
+        bw.Write((ushort)0); // extra field length
+        bw.Write((ushort)0); // comment length
+        bw.Write((ushort)0); // disk number start
+        bw.Write((ushort)0); // internal attributes
+        bw.Write((uint)0); // external attributes
+        bw.Write((uint)0); // relative offset of local header
+        bw.Write(nameBytes);
+
+        var cdSize = (uint)(fs.Position - cdOffset);
+
+        // End of central directory
+        bw.Write(0x06054B50);
+        bw.Write((ushort)0); // disk number
+        bw.Write((ushort)0); // disk with central directory
+        bw.Write((ushort)1); // entries on this disk
+        bw.Write((ushort)1); // total entries
+        bw.Write(cdSize);
+        bw.Write(cdOffset);
+        bw.Write((ushort)0); // comment length
+
+        return zipPath;
+    }
+
     #region GetArchiveInfoAsync Tests
 
     [Fact]
@@ -1051,6 +1118,69 @@ public class FileExtractorServiceTests : IDisposable
 
         Assert.True(result.Success);
         Assert.True(_logger.HasMessage("Successfully extracted"));
+    }
+
+    #endregion
+
+    #region Unsupported Compression Method Tests
+
+    [Theory]
+    [InlineData("Unsupported compression method: 21", 21, true)]
+    [InlineData("unsupported compression method: 93", 93, true)]
+    [InlineData("Unsupported compression method:21", 21, true)]
+    [InlineData("Unsupported compression method: 21 (Zstandard)", 21, true)]
+    [InlineData("Unsupported compression method: abc", -1, false)]
+    [InlineData("Some other failure", -1, false)]
+    [InlineData("", -1, false)]
+    public void TryGetUnsupportedCompressionMethodParsesMethodNumber(string message, int expected, bool expectedSuccess)
+    {
+        var success = FileExtractorService.TryGetUnsupportedCompressionMethod(message, out var method);
+
+        Assert.Equal(expectedSuccess, success);
+        if (expectedSuccess) Assert.Equal(expected, method);
+    }
+
+    [Fact]
+    public async Task ExtractArchiveAsyncXmemLzxZipIsSkippedWithoutWarningsOrSevenZipAttempt()
+    {
+        // Method 21 is the Xbox XMem LZX codec used by some Xbox 360 game archives
+        // (for example Forza Horizon). Neither SharpCompress nor 7-Zip can decode it,
+        // so the archive must be skipped quietly instead of auto-reporting a defect
+        // or starting a pointless 7-Zip fallback.
+        var zipPath = CreateUnsupportedMethodZip("xmem-lzx.zip", method: 21);
+        var service = CreateService();
+        var outDir = Path.Combine(_tempDir, "xmem_lzx_out");
+
+        var result = await service.ExtractArchiveAsync(zipPath, outDir, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.DoesNotContain(_logger.Events, e => e.Level >= LogEventLevel.Warning);
+        Assert.True(_logger.HasMessage(LogEventLevel.Information, "XMem LZX"));
+        Assert.False(_logger.HasMessage("Extracting with 7-Zip CLI"));
+    }
+
+    [Fact]
+    public async Task ExtractArchiveAsyncUnknownCompressionMethodNeverLogsWarningsOrErrors()
+    {
+        var zipPath = CreateUnsupportedMethodZip("unknown-method.zip", method: 25123);
+        var service = CreateService();
+        var outDir = Path.Combine(_tempDir, "unknown_method_out");
+
+        try
+        {
+            // With the 7-Zip CLI available the archive is handed to it; the CLI fails on
+            // the bogus method and the archive is skipped gracefully.
+            var result = await service.ExtractArchiveAsync(zipPath, outDir, CancellationToken.None);
+            Assert.False(result.Success);
+        }
+        catch (IOException)
+        {
+            // The fallback tool is not available in this environment, in which case the
+            // actionable install-hint exception surfaces. Either outcome is acceptable.
+        }
+
+        // Either way this is a user-input condition, never an auto-reported defect.
+        Assert.DoesNotContain(_logger.Events, e => e.Level >= LogEventLevel.Warning);
     }
 
     #endregion

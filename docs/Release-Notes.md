@@ -12,6 +12,7 @@
 
 | Version | Date | Summary |
 |:---|:---|:---|
+| [3.0.4](#304) | October 2026 | Reliability patch: game-specific Xbox archives (XMem LZX / ZIP method 21), images held open by another program, and extracted files with no registered application no longer generate bug reports; the explorer browses images while another process keeps them open |
 | [3.0.3](#303) | October 2026 | Reliability patch: invalid/unsupported images (CD/GD-ROM CHD, non-Xbox ISO/CSO/PS5 packages) and folder-picker failures no longer generate bug reports; drag/extract temp folders skip unwritable drives; friendlier messages for expected input problems |
 | [3.0.2](#302) | October 2026 | Post-3.0.1 patch: fatal device hardware errors (`0x800701E3`) recognized as environmental, locked output/source files no longer generate bug reports, XISOSharp 1.4.2 ZAR invalid-input handling preserved |
 | [3.0.1](#301) | October 2026 | Reliability patch: locked files and inaccessible Linux/macOS temp roots no longer generate bug reports; synchronous CSO/ZAR/CHD progress reporting fixes out-of-order percentages; platform-dependent tests and CI restored |
@@ -21,6 +22,53 @@
 | [2.7.0](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.7.0) | June 2026 | Improved ISO compatibility, disk-space detection, cancellation and performance |
 | [2.6.1](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.6.1) | June 2026 | XGD1/XGD2/XGD3 partition offsets, dark-theme tooltip fix |
 | [2.6.0](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.6.0) | June 2026 | 7-Zip CLI fallback, multilingual network errors, disk-space handling |
+
+---
+
+## 3.0.4
+
+*October 2026*
+
+> **Three more expected conditions stop generating bug reports, and the explorer can open images
+> another program is using.** Game-specific Xbox game archives that no generic extractor can open
+> (XMem LZX ZIPs), images held open by another program, and extracted files with no registered
+> application are now explained and logged below the automatic report threshold. The explorer
+> opens images with read/write sharing, so browsing works while a sync client or antivirus keeps
+> the image open.
+
+### Bug Fixes
+
+- **Game-specific Xbox archives are recognized as user input.** ZIP archives that use the Xbox
+  *XMem LZX* compression (ZIP method 21, used by Xbox 360 titles such as Forza Horizon) are not
+  standard ZIPs: no general-purpose tool, including the bundled 7-Zip, can decode them. They are
+  now skipped with a clear log message instead of starting a fallback that cannot succeed and
+  uploading two bug reports per file.
+- **Handled compression fallbacks are no longer reported.** When the built-in extractor cannot
+  decode a ZIP entry but the 7-Zip CLI can still extract the archive, the handoff is logged at
+  Information; when even the CLI cannot extract it, the archive is skipped quietly. The handled
+  SharpCompress-to-7-Zip handoff for `.7z` archives logs at Information too.
+- **An image held open by another program can still be browsed.** The explorer now opens images
+  with read/write sharing, so a running copy is browsed even while a cloud-sync client, antivirus,
+  or download manager keeps the image open for writing. Split `.1.cso` part sets are covered too
+  (XISOSharp 1.4.3 threads the share mode to every part file). If another program holds the file
+  exclusively, the explorer explains that the image is in use instead of uploading a bug report.
+- **Extracted files with no default application are revealed, not reported.** Xbox `.xex`
+  executables, `*.pak.xen` assets, and extension-less files have no registered Windows
+  application. The explorer now explains the situation and selects the extracted file in the
+  file manager (or opens the containing folder on Linux/macOS), logging at Information instead of
+  uploading a bug report.
+
+### Dependencies
+
+- **XISOSharp updated to 1.4.3.** Split CISO part sets now honor the caller's file share mode, so
+  the read/write sharing used by the Explorer reaches the individual `*.1.cso` part files. No API
+  changes for the application.
+
+### Tests
+
+- 11 new unit tests cover the XMem LZX detection, the graceful skip paths, browsing an image
+  that another process keeps open (plain and split CISO), and the split-part share plumbing
+  (1,494 tests passing).
 
 ---
 

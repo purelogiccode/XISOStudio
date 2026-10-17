@@ -2,6 +2,31 @@
 
 <!-- Keep this file focused on the newest release. Full history lives in docs/Release-Notes.md. -->
 
+## Version 3.0.4
+
+**Release date:** October 2026
+
+Version 3.0.4 is a **reliability patch for 3.0.3**. It stops three more classes of expected conditions - game-specific Xbox archives that no general-purpose extractor can open, images held open by another program, and extracted files with no registered application - from being uploaded as bug reports, and lets the Explorer open an image while another program keeps it open.
+
+### Fixes
+
+#### Fewer false bug reports
+- **Game-specific Xbox archives are recognized as user input.** ZIP archives using the Xbox *XMem LZX* compression (ZIP method 21, found in Xbox 360 titles such as Forza Horizon) are not standard ZIPs and cannot be decoded by any general-purpose tool - including the bundled 7-Zip - so they are now skipped with a clear log message instead of starting a futile 7-Zip fallback and uploading two bug reports per file.
+- **Handled compression fallbacks are no longer reported.** A ZIP that the built-in extractor cannot decode but the 7-Zip CLI can still extract is logged at Information; when even the CLI cannot extract the archive, it is skipped quietly. The handled SharpCompress-to-7-Zip handoff for `.7z` archives logs at Information too.
+- **An image held open by another program is explained, not reported.** If an image file is locked exclusively by another program, the Explorer tells you to close it instead of uploading a bug report.
+- **Extracted files with no default application are revealed, not reported.** Opening a file with no registered handler (Xbox `.xex` executables, `*.pak.xen` game assets) now reveals the extracted copy in your file manager with an explanatory message and logs at Information.
+
+#### Explorer
+- **Images can be browsed while another program keeps them open.** The Explorer now opens images with read/write sharing - including split `*.1.cso` part sets via XISOSharp 1.4.3 - so a cloud-sync client, antivirus, or download manager holding the image open for writing no longer blocks browsing.
+
+#### Dependencies
+- **XISOSharp 1.4.3** - split CISO part sets honor the caller's file share mode (the fix above); no API changes.
+
+### Upgrading
+Download the archive for your platform and replace the previous files. There are no configuration, format, or workflow changes - 3.0.4 is a drop-in replacement for 3.0.3.
+
+---
+
 ## Version 3.0.3
 
 **Release date:** October 2026

@@ -18,14 +18,22 @@ internal sealed class XisoImageExplorer : IImageExplorer
 
     /// <summary>
     /// Initializes a new instance of the <see cref="XisoImageExplorer"/> class and opens the
-    /// image in keep-open mode.
+    /// image in keep-open mode, sharing reads and writes so an image held open by another
+    /// process (sync client, antivirus, another reader) can still be browsed.
     /// </summary>
     /// <param name="imagePath">Path of the ISO or CISO image to explore.</param>
     /// <param name="logger">Optional logger used for diagnostics.</param>
     internal XisoImageExplorer(string imagePath, ILogger? logger = null)
     {
         _logger = logger?.ForContext<XisoImageExplorer>();
-        _explorer = new XisoExplorer(imagePath, new XisoExplorerOptions { KeepOpen = true });
+        _explorer = new XisoExplorer(imagePath, new XisoExplorerOptions
+        {
+            KeepOpen = true,
+            // The explorer only reads. Widening the share mode is what lets it coexist
+            // with writers (cloud sync clients, antivirus scanners, download managers)
+            // that keep the image open while this running copy is being browsed.
+            Share = FileShare.ReadWrite
+        });
     }
 
     /// <inheritdoc/>

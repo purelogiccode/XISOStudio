@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Avalonia;
@@ -109,6 +110,27 @@ public partial class MainWindow
             ShowErrorSafe(
                 "The selected file is not a valid Xbox or Xbox 360 image, or it cannot be read. " +
                 $"Please select an Xbox ISO, CSO, ZAR, or CHD file.\n\nDetails: {ex.Message}");
+
+            // The grid would otherwise keep showing the previous (now disposed) image.
+            ExplorerDataGrid.ItemsSource = null;
+            _currentInternalPath = "/";
+            UpdateExplorerUiState();
+        }
+        catch (Exception ex) when (PathHelper.IsFileInUseError(ex))
+        {
+            lock (_explorerLock)
+            {
+                _explorer = null;
+            }
+
+            // The image itself is fine but another program holds it open. That is an
+            // expected environmental condition, so it stays below the automatic
+            // bug-report threshold and the user gets actionable guidance.
+            _logger.Information(ex, "The image is in use by another process: {Message}", ex.Message);
+            ShowErrorSafe(
+                "The selected image is currently in use by another program. " +
+                "Close any application that may have it open (mounting tool, antivirus, download manager, another window) and try again.\n\n" +
+                $"Details: {ex.Message}");
 
             // The grid would otherwise keep showing the previous (now disposed) image.
             ExplorerDataGrid.ItemsSource = null;
@@ -332,6 +354,22 @@ public partial class MainWindow
                     {
                         using var process = Process.Start(new ProcessStartInfo(tempPath) { UseShellExecute = true });
                     }
+                    catch (Win32Exception ex)
+                    {
+                        // No application is registered for this file type (Xbox
+                        // executables, game assets) or the shell cannot launch one.
+                        // The extraction itself succeeded, so this is an expected
+                        // condition: keep it below the automatic bug-report threshold
+                        // and take the user to the extracted file instead.
+                        _logger.Information(ex,
+                            "Windows could not open {TempPath} with a default application; revealing the file in the file manager instead",
+                            tempPath);
+                        RevealInFileManager(tempPath);
+                        ShowErrorSafe(
+                            "Windows does not have a default application to open this file type.\n\n" +
+                            $"The file was extracted to:\n{tempPath}\n\n" +
+                            "Open it from that folder with a suitable application.");
+                    }
                     catch (Exception ex)
                     {
                         _logger.Error(ex, "Failed to open extracted file: {TempPath}", tempPath);
@@ -369,6 +407,35 @@ public partial class MainWindow
                 }
             }
         }, token);
+    }
+
+    /// <summary>
+    ///     Shows an extracted file in the platform file manager as a best-effort fallback
+    ///     when Windows has no default application for it.
+    /// </summary>
+    /// <param name="filePath">File to reveal.</param>
+    private void RevealInFileManager(string filePath)
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{filePath}\"")
+                    { UseShellExecute = true });
+                return;
+            }
+
+            // Linux/macOS: open the containing folder with the system file manager.
+            var folder = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(folder))
+            {
+                Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Debug(ex, "Could not reveal {FilePath} in the file manager", filePath);
+        }
     }
 
     /// <summary>

@@ -24,7 +24,7 @@
 [![Powered by ZArchiveSharp](https://img.shields.io/badge/Powered%20by-ZArchiveSharp-8A2BE2.svg)](https://github.com/purelogiccode/ZArchiveSharp)
 [![Powered by SharpCompress](https://img.shields.io/badge/Powered%20by-SharpCompress-8A2BE2.svg)](https://github.com/adamhathcock/sharpcompress)
 [![Formats](https://img.shields.io/badge/formats-ISO%20%7C%20XISO%20%7C%20ZAR%20%7C%20CSO%20%7C%20CHD-orange.svg)](#supported-formats)
-[![Tests](https://img.shields.io/badge/tests-1483%20passing-brightgreen.svg)](https://github.com/purelogiccode/XISOStudio/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-1494%20passing-brightgreen.svg)](https://github.com/purelogiccode/XISOStudio/actions/workflows/ci.yml)
 [![Code analyzers](https://img.shields.io/badge/analyzers-Meziantou%20%7C%20Roslynator-blueviolet)](docs/Architecture.md)
 [![Made with C#](https://img.shields.io/badge/Made%20with-C%23-239120.svg?logo=csharp&logoColor=white)](https://dotnet.microsoft.com/languages/csharp)
 [![Nullable](https://img.shields.io/badge/nullable-enabled-blue.svg)](https://learn.microsoft.com/dotnet/csharp/nullable-references)
@@ -67,7 +67,14 @@ Whether you're managing a large collection of Xbox game backups or verifying the
 
 ## What's New
 
-### v3.0.3 — fewer false bug reports for expected input problems
+### v3.0.4 - fewer false bug reports for game archives, locked images, and unopenable files
+
+- **Game-specific Xbox archives are recognized as user input** - ZIPs using the Xbox *XMem LZX* compression (method 21, e.g. Forza Horizon) cannot be decoded by any general-purpose tool, including the bundled 7-Zip, and are now skipped with a clear message instead of uploading two bug reports per file.
+- **An image held open by another program can still be browsed** - the Explorer now opens images with read/write sharing - including split `.1.cso` part sets via XISOSharp 1.4.3 - so a sync client, antivirus, or another process keeping the image open no longer blocks browsing; an exclusively locked file is explained instead of reported.
+- **Extracted files with no default application are revealed, not reported** - opening a file with no registered handler (Xbox `.xex` executables, game assets) now selects it in your file manager and logs at Information.
+- **Handled compression fallbacks log at Information** - a ZIP that the built-in extractor cannot decode but the 7-Zip CLI can still extract no longer uploads a report; the handled `.7z` fallback is quieter too.
+
+### v3.0.3 - fewer false bug reports for expected input problems
 
 - **Invalid or unsupported images are recognized as user input** — a `.chd` that is a CD/GD-ROM image (for example Sega Chihiro arcade dumps), a PS5 `.pkg`, a truncated download, or a renamed ISO is now logged at Information and explained with a clear message instead of being uploaded as an application bug.
 - **Folder-picker failures no longer generate bug reports** — a selected folder that no longer exists (deleted, disconnected drive, unavailable network share) is logged at Information with a friendly message.
