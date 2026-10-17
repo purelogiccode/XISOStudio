@@ -43,9 +43,7 @@ public class FileItemTests
     [Fact]
     public void FileSizeSetterUpdatesDisplaySize()
     {
-        var item = new FileItem();
-
-        item.FileSize = 1024;
+        var item = new FileItem { FileSize = 1024 };
 
         Assert.Equal("1 KB", item.DisplaySize);
     }

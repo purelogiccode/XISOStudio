@@ -45,8 +45,8 @@ public partial class MainWindow
             {
                 Title = "Select an Xbox image to explore",
                 AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
+                FileTypeFilter =
+                [
                     new FilePickerFileType("Xbox images")
                         { Patterns = Options },
                     new FilePickerFileType("Xbox ISO") { Patterns = OptionsArray },
@@ -54,7 +54,7 @@ public partial class MainWindow
                     new FilePickerFileType("ZAR archive") { Patterns = OptionsArray1 },
                     new FilePickerFileType("CHD image") { Patterns = OptionsArray2 },
                     new FilePickerFileType("All files") { Patterns = OptionsArray3 }
-                }
+                ]
             });
 
             if (files.Count == 0) return;
@@ -107,7 +107,7 @@ public partial class MainWindow
             // Invalid, missing, or unreadable user-selected files are expected conditions,
             // so they are logged below the automatic bug-report threshold.
             _logger.Information(ex, "The selected file is not a supported Xbox image: {Message}", ex.Message);
-            ShowErrorSafe(
+            await ShowErrorSafeAsync(
                 "The selected file is not a valid Xbox or Xbox 360 image, or it cannot be read. " +
                 $"Please select an Xbox ISO, CSO, ZAR, or CHD file.\n\nDetails: {ex.Message}");
 
@@ -127,7 +127,7 @@ public partial class MainWindow
             // expected environmental condition, so it stays below the automatic
             // bug-report threshold and the user gets actionable guidance.
             _logger.Information(ex, "The image is in use by another process: {Message}", ex.Message);
-            ShowErrorSafe(
+            await ShowErrorSafeAsync(
                 "The selected image is currently in use by another program. " +
                 "Close any application that may have it open (mounting tool, antivirus, download manager, another window) and try again.\n\n" +
                 $"Details: {ex.Message}");
@@ -145,7 +145,7 @@ public partial class MainWindow
             }
 
             _logger.Error(ex, "Failed to read image: {Message}", ex.Message);
-            ShowErrorSafe($"Failed to read image: {ex.Message}");
+            await ShowErrorSafeAsync($"Failed to read image: {ex.Message}");
 
             // The grid would otherwise keep showing the previous (now disposed) image.
             ExplorerDataGrid.ItemsSource = null;
@@ -253,13 +253,13 @@ public partial class MainWindow
         {
             // A corrupt or unreadable image is an expected condition, not an application defect.
             _logger.Information(ex, "The image could not be read while loading {InternalPath}", internalPath);
-            ShowErrorSafe($"The image appears to be corrupt or unreadable. Details: {ex.Message}");
+            await ShowErrorSafeAsync($"The image appears to be corrupt or unreadable. Details: {ex.Message}");
             return;
         }
         catch (Exception ex)
         {
             _logger.Error(ex, "Error loading directory: {InternalPath}", internalPath);
-            ShowErrorSafe($"Error loading directory: {ex.Message}");
+            await ShowErrorSafeAsync($"Error loading directory: {ex.Message}");
             return;
         }
 
@@ -390,12 +390,12 @@ public partial class MainWindow
                 // Disk-full, access-denied, and unreadable-path failures are environmental,
                 // not defects, so they are logged below the automatic bug-report threshold.
                 _logger.Information(ex, "Could not extract and open the file from the image: {FileName}", fileName);
-                ShowErrorSafe($"Could not extract and open the file: {ex.Message}");
+                await ShowErrorSafeAsync($"Could not extract and open the file: {ex.Message}");
             }
             catch (Exception ex)
             {
                 _logger.Error(ex, "Failed to extract and open file from image: {FileName}", fileName);
-                ShowErrorSafe($"Failed to extract and open file: {ex.Message}");
+                await ShowErrorSafeAsync($"Failed to extract and open file: {ex.Message}");
             }
             finally
             {
@@ -564,12 +564,12 @@ public partial class MainWindow
                 // Disk-full, access-denied, and unreadable-path failures are environmental,
                 // not defects, so they are logged below the automatic bug-report threshold.
                 _logger.Information(ex, "Could not prepare files for drag operation: {Message}", ex.Message);
-                ShowErrorSafe($"Could not prepare files for drag operation: {ex.Message}");
+                await ShowErrorSafeAsync($"Could not prepare files for drag operation: {ex.Message}");
             }
             catch (Exception ex)
             {
                 _logger.Error(ex, "Failed to prepare files for drag operation");
-                ShowErrorSafe($"Failed to prepare files for drag operation: {ex.Message}");
+                await ShowErrorSafeAsync($"Failed to prepare files for drag operation: {ex.Message}");
             }
             finally
             {
@@ -589,27 +589,27 @@ public partial class MainWindow
         catch (Exception ex)
         {
             _logger.Error(ex, "Drag operation failed");
-            ShowErrorSafe($"Drag operation failed: {ex.Message}");
+            await ShowErrorSafeAsync($"Drag operation failed: {ex.Message}");
         }
     }
 
     /// <summary>File picker patterns matching every file.</summary>
-    private static readonly string[] OptionsArray3 = new[] { "*" };
+    private static readonly string[] OptionsArray3 = ["*"];
 
     /// <summary>File picker patterns matching CHD images.</summary>
-    private static readonly string[] OptionsArray2 = new[] { "*.chd" };
+    private static readonly string[] OptionsArray2 = ["*.chd"];
 
     /// <summary>File picker patterns matching ZAR archives.</summary>
-    private static readonly string[] OptionsArray1 = new[] { "*.zar" };
+    private static readonly string[] OptionsArray1 = ["*.zar"];
 
     /// <summary>File picker patterns matching CSO images.</summary>
-    private static readonly string[] OptionsArray0 = new[] { "*.cso" };
+    private static readonly string[] OptionsArray0 = ["*.cso"];
 
     /// <summary>File picker patterns matching ISO images.</summary>
-    private static readonly string[] OptionsArray = new[] { "*.iso" };
+    private static readonly string[] OptionsArray = ["*.iso"];
 
     /// <summary>File picker patterns matching all supported Xbox images.</summary>
-    private static readonly string[] Options = new[] { "*.iso", "*.cso", "*.zar", "*.chd" };
+    private static readonly string[] Options = ["*.iso", "*.cso", "*.zar", "*.chd"];
 
     /// <summary>Navigates to the parent directory of the explorer view.</summary>
     /// <param name="sender">The button that raised the event.</param>

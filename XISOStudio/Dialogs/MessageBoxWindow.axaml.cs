@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Avalonia.Controls;
 using Avalonia.Media;
 using XISOStudio.Models;
@@ -22,6 +23,10 @@ public partial class MessageBoxWindow : Window
     /// Initializes a new instance of the <see cref="MessageBoxWindow"/> class with no content;
     /// use the content constructor to configure the dialog.
     /// </summary>
+    // Kept public: Avalonia's XAML previewer instantiates previewed windows through
+    // their parameterless constructor.
+    [SuppressMessage("ReSharper", "MemberCanBePrivate.Global",
+        Justification = "Avalonia's XAML previewer instantiates the window via its parameterless constructor.")]
     public MessageBoxWindow()
     {
         InitializeComponent();

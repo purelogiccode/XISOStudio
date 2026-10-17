@@ -707,7 +707,8 @@ public class FileExtractorService : IFileExtractor
         {
             // The CLI fallback below is the designed path for these archives, so the
             // SharpCompress failure itself is an expected condition, not a defect.
-            _logger.Information(ex, "SharpCompress unable to extract 7z ({ExceptionType}), falling back to 7-Zip CLI...",
+            _logger.Information(ex,
+                "SharpCompress unable to extract 7z ({ExceptionType}), falling back to 7-Zip CLI...",
                 ex.GetType().Name);
 
             if (!File.Exists(_sevenZipExePath))

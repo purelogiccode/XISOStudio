@@ -57,43 +57,43 @@ public class ImageErrorClassifierTests
 
     public static TheoryData<Exception> InvalidImageErrors()
     {
-        return new TheoryData<Exception>
-        {
+        return
+        [
             new XisoFormatException("Not a valid XISO"),
             new XisoEmptyException("empty image"),
             new XisoFileTooLargeException("file too large"),
             new InvalidDataException("not an Xbox DVD image"),
             new EndOfStreamException(),
             new IOException("Read error while reading sector 0")
-        };
+        ];
     }
 
     public static TheoryData<Exception> MissingOrUnreadableErrors()
     {
-        return new TheoryData<Exception>
-        {
+        return
+        [
             new FileNotFoundException("missing.iso"),
             new DirectoryNotFoundException("missing folder"),
             new UnauthorizedAccessException("access denied")
-        };
+        ];
     }
 
     public static TheoryData<Exception> EnvironmentalIoErrors()
     {
-        return new TheoryData<Exception>
-        {
+        return
+        [
             new IOException("The device is not ready"),
             new UnauthorizedAccessException("access denied"),
             new NotSupportedException("unsupported path")
-        };
+        ];
     }
 
     public static TheoryData<Exception> NonUserInputEnvironmentalErrors()
     {
-        return new TheoryData<Exception>
-        {
+        return
+        [
             new IOException("The device is not ready"),
             new NotSupportedException("unsupported path")
-        };
+        ];
     }
 }

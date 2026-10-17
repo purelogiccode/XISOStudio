@@ -12,7 +12,7 @@ public class OrchestratorServiceTests : IDisposable
 {
     private readonly string _tempDir = Path.Combine(Path.GetTempPath(), $"OrchestratorTests_{Guid.NewGuid():N}");
     private readonly List<string> _tempFiles = [];
-    private static readonly int[] Expected = new[] { 1, 2 };
+    private static readonly int[] Expected = [1, 2];
 
     public OrchestratorServiceTests()
     {
@@ -439,8 +439,8 @@ public class OrchestratorServiceTests : IDisposable
         Directory.CreateDirectory(disc2);
         var file1 = Path.Combine(disc1, "game.iso");
         var file2 = Path.Combine(disc2, "game.iso");
-        File.WriteAllText(file1, "iso data");
-        File.WriteAllText(file2, "iso data");
+        await File.WriteAllTextAsync(file1, "iso data");
+        await File.WriteAllTextAsync(file2, "iso data");
 
         var outputNames = new List<string>();
         var xisoSharp = new Mock<IXisoSharpService>();
@@ -601,7 +601,7 @@ public class OrchestratorServiceTests : IDisposable
         await orchestrator.ConvertFilesAsync([isoPath], Path.Combine(_tempDir, "out"), true, false, false,
             OutputFormat.Xiso, progress, CloudRetrySkip, CancellationToken.None);
 
-        Assert.Contains(progress.Reports, p => p.FailedCount == 1 && p.InvalidIsoCount == 1);
+        Assert.Contains(progress.Reports, p => p is { FailedCount: 1, InvalidIsoCount: 1 });
         // An invalid input must never lead to deletion of the original file.
         Assert.True(File.Exists(isoPath));
     }
@@ -845,7 +845,7 @@ public class OrchestratorServiceTests : IDisposable
         var nestedDir = Path.Combine(_tempDir, "nested");
         Directory.CreateDirectory(nestedDir);
         var nestedIso = Path.Combine(nestedDir, "nested.iso");
-        File.WriteAllText(nestedIso, "iso data");
+        await File.WriteAllTextAsync(nestedIso, "iso data");
         var progress = new CollectingProgress();
         var orchestrator = CreateOrchestrator(new Mock<IFileExtractor>(), FileProcessingStatus.Converted);
 
@@ -862,7 +862,7 @@ public class OrchestratorServiceTests : IDisposable
         var nestedDir = Path.Combine(_tempDir, "nested");
         Directory.CreateDirectory(nestedDir);
         var nestedIso = Path.Combine(nestedDir, "nested.iso");
-        File.WriteAllText(nestedIso, "iso data");
+        await File.WriteAllTextAsync(nestedIso, "iso data");
         var progress = new CollectingProgress();
         var orchestrator = CreateOrchestrator(new Mock<IFileExtractor>(), FileProcessingStatus.Converted);
 
@@ -998,7 +998,7 @@ public class OrchestratorServiceTests : IDisposable
         var isoPath = CreateTempFile("game.iso", "iso data");
         var orchestrator = CreateOrchestrator(new Mock<IFileExtractor>(), FileProcessingStatus.Converted);
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => orchestrator.ConvertFilesAsync(
             [isoPath], Path.Combine(_tempDir, "out"), true, false, false, OutputFormat.Xiso,
@@ -1042,7 +1042,7 @@ public class OrchestratorServiceTests : IDisposable
         var orchestrator = CreateOrchestrator(new Mock<IFileExtractor>(), FileProcessingStatus.Converted,
             integrityResult: true);
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => orchestrator.TestFilesAsync(
             _tempDir, [isoPath], true, true, false, new Progress<BatchOperationProgress>(), CloudRetrySkip,
@@ -1092,7 +1092,7 @@ public class OrchestratorServiceTests : IDisposable
             var folder = Path.Combine(_tempDir, folderName);
             Directory.CreateDirectory(folder);
             var file = Path.Combine(folder, "game.iso");
-            File.WriteAllText(file, "iso data");
+            await File.WriteAllTextAsync(file, "iso data");
             files.Add(file);
         }
 
@@ -1126,7 +1126,7 @@ public class OrchestratorServiceTests : IDisposable
         var outDir = Path.Combine(_tempDir, "same");
         Directory.CreateDirectory(outDir);
         var isoPath = Path.Combine(outDir, "game.iso");
-        File.WriteAllText(isoPath, "iso data");
+        await File.WriteAllTextAsync(isoPath, "iso data");
         var progress = new CollectingProgress();
         var orchestrator = CreateOrchestrator(new Mock<IFileExtractor>(), FileProcessingStatus.Converted);
 

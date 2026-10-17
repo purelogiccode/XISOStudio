@@ -41,15 +41,6 @@ public interface IDiskMonitorService
     long GetAvailableFreeSpace(string? path);
 
     /// <summary>
-    /// Finds a local drive with enough free space for <paramref name="requiredBytes" />,
-    /// including a safety buffer.
-    /// </summary>
-    /// <param name="requiredBytes">Number of bytes that must be available.</param>
-    /// <param name="excludeDrive">Optional drive root to exclude from the search.</param>
-    /// <returns>The root path of a suitable drive, or <c>null</c> when none was found.</returns>
-    string? FindDriveWithFreeSpace(long requiredBytes, string? excludeDrive = null);
-
-    /// <summary>
     /// Finds every local drive with enough free space for <paramref name="requiredBytes" />,
     /// including a safety buffer, so callers can fall back to the next drive when a
     /// candidate turns out to be unwritable.

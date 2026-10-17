@@ -326,7 +326,7 @@ public class PathHelperTests
         {
             var diskMonitor = new Mock<IDiskMonitorService>();
             diskMonitor.Setup(static d => d.FindDrivesWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
-                .Returns(new[] { altRoot });
+                .Returns([altRoot]);
 
             // long.MaxValue exceeds any real drive, forcing the alternative-drive path.
             var result = PathHelper.ResolveTempDirectory(long.MaxValue, "PathHelperAlt", diskMonitor.Object);
@@ -349,7 +349,7 @@ public class PathHelperTests
         {
             var diskMonitor = new Mock<IDiskMonitorService>();
             diskMonitor.Setup(static d => d.FindDrivesWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
-                .Returns(new[] { blockedRoot });
+                .Returns([blockedRoot]);
             diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(0);
 
             // long.MaxValue exceeds any real drive, forcing the alternative-drive path.

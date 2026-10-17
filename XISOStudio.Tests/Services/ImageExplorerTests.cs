@@ -135,17 +135,15 @@ public sealed class ImageExplorerTests : IDisposable
         Assert.True(File.Exists(firstPart));
         Assert.True(File.Exists(Path.Combine(_tempRoot, "split-game.2.cso")), "expected at least two parts");
 
-        using (var writer = new FileStream(firstPart, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
-        {
-            using var explorer = ImageExplorerFactory.Open(firstPart);
+        using var writer = new FileStream(firstPart, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
+        using var explorer = ImageExplorerFactory.Open(firstPart);
 
-            var root = explorer.ListChildren("/");
-            Assert.Contains(root, static e => e is { Name: "default.xbe", IsDirectory: false });
+        var root = explorer.ListChildren("/");
+        Assert.Contains(root, static e => e is { Name: "default.xbe", IsDirectory: false });
 
-            var dest = Path.Combine(_tempRoot, "split-out", "blob.bin");
-            explorer.CopyOut("/blob.bin", dest);
-            Assert.Equal(blob, File.ReadAllBytes(dest));
-        }
+        var dest = Path.Combine(_tempRoot, "split-out", "blob.bin");
+        explorer.CopyOut("/blob.bin", dest);
+        Assert.Equal(blob, File.ReadAllBytes(dest));
     }
 
     [Fact]

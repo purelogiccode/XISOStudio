@@ -37,7 +37,8 @@
             <CopyToPublishDirectory>Always</CopyToPublishDirectory>
             <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
         </Content>
-        <Content Include="7za_arm64.exe" Condition="'$(RuntimeIdentifier)' == '' Or $(RuntimeIdentifier.StartsWith('win'))">
+        <Content Include="7za_arm64.exe"
+                 Condition="'$(RuntimeIdentifier)' == '' Or $(RuntimeIdentifier.StartsWith('win'))">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
             <CopyToPublishDirectory>Always</CopyToPublishDirectory>
             <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
@@ -52,7 +53,8 @@
             <CopyToPublishDirectory>Always</CopyToPublishDirectory>
             <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
         </Content>
-        <Content Include="7zz_osx" Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or '$(RuntimeIdentifier)' == 'osx-arm64'">
+        <Content Include="7zz_osx"
+                 Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or '$(RuntimeIdentifier)' == 'osx-arm64'">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
             <CopyToPublishDirectory>Always</CopyToPublishDirectory>
             <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
@@ -66,19 +68,19 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Meziantou.Analyzer" Version="3.0.297">
+        <PackageReference Include="Meziantou.Analyzer" Version="3.0.303">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
-        <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.12" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
+        <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.13" />
         <PackageReference Include="Serilog" Version="4.4.0" />
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="Roslynator.Analyzers" Version="5.0.1">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="CHDSharp" Version="1.4.3" />
+        <PackageReference Include="CHDSharp" Version="1.5.0" />
         <PackageReference Include="SharpCompress" Version="0.50.5" />
         <PackageReference Include="XISOSharp" Version="1.4.3" />
         <PackageReference Include="ZArchiveSharp" Version="1.4.0" />
@@ -86,7 +88,7 @@
         <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
         <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
         <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
-        <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.12" />
+        <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.13" />
     </ItemGroup>
 
     <ItemGroup>

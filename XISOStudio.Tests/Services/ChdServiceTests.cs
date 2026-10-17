@@ -203,7 +203,7 @@ public sealed class ChdServiceTests : IDisposable
     public async Task InvalidImageReturnsFailedWithoutBugReport()
     {
         var badIso = Path.Combine(_tempRoot, "bad.iso");
-        File.WriteAllText(badIso, "this is not an xiso image");
+        await File.WriteAllTextAsync(badIso, "this is not an xiso image");
         var service = CreateService();
 
         var status = await service.ConvertIsoToChdAsync(badIso, Path.Combine(_tempRoot, "out"), "bad.chd", false,
@@ -320,7 +320,7 @@ public sealed class ChdServiceTests : IDisposable
     public async Task UnsupportedExtensionWithGarbageReturnsInvalidInput()
     {
         var badFile = Path.Combine(_tempRoot, "not-an-image.zip");
-        File.WriteAllText(badFile, "this is not an xiso image");
+        await File.WriteAllTextAsync(badFile, "this is not an xiso image");
         var service = CreateService();
 
         var status = await service.ConvertIsoToChdAsync(badFile, Path.Combine(_tempRoot, "out"), "bad.chd",
@@ -572,7 +572,7 @@ public sealed class ChdServiceTests : IDisposable
     public async Task FailedConversionLeavesNoFilesInOutputFolder()
     {
         var badIso = Path.Combine(_tempRoot, "bad.iso");
-        File.WriteAllText(badIso, "this is not an xiso image");
+        await File.WriteAllTextAsync(badIso, "this is not an xiso image");
         var service = CreateService();
         var outputFolder = Path.Combine(_tempRoot, "out");
 
@@ -618,7 +618,7 @@ public sealed class ChdServiceTests : IDisposable
     {
         if (!OperatingSystem.IsWindows()) return;
 
-        var isoPath = CreateOptimizedXiso("game.iso");
+        var isoPath = CreateOptimizedXiso();
         var service = CreateService();
 
         var status = await service.ConvertIsoToChdAsync(isoPath, _tempRoot, "GAME.ISO", false, false,

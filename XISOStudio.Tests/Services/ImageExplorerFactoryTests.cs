@@ -195,7 +195,7 @@ public sealed class ImageExplorerFactoryTests : IDisposable
     public void OpenMissingFileWithoutLoggerStillThrows()
     {
         var path = TempPath("no-logger.iso");
-        Assert.Throws<FileNotFoundException>(() => ImageExplorerFactory.Open(path, null));
+        Assert.Throws<FileNotFoundException>(() => ImageExplorerFactory.Open(path));
     }
 
     [Fact]

@@ -55,7 +55,7 @@ public class StatsServiceTests
     [Fact]
     public async Task SendStatsAsyncPassesCancellableTimeoutTokenToHandler()
     {
-        CancellationToken capturedToken = default;
+        var capturedToken = CancellationToken.None;
         var handlerMock = new Mock<HttpMessageHandler>();
         handlerMock.Protected()
             .Setup<Task<HttpResponseMessage>>("SendAsync",

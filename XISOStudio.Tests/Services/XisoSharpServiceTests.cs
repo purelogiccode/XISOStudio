@@ -104,7 +104,7 @@ public sealed class XisoSharpServiceTests : IDisposable
     public async Task InvalidImageReturnsFailedWithoutBugReport()
     {
         var badIso = Path.Combine(_tempRoot, "bad.iso");
-        File.WriteAllText(badIso, "this is not an xiso image");
+        await File.WriteAllTextAsync(badIso, "this is not an xiso image");
         var service = CreateService();
 
         var status = await service.ConvertIsoAsync(badIso, Path.Combine(_tempRoot, "out"), "bad.iso", OutputFormat.Xiso,
@@ -311,7 +311,7 @@ public sealed class XisoSharpServiceTests : IDisposable
 
         // Round-trip: the CISO must decompress back to a valid XISO.
         var decompressed = Path.Combine(_tempRoot, "decompressed.iso");
-        Assert.Equal(0, CisoReader.DecompressToIso(outputPath, decompressed));
+        Assert.Equal(0, await CisoReader.DecompressToIsoAsync(outputPath, decompressed));
         Assert.True(XisoReader.AuditXiso(decompressed).IsValid);
     }
 
@@ -339,7 +339,7 @@ public sealed class XisoSharpServiceTests : IDisposable
         Assert.True(CisoReader.IsCso(outputPath));
 
         var decompressed = Path.Combine(_tempRoot, "decompressed2.iso");
-        Assert.Equal(0, CisoReader.DecompressToIso(outputPath, decompressed));
+        Assert.Equal(0, await CisoReader.DecompressToIsoAsync(outputPath, decompressed));
         Assert.True(XisoReader.AuditXiso(decompressed).IsValid);
     }
 
@@ -429,7 +429,7 @@ public sealed class XisoSharpServiceTests : IDisposable
     public async Task InvalidImageZarOutputReturnsFailed()
     {
         var badIso = Path.Combine(_tempRoot, "bad-zar.iso");
-        File.WriteAllText(badIso, "this is not an xiso image");
+        await File.WriteAllTextAsync(badIso, "this is not an xiso image");
         var service = CreateService();
 
         var status = await service.ConvertIsoAsync(badIso, Path.Combine(_tempRoot, "out"), "bad-zar.zar",
@@ -572,7 +572,7 @@ public sealed class XisoSharpServiceTests : IDisposable
     public async Task UnsupportedExtensionWithGarbageReturnsInvalidInput()
     {
         var badFile = Path.Combine(_tempRoot, "not-an-image.zip");
-        File.WriteAllText(badFile, "this is not an xiso image");
+        await File.WriteAllTextAsync(badFile, "this is not an xiso image");
         var service = CreateService();
 
         var status = await service.ConvertIsoAsync(badFile, Path.Combine(_tempRoot, "out"), "bad.iso",
@@ -714,7 +714,7 @@ public sealed class XisoSharpServiceTests : IDisposable
     public async Task InvalidImageCsoOutputReturnsInvalidInput()
     {
         var badIso = Path.Combine(_tempRoot, "bad-cso.iso");
-        File.WriteAllText(badIso, "this is not an xiso image");
+        await File.WriteAllTextAsync(badIso, "this is not an xiso image");
         var service = CreateService();
 
         var status = await service.ConvertIsoAsync(badIso, Path.Combine(_tempRoot, "out"), "bad-cso.cso",

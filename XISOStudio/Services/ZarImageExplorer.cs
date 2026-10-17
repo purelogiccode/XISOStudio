@@ -117,6 +117,9 @@ internal sealed class ZarImageExplorer : IImageExplorer
     /// <param name="node">Node handle of the entry to copy.</param>
     /// <param name="destPath">Destination path on disk.</param>
     /// <param name="depth">Current recursion depth, used to enforce the nesting cap.</param>
+    // Recursion-depth bound threaded through the copy recursion by design:
+    // it exists precisely to reject over-deep archives during recursion.
+    // ReSharper disable once ParameterOnlyUsedForPreconditionCheck.Local
     private void CopyNodeOut(uint node, string destPath, int depth = 0)
     {
         if (depth > MaxCopyDepth)

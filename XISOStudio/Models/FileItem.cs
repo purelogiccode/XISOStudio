@@ -11,72 +11,68 @@ namespace XISOStudio.Models;
 public class FileItem : INotifyPropertyChanged
 {
     private string _displaySize = string.Empty;
-    private string _fileName = string.Empty;
-    private long _fileSize;
-    private string _fullPath = string.Empty;
-    private bool _isSelected = true;
 
     /// <summary>
     ///     Gets or sets whether this file is selected for processing.
     /// </summary>
     public bool IsSelected
     {
-        get => _isSelected;
+        get;
         set
         {
-            if (_isSelected == value) return;
+            if (field == value) return;
 
-            _isSelected = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = true;
 
     /// <summary>
     ///     Gets or sets the file name (relative to the selected input folder).
     /// </summary>
     public string FileName
     {
-        get => _fileName;
+        get;
         set
         {
-            if (string.Equals(_fileName, value, StringComparison.Ordinal)) return;
+            if (string.Equals(field, value, StringComparison.Ordinal)) return;
 
-            _fileName = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = string.Empty;
 
     /// <summary>
     ///     Gets or sets the full path to the file.
     /// </summary>
     public string FullPath
     {
-        get => _fullPath;
+        get;
         set
         {
-            if (string.Equals(_fullPath, value, StringComparison.Ordinal)) return;
+            if (string.Equals(field, value, StringComparison.Ordinal)) return;
 
-            _fullPath = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = string.Empty;
 
     /// <summary>
     ///     Gets or sets the file size in bytes.
     /// </summary>
     public long FileSize
     {
-        get => _fileSize;
+        get;
         set
         {
-            if (_fileSize == value)
+            if (field == value)
             {
                 // A fresh item has size 0 but no formatted display yet; keep it consistent.
                 if (string.IsNullOrEmpty(_displaySize)) DisplaySize = FormatSize(value);
                 return;
             }
 
-            _fileSize = value;
+            field = value;
             OnPropertyChanged();
             DisplaySize = FormatSize(value);
         }
@@ -106,7 +102,7 @@ public class FileItem : INotifyPropertyChanged
     ///     Raises the <see cref="PropertyChanged" /> event.
     /// </summary>
     /// <param name="propertyName">Name of the property that changed; defaults to the caller member name.</param>
-    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }

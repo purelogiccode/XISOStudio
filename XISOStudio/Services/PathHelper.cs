@@ -326,6 +326,7 @@ public static class PathHelper
     /// the file is held open by another process (antivirus scanner, emulator, Explorer preview, ...).
     /// </summary>
     private const int ErrorSharingViolation = 0x20;
+
     private const int ErrorLockViolation = 0x21;
 
     /// <summary>

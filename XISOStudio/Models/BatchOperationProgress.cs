@@ -20,13 +20,13 @@ public class BatchOperationProgress
     public int? ProcessedCount { get; set; }
 
     /// <summary>Gets or sets the number of successfully processed files.</summary>
-    public int? SuccessCount { get; set; }
+    public int? SuccessCount { get; init; }
 
     /// <summary>Gets or sets the number of failed files.</summary>
-    public int? FailedCount { get; set; }
+    public int? FailedCount { get; init; }
 
     /// <summary>Gets or sets the number of skipped files.</summary>
-    public int? SkippedCount { get; set; }
+    public int? SkippedCount { get; init; }
 
     /// <summary>Gets or sets the number of files detected as invalid images.</summary>
     public int? InvalidIsoCount { get; set; }

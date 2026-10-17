@@ -1,6 +1,7 @@
 <Window x:Class="XISOStudio.MainWindow"
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="clr-namespace:XISOStudio.Models"
         Title="XISO Studio"
         Icon="avares://XISOStudio/icon/icon.png"
         Height="850" Width="1200" MinHeight="650" MinWidth="800"
@@ -140,7 +141,7 @@
                                     <DataGrid.Columns>
                                         <DataGridTemplateColumn Header="Name" Width="*">
                                             <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
+                                                <DataTemplate x:DataType="models:XisoExplorerItem">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="{Binding IsDirectory, Converter={StaticResource FolderIconConverter}}" Margin="0,0,5,0" FontFamily="Segoe UI Emoji, Noto Color Emoji, Apple Color Emoji" Foreground="{StaticResource TerminalForegroundBrush}" ToolTip.Tip="Folder or file indicator" />
                                                         <TextBlock Text="{Binding Name}" Foreground="{StaticResource TerminalForegroundBrush}" ToolTip.Tip="{Binding Name}" />

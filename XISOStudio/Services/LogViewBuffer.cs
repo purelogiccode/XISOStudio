@@ -11,13 +11,13 @@ namespace XISOStudio.Services;
 public sealed class LogViewBuffer
 {
     /// <summary>Maximum number of lines kept in the viewer (the oldest are dropped first).</summary>
-    public const int DefaultMaxLines = 2000;
+    private const int DefaultMaxLines = 2000;
 
     /// <summary>Maximum length of a single displayed line; longer lines are ellipsized.</summary>
-    public const int DefaultMaxLineLength = 1000;
+    private const int DefaultMaxLineLength = 1000;
 
     /// <summary>Maximum number of lines allowed to wait for a UI flush before the oldest are dropped.</summary>
-    public const int DefaultMaxPendingLines = 10000;
+    private const int DefaultMaxPendingLines = 10000;
 
     private readonly ConcurrentQueue<string> _pending = new();
     private readonly Queue<string> _lines = new();

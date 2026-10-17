@@ -119,7 +119,7 @@ public class TempFolderCleanupHelperTests : IDisposable
         var tempDir = Path.Combine(Path.GetTempPath(), $"XISOStudio_Test_{Guid.NewGuid()}");
         Directory.CreateDirectory(tempDir);
         var lockedFile = Path.Combine(tempDir, "locked.txt");
-        File.WriteAllText(lockedFile, "locked");
+        await File.WriteAllTextAsync(lockedFile, "locked");
         var logger = new TestLogger();
 
         await using (new FileStream(lockedFile, FileMode.Open, FileAccess.Read, FileShare.None))
@@ -141,10 +141,10 @@ public class TempFolderCleanupHelperTests : IDisposable
         var tempDir = Path.Combine(Path.GetTempPath(), $"XISOStudio_Test_{Guid.NewGuid()}");
         Directory.CreateDirectory(tempDir);
         var lockedFile = Path.Combine(tempDir, "locked.txt");
-        File.WriteAllText(lockedFile, "locked");
+        await File.WriteAllTextAsync(lockedFile, "locked");
         var logger = new TestLogger();
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         await using (new FileStream(lockedFile, FileMode.Open, FileAccess.Read, FileShare.None))
         {
@@ -545,7 +545,7 @@ public class TempFolderCleanupHelperTests : IDisposable
         await File.WriteAllTextAsync(lockedFile, "locked");
         var logger = new TestLogger();
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         await using (new FileStream(lockedFile, FileMode.Open, FileAccess.Read, FileShare.None))
         {
@@ -561,7 +561,7 @@ public class TempFolderCleanupHelperTests : IDisposable
         var root = CreateTempRoot();
         var logger = new TestLogger();
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         // The token only affects the retry delay, so an unlocked directory is deleted on the first attempt.
         await TempFolderCleanupHelper.TryDeleteDirectoryWithRetryAsync(root, 3, 10, logger.Logger, cts.Token);
@@ -603,7 +603,7 @@ public class TempFolderCleanupHelperTests : IDisposable
     {
         var logger = new TestLogger();
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             TempFolderCleanupHelper.CleanupTempFoldersAsync(logger.Logger, cts.Token));
@@ -614,7 +614,7 @@ public class TempFolderCleanupHelperTests : IDisposable
     {
         var logger = new TestLogger();
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             TempFolderCleanupHelper.CleanupTempFoldersAsync(logger.Logger, cts.Token));

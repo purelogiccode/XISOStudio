@@ -351,16 +351,9 @@ public class OrchestratorService : IOrchestratorService
                 catch (Exception ex)
                 {
                     // Provide user-friendly message for corrupt archives
-                    string logMessage;
-                    if (ex.Message.Contains("End of stream reached", StringComparison.OrdinalIgnoreCase))
-                    {
-                        logMessage =
-                            $"ERROR: {fileName} appears to be corrupt or incomplete. The file may have been damaged during download or transfer. Please re-download the archive and try again.";
-                    }
-                    else
-                    {
-                        logMessage = $"Critical error processing {fileName}: {ex.Message}";
-                    }
+                    var logMessage = ex.Message.Contains("End of stream reached", StringComparison.OrdinalIgnoreCase)
+                        ? $"ERROR: {fileName} appears to be corrupt or incomplete. The file may have been damaged during download or transfer. Please re-download the archive and try again."
+                        : $"Critical error processing {fileName}: {ex.Message}";
 
                     progress.Report(new BatchOperationProgress
                         { LogMessage = logMessage, FailedCount = 1, FailedPathToAdd = entryPath });
@@ -905,72 +898,6 @@ public class OrchestratorService : IOrchestratorService
     #endregion
 
     #region Testing Logic
-
-    /// <summary>
-    /// Tests every supported image in <paramref name="inputFolder"/> and optionally moves each
-    /// image to a success or failed subfolder based on the result.
-    /// </summary>
-    /// <param name="inputFolder">Folder to scan for testable images.</param>
-    /// <param name="moveSuccessful">Whether images that pass the test are moved to the "_success" subfolder.</param>
-    /// <param name="moveFailed">Whether images that fail the test are moved to the "_failed" subfolder.</param>
-    /// <param name="searchSubfolders">Whether to include images in subfolders of the input folder.</param>
-    /// <param name="performDeepScan">Whether to read all image data to detect media or decompression errors.</param>
-    /// <param name="progress">Receives progress updates for the batch.</param>
-    /// <param name="onCloudRetryRequired">Callback invoked when a cloud file cannot be read and a retry decision is needed.</param>
-    /// <param name="token">Token used to cancel the batch.</param>
-    /// <returns>A task that completes when the batch test has finished.</returns>
-    public Task TestAsync(string inputFolder, bool moveSuccessful, bool moveFailed, bool searchSubfolders,
-        bool performDeepScan, IProgress<BatchOperationProgress> progress,
-        Func<string, Task<CloudRetryResult>> onCloudRetryRequired, CancellationToken token)
-    {
-        return RunWithErrorHandlingAsync("TestAsync", async () =>
-        {
-            if (!Directory.Exists(inputFolder))
-            {
-                throw new IOException(
-                    $"The input folder does not exist or is not accessible: '{inputFolder}'\n\n" +
-                    "Possible causes:\n" +
-                    "• The folder was deleted, moved, or renamed\n" +
-                    "• The folder is on a network drive that is disconnected\n" +
-                    "• The folder is a cloud placeholder (OneDrive, Dropbox) that hasn't been synced\n" +
-                    "• The path contains characters that are not supported by the file system\n\n" +
-                    "Please verify the folder exists and try again.");
-            }
-
-            _logger.Information("Starting image test. Input: {InputFolder}", inputFolder);
-
-            var enumOptions = new EnumerationOptions
-                { IgnoreInaccessible = true, RecurseSubdirectories = searchSubfolders };
-
-            List<string> imageFiles;
-            try
-            {
-                imageFiles = await Task.Run(() => Directory.GetFiles(inputFolder, "*.*", enumOptions)
-                    .Where(SupportedFiles.IsTestable).ToList(), token);
-            }
-            catch (DirectoryNotFoundException ex)
-            {
-                _logger.Information(ex, "Input folder not found: {InputFolder}", inputFolder);
-                throw new IOException(
-                    $"The input folder was not found: '{inputFolder}'\n\n" +
-                    "The folder may have been deleted, moved, or is a cloud placeholder that hasn't been synced.\n" +
-                    $"Original error: {ex.Message}",
-                    ex);
-            }
-
-            if (imageFiles.Count == 0)
-            {
-                _logger.Information("No supported image files found in {InputFolder}", inputFolder);
-                return;
-            }
-
-            _logger.Information("Found {FileCount} image file(s) to test in {InputFolder}", imageFiles.Count,
-                inputFolder);
-
-            await TestEntriesCoreAsync(inputFolder, imageFiles, moveSuccessful, moveFailed, performDeepScan, progress,
-                onCloudRetryRequired, token);
-        });
-    }
 
     /// <summary>
     /// Tests the given images and optionally moves each image to a success or failed subfolder

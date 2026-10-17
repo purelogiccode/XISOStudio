@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Avalonia;
 
 namespace XISOStudio;
@@ -18,6 +19,10 @@ internal static class Program
 
     /// <summary>Builds the Avalonia application with platform detection.</summary>
     /// <returns>The configured application builder.</returns>
+    // Avalonia's XAML previewer locates this exact public static method by reflection,
+    // so it must stay public even though Main is the only in-repo caller.
+    [SuppressMessage("ReSharper", "MemberCanBePrivate.Global",
+        Justification = "Avalonia's XAML previewer locates BuildAvaloniaApp by reflection.")]
     public static AppBuilder BuildAvaloniaApp()
     {
         // Avalonia's own diagnostics are routed to Serilog by AvaloniaSerilogSink,

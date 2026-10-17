@@ -190,7 +190,7 @@ public class XisoIntegrityService : IXisoIntegrityService
         _logger.Information(
             "ZAR structure is valid ({FilesChecked} files, {DirsChecked} directories, {TotalSize} uncompressed).",
             files.Count, directoryCount, Formatter.FormatBytes((long)Math.Min(reader.TotalUncompressedSize,
-                (ulong)long.MaxValue)));
+                long.MaxValue)));
 
         if (!performDeepScan)
         {

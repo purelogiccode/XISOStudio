@@ -334,22 +334,18 @@ public partial class MainWindow : Window
             _logger.Information("Waiting for current operation to cancel before exiting...");
 
             // Signal the operation to stop
-            _cts.Cancel();
+            await _cts.CancelAsync();
 
             // Wait up to 10 seconds for the operation to complete
             var completedTask = await Task.WhenAny(_operationCompletedTcs.Task, Task.Delay(TimeSpan.FromSeconds(10)));
 
             var timedOut = completedTask != _operationCompletedTcs.Task;
-            if (timedOut)
-            {
-                // Closing during a long operation is a normal exit path, not a defect:
-                // keep it below the automatic bug-report threshold.
-                _logger.Information("Operation did not complete within timeout. Closing anyway.");
-            }
-            else
-            {
-                _logger.Information("Operation completed. Closing application...");
-            }
+
+            // Closing during a long operation is a normal exit path, not a defect:
+            // keep it below the automatic bug-report threshold.
+            _logger.Information(timedOut
+                ? "Operation did not complete within timeout. Closing anyway."
+                : "Operation completed. Closing application...");
 
             // Now perform cleanup and close on the UI thread
             if (timedOut)

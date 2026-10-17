@@ -356,11 +356,9 @@ public class UiLogSinkTests
 
     private sealed class Subscription(EventHandler<UiLogSink.LogMessageEventArgs> handler) : IDisposable
     {
-        private readonly EventHandler<UiLogSink.LogMessageEventArgs> _handler = handler;
-
         public void Dispose()
         {
-            UiLogSink.MessageLogged -= _handler;
+            UiLogSink.MessageLogged -= handler;
         }
     }
 }

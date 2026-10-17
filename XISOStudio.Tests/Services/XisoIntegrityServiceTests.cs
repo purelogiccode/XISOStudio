@@ -257,9 +257,9 @@ public sealed class XisoIntegrityServiceTests : IDisposable
         var chdPath = CreateChd();
 
         // Flip a byte in the compressed data so a hunk fails its CRC during verification.
-        var bytes = File.ReadAllBytes(chdPath);
+        var bytes = await File.ReadAllBytesAsync(chdPath);
         bytes[bytes.Length / 2] ^= 0xFF;
-        File.WriteAllBytes(chdPath, bytes);
+        await File.WriteAllBytesAsync(chdPath, bytes);
 
         var service = CreateService();
         var passed = await service.TestIsoIntegrityAsync(chdPath, true, new Progress<BatchOperationProgress>(),
@@ -272,7 +272,7 @@ public sealed class XisoIntegrityServiceTests : IDisposable
     public async Task InvalidChdFailsWithoutBugReport()
     {
         var badChd = Path.Combine(_tempRoot, "bad.chd");
-        File.WriteAllText(badChd, "this is not a chd image");
+        await File.WriteAllTextAsync(badChd, "this is not a chd image");
         var service = CreateService();
 
         var passed = await service.TestIsoIntegrityAsync(badChd, false, new Progress<BatchOperationProgress>(),
@@ -286,7 +286,7 @@ public sealed class XisoIntegrityServiceTests : IDisposable
     public async Task InvalidZarFailsWithoutBugReport()
     {
         var badZar = Path.Combine(_tempRoot, "bad.zar");
-        File.WriteAllText(badZar, "this is not a zar archive");
+        await File.WriteAllTextAsync(badZar, "this is not a zar archive");
         var service = CreateService();
 
         var passed = await service.TestIsoIntegrityAsync(badZar, false, new Progress<BatchOperationProgress>(),
@@ -300,7 +300,7 @@ public sealed class XisoIntegrityServiceTests : IDisposable
     public async Task InvalidImageFailsWithoutBugReport()
     {
         var badIso = Path.Combine(_tempRoot, "bad.iso");
-        File.WriteAllText(badIso, "this is not an xiso image");
+        await File.WriteAllTextAsync(badIso, "this is not an xiso image");
         var service = CreateService();
 
         var passed = await service.TestIsoIntegrityAsync(badIso, false, new Progress<BatchOperationProgress>(),
@@ -326,7 +326,7 @@ public sealed class XisoIntegrityServiceTests : IDisposable
     public async Task InvalidImageReportsInvalidIsoCount()
     {
         var badIso = Path.Combine(_tempRoot, "bad.iso");
-        File.WriteAllText(badIso, "this is not an xiso image");
+        await File.WriteAllTextAsync(badIso, "this is not an xiso image");
         var service = CreateService();
         var progress = new CollectingProgress();
 
@@ -373,7 +373,7 @@ public sealed class XisoIntegrityServiceTests : IDisposable
     public async Task MalformedCisoFailsWithoutThrowing()
     {
         var badCso = Path.Combine(_tempRoot, "bad.cso");
-        File.WriteAllText(badCso, "this is not a ciso image");
+        await File.WriteAllTextAsync(badCso, "this is not a ciso image");
         var service = CreateService();
 
         var passed = await service.TestIsoIntegrityAsync(badCso, false, new CollectingProgress(),
@@ -629,7 +629,7 @@ public sealed class XisoIntegrityServiceTests : IDisposable
     public async Task InvalidZarReportsInvalidIsoCount()
     {
         var badZar = Path.Combine(_tempRoot, "bad.zar");
-        File.WriteAllText(badZar, "this is not a zar archive");
+        await File.WriteAllTextAsync(badZar, "this is not a zar archive");
         var service = CreateService();
         var progress = new CollectingProgress();
 
@@ -643,7 +643,7 @@ public sealed class XisoIntegrityServiceTests : IDisposable
     public async Task InvalidChdReportsInvalidIsoCount()
     {
         var badChd = Path.Combine(_tempRoot, "bad.chd");
-        File.WriteAllText(badChd, "this is not a chd image");
+        await File.WriteAllTextAsync(badChd, "this is not a chd image");
         var service = CreateService();
         var progress = new CollectingProgress();
 

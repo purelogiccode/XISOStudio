@@ -105,6 +105,9 @@ public class ExceptionFormatterTests
         var implicitLevel = new StringBuilder();
         var exception = new InvalidOperationException("X", new ArgumentException("Y"));
 
+        // The explicit 0 (versus the default) is the contract under test: the two calls
+        // must produce identical output, and diverge if the default ever changes.
+        // ReSharper disable once RedundantArgumentDefaultValue
         ExceptionFormatter.AppendExceptionDetails(explicitZero, exception, 0);
         ExceptionFormatter.AppendExceptionDetails(implicitLevel, exception);
 

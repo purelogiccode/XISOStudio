@@ -71,7 +71,7 @@ public class FileExtractorServiceTests : IDisposable
         using var fs = File.Create(zipPath);
         using var bw = new BinaryWriter(fs);
 
-        var nameBytes = Encoding.ASCII.GetBytes("payload.bin");
+        var nameBytes = "payload.bin"u8;
         const uint compressedSize = 16;
         const uint uncompressedSize = 32768;
 
@@ -1294,7 +1294,7 @@ public class FileExtractorServiceTests : IDisposable
         var file = Path.Combine(_tempDir, "cloud.bin");
         await File.WriteAllTextAsync(file, "data");
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
         var service = CreateService();
         var method = typeof(FileExtractorService).GetMethod("EnsureCloudFileHydratedAsync",
             BindingFlags.NonPublic | BindingFlags.Instance)!;

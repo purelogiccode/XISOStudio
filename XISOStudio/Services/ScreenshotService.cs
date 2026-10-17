@@ -53,7 +53,8 @@ public class ScreenshotService : IScreenshotService
 
         // Prefer the window the user is actually looking at (the main window or an open
         // dialog); fall back to the main window when no window reports itself as active.
-        var window = lifetime?.Windows.FirstOrDefault(static w => w.IsActive && w.IsVisible) ?? lifetime?.MainWindow;
+        var window = lifetime?.Windows.FirstOrDefault(static w => w is { IsActive: true, IsVisible: true })
+                     ?? lifetime?.MainWindow;
 
         if (window?.IsVisible != true)
         {

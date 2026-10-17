@@ -327,7 +327,7 @@ public class FileMoverServiceTests : IDisposable
         var destinationFolder = Path.Combine(_tempDir, "_success");
         var service = CreateService(long.MaxValue);
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             service.MoveTestedFileAsync(source, destinationFolder, "reason", cts.Token));
@@ -340,7 +340,7 @@ public class FileMoverServiceTests : IDisposable
         var destinationFolder = Path.Combine(_tempDir, "_success");
         var service = CreateService(long.MaxValue);
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             service.MoveTestedFileAsync(source, destinationFolder, "reason", cts.Token));
@@ -355,7 +355,7 @@ public class FileMoverServiceTests : IDisposable
         var destinationFolder = Path.Combine(_tempDir, "_success");
         var service = CreateService(long.MaxValue);
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             service.MoveTestedFileAsync(source, destinationFolder, "reason", cts.Token));
