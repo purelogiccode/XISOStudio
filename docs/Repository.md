@@ -66,7 +66,7 @@ This page describes the repository itself: where things live, how releases are m
 
 - The primary branch is **`master`**.
 - **Releases** are tagged on GitHub and published on the [Releases](https://github.com/purelogiccode/XISOStudio/releases) page with ready-to-run archives for Windows, Linux, and macOS (x64 and ARM64).
-- **Versioning:** `MAJOR.MINOR.PATCH` (currently 3.0.3, October 2026). Releases are tagged `release_MAJOR.MINOR.PATCH` (for example `release_3.0.0`), and release archives follow the `release_MAJOR.MINOR.PATCH_<rid>.zip` naming used by previous releases. The application's update checker extracts the numeric version from the latest release tag, so keep the `MAJOR.MINOR.PATCH` part intact.
+- **Versioning:** `MAJOR.MINOR.PATCH` (currently 3.0.4, October 2026). Releases are tagged `release_MAJOR.MINOR.PATCH` (for example `release_3.0.0`), and release archives follow the `release_MAJOR.MINOR.PATCH_<rid>.zip` naming used by previous releases. The application's update checker extracts the numeric version from the latest release tag, so keep the `MAJOR.MINOR.PATCH` part intact.
 
 ## Contributing
 
@@ -125,10 +125,13 @@ When adding features, please update the relevant documentation pages in the same
 
 | Workflow | Trigger | Purpose |
 |:---|:---|:---|
-| **CI** (`.github/workflows/ci.yml`) | Push / PR to `master` | Restores, builds in Release, and runs the xUnit suite on **Windows, Linux, and macOS**, then uploads portable publish artifacts for all six RIDs (`win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`) |
+| **CI** (`.github/workflows/ci.yml`) | Push / PR to `master` | Restores, builds in Release, and runs the xUnit suite on **Windows, Linux, and macOS** (the Linux leg also collects code coverage as a workflow artifact), uploads portable publish artifacts for all six RIDs (`win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`), and produces an informational [ReSharper InspectCode](https://www.jetbrains.com/help/resharper/InspectCode.html) report with a pinned tool version (non-blocking; a clean report uploads as `inspectcode-sarif`) |
+| **Release** (`.github/workflows/release.yml`) | Push of a `release_MAJOR.MINOR.PATCH` tag (or manual dispatch with an existing tag) | Runs the test suite on all three platforms, verifies the tag matches the `<Version>` in `XISOStudio.csproj`, builds the six platform bundles (`release_<version>_<rid>.zip`, with the bundled 7-Zip and the Unix execute bit preserved), writes the release notes from the matching section of the [Release Notes](Release-Notes.md) page, and creates or updates the GitHub release with the bundles |
 | **Update Wiki** (`.github/workflows/wiki.yml`) | Push to `docs/**` (or manual) | Copies the documentation into the GitHub wiki and rewrites internal links. Requires a `WIKI_TOKEN` repository secret (PAT with `repo` scope); skips with a notice when the secret is absent |
 
 **GitHub Pages** is built automatically by GitHub from the `master` branch `/docs` folder and is published at <https://purelogiccode.github.io/XISOStudio/> — no workflow is required for it.
+
+The `master` branch is protected: pull requests require the three **Build & Test** checks to pass, and force-pushes and branch deletion are blocked. Enforcement is deliberately off for administrators, so the release routine ("commit and push `master`") keeps working; anyone else must open a pull request with green CI.
 
 ## License
 

@@ -35,7 +35,54 @@ jobs:
         run: dotnet build CSharp_XISOStudio.sln -c Release --no-restore
 
       - name: Test
+        if: matrix.os != 'ubuntu-latest'
         run: dotnet test CSharp_XISOStudio.sln -c Release --no-build --logger "console;verbosity=minimal"
+
+      - name: Test (with coverage)
+        if: matrix.os == 'ubuntu-latest'
+        run: dotnet test CSharp_XISOStudio.sln -c Release --no-build --collect:"XPlat Code Coverage" --results-directory ./coverage --logger "console;verbosity=minimal"
+
+      - name: Upload coverage report
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: coverage
+          if-no-files-found: error
+
+  inspectcode:
+    name: InspectCode (informational)
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    # Informational first: the report proves the solution is clean without gating the
+    # pipeline. Once it has proven stable across a few runs, make this job a required
+    # status check (and drop continue-on-error) to enforce zero findings permanently.
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install JetBrains command-line tools (pinned to the local version)
+        run: |
+          dotnet tool install --global JetBrains.ReSharper.GlobalTools --version 2026.2.3.1
+          "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Run InspectCode
+        run: jb inspectcode --output=InspectCode.sarif --swea --jobs=0 CSharp_XISOStudio.sln
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: inspectcode-sarif
+          path: InspectCode.sarif
+          if-no-files-found: warn
 
   publish:
     name: Publish ${{ matrix.rid }}
