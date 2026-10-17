@@ -12,7 +12,7 @@
 
 | Version | Date | Summary |
 |:---|:---|:---|
-| [3.0.4](#304) | October 2026 | Reliability patch: game-specific Xbox archives (XMem LZX / ZIP method 21), images held open by another program, and extracted files with no registered application no longer generate bug reports; the explorer browses images while another process keeps them open |
+| [3.1.0](#310) | October 2026 | Reliability release: game-specific Xbox archives (XMem LZX / ZIP method 21), images held open by another program, and extracted files with no registered application no longer generate bug reports; the explorer browses images while another process keeps them open; dependency, analyzer, and CI maintenance (1,494 tests passing) |
 | [3.0.3](#303) | October 2026 | Reliability patch: invalid/unsupported images (CD/GD-ROM CHD, non-Xbox ISO/CSO/PS5 packages) and folder-picker failures no longer generate bug reports; drag/extract temp folders skip unwritable drives; friendlier messages for expected input problems |
 | [3.0.2](#302) | October 2026 | Post-3.0.1 patch: fatal device hardware errors (`0x800701E3`) recognized as environmental, locked output/source files no longer generate bug reports, XISOSharp 1.4.2 ZAR invalid-input handling preserved |
 | [3.0.1](#301) | October 2026 | Reliability patch: locked files and inaccessible Linux/macOS temp roots no longer generate bug reports; synchronous CSO/ZAR/CHD progress reporting fixes out-of-order percentages; platform-dependent tests and CI restored |
@@ -25,7 +25,7 @@
 
 ---
 
-## 3.0.4
+## 3.1.0
 
 *October 2026*
 
@@ -34,7 +34,9 @@
 > (XMem LZX ZIPs), images held open by another program, and extracted files with no registered
 > application are now explained and logged below the automatic report threshold. The explorer
 > opens images with read/write sharing, so browsing works while a sync client or antivirus keeps
-> the image open.
+> the image open. The release also refreshes the dependency and analyzer baseline and completes
+> the release pipeline (three-platform test matrix, tag/version guard, coverage and InspectCode
+> build reports).
 
 ### Bug Fixes
 
@@ -63,6 +65,21 @@
 - **XISOSharp updated to 1.4.3.** Split CISO part sets now honor the caller's file share mode, so
   the read/write sharing used by the Explorer reaches the individual `*.1.cso` part files. No API
   changes for the application.
+- **CHDSharp 1.4.3 → 1.5.0**, **Microsoft.Extensions.\* 10.0.12 → 10.0.13**, and
+  **System.Diagnostics.PerformanceCounter 10.0.12 → 10.0.13**; **Meziantou.Analyzer 3.0.297 →
+  3.0.303** and **Microsoft.NET.Test.Sdk 18.10.1 → 18.11.0** are build-time only.
+
+### Internal
+
+- **Zero ReSharper InspectCode findings.** The 95 findings first reported by the analyzer were all
+  addressed: async overloads are awaited, blocking file I/O in the tests uses async APIs, dead
+  service methods were removed, and the few remaining warnings are suppressed with documented
+  justifications where a real consumer (Avalonia's XAML previewer, reflection contracts) needs the
+  member.
+- **Complete release pipeline.** The Release workflow runs the test suite on Windows, Linux, and
+  macOS before building the six bundles and fails early when the release tag does not match the
+  project version; the CI workflow publishes a code-coverage artifact and an informational
+  InspectCode report.
 
 ### Tests
 

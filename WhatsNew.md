@@ -2,11 +2,11 @@
 
 <!-- Keep this file focused on the newest release. Full history lives in docs/Release-Notes.md. -->
 
-## Version 3.0.4
+## Version 3.1.0
 
 **Release date:** October 2026
 
-Version 3.0.4 is a **reliability patch for 3.0.3**. It stops three more classes of expected conditions - game-specific Xbox archives that no general-purpose extractor can open, images held open by another program, and extracted files with no registered application - from being uploaded as bug reports, and lets the Explorer open an image while another program keeps it open.
+Version 3.1.0 is a **reliability release for 3.0.3**. It stops three more classes of expected conditions - game-specific Xbox archives that no general-purpose extractor can open, images held open by another program, and extracted files with no registered application - from being uploaded as bug reports, lets the Explorer open an image while another program keeps it open, and refreshes the dependency and tooling baseline.
 
 ### Fixes
 
@@ -21,9 +21,14 @@ Version 3.0.4 is a **reliability patch for 3.0.3**. It stops three more classes 
 
 #### Dependencies
 - **XISOSharp 1.4.3** - split CISO part sets honor the caller's file share mode (the fix above); no API changes.
+- **CHDSharp 1.5.0**, **Microsoft.Extensions.\* 10.0.13**, and **System.Diagnostics.PerformanceCounter 10.0.13** - library updates; **Meziantou.Analyzer 3.0.303** and **Microsoft.NET.Test.Sdk 18.11.0** are build-time only.
+
+#### Internal
+- **Zero analyzer findings** - the entire solution is now free of ReSharper InspectCode findings (95 cleaned up), and the test suite's blocking file I/O uses async APIs.
+- **Complete release pipeline** - releases now run the test suite on Windows, Linux, and macOS before bundling, fail early when the tag does not match the project version, and publish code coverage plus an InspectCode report as build artifacts.
 
 ### Upgrading
-Download the archive for your platform and replace the previous files. There are no configuration, format, or workflow changes - 3.0.4 is a drop-in replacement for 3.0.3.
+Download the archive for your platform and replace the previous files. There are no configuration, format, or workflow changes - 3.1.0 is a drop-in replacement for 3.0.3.
 
 ---
 

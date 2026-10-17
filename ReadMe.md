@@ -67,12 +67,13 @@ Whether you're managing a large collection of Xbox game backups or verifying the
 
 ## What's New
 
-### v3.0.4 - fewer false bug reports for game archives, locked images, and unopenable files
+### v3.1.0 - fewer false bug reports for game archives, locked images, and unopenable files
 
 - **Game-specific Xbox archives are recognized as user input** - ZIPs using the Xbox *XMem LZX* compression (method 21, e.g. Forza Horizon) cannot be decoded by any general-purpose tool, including the bundled 7-Zip, and are now skipped with a clear message instead of uploading two bug reports per file.
 - **An image held open by another program can still be browsed** - the Explorer now opens images with read/write sharing - including split `.1.cso` part sets via XISOSharp 1.4.3 - so a sync client, antivirus, or another process keeping the image open no longer blocks browsing; an exclusively locked file is explained instead of reported.
 - **Extracted files with no default application are revealed, not reported** - opening a file with no registered handler (Xbox `.xex` executables, game assets) now selects it in your file manager and logs at Information.
 - **Handled compression fallbacks log at Information** - a ZIP that the built-in extractor cannot decode but the 7-Zip CLI can still extract no longer uploads a report; the handled `.7z` fallback is quieter too.
+- **Maintenance** - dependency refresh (XISOSharp 1.4.3, CHDSharp 1.5.0, analyzers and test tooling); the solution is ReSharper InspectCode-clean; CI now runs the release test matrix on Windows/Linux/macOS with a tag/version guard, coverage, and an InspectCode report.
 
 ### v3.0.3 - fewer false bug reports for expected input problems
 

@@ -88,7 +88,7 @@ Xbox *XMem LZX* codec (ZIP method 21). Despite the extension, these are not stan
 **no general-purpose extractor — including 7-Zip — can decode them**; they also do not contain an ISO to
 convert.
 
-- Since **3.0.4** these files are skipped with this explanation and do **not** generate a bug report;
+- Since **3.1.0** these files are skipped with this explanation and do **not** generate a bug report;
   remove them from the input list (the application converts game images, not game asset archives).
 - Unsupported compression methods that the bundled 7-Zip CLI can handle (for example Zstandard) still
   extract normally through the automatic fallback.
