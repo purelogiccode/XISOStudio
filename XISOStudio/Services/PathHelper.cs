@@ -370,6 +370,7 @@ public static class PathHelper
     {
         return message.Contains("being used by another process", StringComparison.OrdinalIgnoreCase) ||
                message.Contains("used by another process", StringComparison.OrdinalIgnoreCase) ||
+               message.Contains("in use by another process", StringComparison.OrdinalIgnoreCase) ||
                message.Contains("utilizado por otro proceso", StringComparison.OrdinalIgnoreCase) ||
                message.Contains("utilizzato da un altro processo", StringComparison.OrdinalIgnoreCase) ||
                message.Contains("utilisé par un autre processus", StringComparison.OrdinalIgnoreCase) ||

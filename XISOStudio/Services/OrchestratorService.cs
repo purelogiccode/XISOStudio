@@ -493,10 +493,12 @@ public class OrchestratorService : IOrchestratorService
             progress.Report(new BatchOperationProgress
                 { LogMessage = $"Could not analyze archive: {ex.Message}. Using default temp path." });
 
-            if (IsFatalEnvironmentalError(ex) || PathHelper.IsNetworkError(ex) || PathHelper.IsDiskSpaceError(ex))
+            if (IsFatalEnvironmentalError(ex) || PathHelper.IsNetworkError(ex) || PathHelper.IsDiskSpaceError(ex) ||
+                PathHelper.IsFileInUseError(ex) || ArchiveErrorClassifier.IsArchiveInputError(ex) ||
+                ex is FileNotFoundException or DirectoryNotFoundException or UnauthorizedAccessException)
             {
                 _logger.Information(ex,
-                    "Could not analyze archive {ArchivePath} due to an environmental error; using default temp path",
+                    "Could not analyze archive {ArchivePath} due to an input or environmental condition; using default temp path",
                     archivePath);
             }
             else
@@ -600,7 +602,8 @@ public class OrchestratorService : IOrchestratorService
             // anything else is unexpected and must stay visible as an application error.
             var isEnvironmentalError = PathHelper.IsNetworkError(ex) || IsFatalEnvironmentalError(ex) ||
                                        ex is UnauthorizedAccessException or IOException or InvalidDataException;
-            var isArchiveError = ex.Message.Contains("Data error", StringComparison.OrdinalIgnoreCase) ||
+            var isArchiveError = ArchiveErrorClassifier.IsArchiveInputError(ex) ||
+                                 ex.Message.Contains("Data error", StringComparison.OrdinalIgnoreCase) ||
                                  ex.Message.Contains("Invalid archive", StringComparison.OrdinalIgnoreCase) ||
                                  ex.Message.Contains("Unsupported archive", StringComparison.OrdinalIgnoreCase) ||
                                  ex.Message.Contains("End of stream reached", StringComparison.OrdinalIgnoreCase);

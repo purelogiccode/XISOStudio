@@ -258,12 +258,23 @@ public class PathHelperTests
 
     [Theory]
     [InlineData("The process cannot access the file because it is being used by another process.", true)]
+    [InlineData("The file 'game.zip' is currently in use by another process.", true)]
     [InlineData("Il processo non può accedere al file perché è utilizzato da un altro processo.", true)]
     [InlineData("some random error message", false)]
     public void IsFileInUseErrorWithKnownPatternsReturnsExpectedResult(string message, bool expected)
     {
         var ex = new IOException(message);
         Assert.Equal(expected, PathHelper.IsFileInUseError(ex));
+    }
+
+    [Fact]
+    public void IsFileInUseErrorMatchesFriendlyInUseMessage()
+    {
+        // FileExtractorService's friendly lock message must be recognised as a file-in-use
+        // condition; otherwise it is logged at Error and auto-filed as a bug report.
+        var ex = new IOException("The file 'Xyanide (USA).zip' is currently in use by another process. " +
+                                 "Please close any programs that may have the file open and try again.");
+        Assert.True(PathHelper.IsFileInUseError(ex));
     }
 
     [Fact]

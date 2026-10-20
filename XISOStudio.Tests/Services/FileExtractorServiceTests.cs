@@ -496,18 +496,19 @@ public class FileExtractorServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetArchiveInfoAsyncMissingFileThrowsAndLogsWarning()
+    public async Task GetArchiveInfoAsyncMissingFileThrowsAndLogsInformation()
     {
         var service = CreateService();
         var missing = Path.Combine(_tempDir, "missing-info.zip");
 
         await Assert.ThrowsAnyAsync<Exception>(() => service.GetArchiveInfoAsync(missing, CancellationToken.None));
 
-        Assert.True(_logger.HasMessage(LogEventLevel.Warning, "Failed to read archive info"));
+        Assert.True(_logger.HasMessage(LogEventLevel.Information, "Could not analyze archive"));
+        Assert.DoesNotContain(_logger.Events, e => e.Level >= LogEventLevel.Warning);
     }
 
     [Fact]
-    public async Task GetArchiveInfoAsyncPlainTextFileThrowsAndLogsWarning()
+    public async Task GetArchiveInfoAsyncPlainTextFileThrowsAndLogsInformation()
     {
         var path = Path.Combine(_tempDir, "plain-info.zip");
         await File.WriteAllTextAsync(path, "this is not an archive");
@@ -515,11 +516,12 @@ public class FileExtractorServiceTests : IDisposable
 
         await Assert.ThrowsAnyAsync<Exception>(() => service.GetArchiveInfoAsync(path, CancellationToken.None));
 
-        Assert.True(_logger.HasMessage(LogEventLevel.Warning, "Failed to read archive info"));
+        Assert.True(_logger.HasMessage(LogEventLevel.Information, "Could not analyze archive"));
+        Assert.DoesNotContain(_logger.Events, e => e.Level >= LogEventLevel.Warning);
     }
 
     [Fact]
-    public async Task GetArchiveInfoAsyncCorruptZipThrowsAndLogsWarning()
+    public async Task GetArchiveInfoAsyncCorruptZipThrowsAndLogsInformation()
     {
         var corruptPath = CreateCorruptZip("corrupt-info.zip");
         var service = CreateService();
@@ -527,7 +529,8 @@ public class FileExtractorServiceTests : IDisposable
         await Assert.ThrowsAnyAsync<Exception>(() =>
             service.GetArchiveInfoAsync(corruptPath, CancellationToken.None));
 
-        Assert.True(_logger.HasMessage(LogEventLevel.Warning, "Failed to read archive info"));
+        Assert.True(_logger.HasMessage(LogEventLevel.Information, "Could not analyze archive"));
+        Assert.DoesNotContain(_logger.Events, e => e.Level >= LogEventLevel.Warning);
     }
 
     [Fact]
@@ -1044,6 +1047,8 @@ public class FileExtractorServiceTests : IDisposable
             service.ExtractArchiveAsync(corruptPath, outDir, CancellationToken.None));
 
         Assert.Contains("invalid, corrupted, or in an unsupported format", exception.Message, StringComparison.Ordinal);
+        Assert.True(_logger.HasMessage(LogEventLevel.Information, "7-Zip CLI fallback"));
+        Assert.DoesNotContain(_logger.Events, e => e.Level >= LogEventLevel.Warning);
     }
 
     [Fact]
@@ -1058,6 +1063,7 @@ public class FileExtractorServiceTests : IDisposable
             service.ExtractArchiveAsync(path, outDir, CancellationToken.None));
 
         Assert.True(_logger.HasMessage("invalid, corrupted, or in an unsupported format"));
+        Assert.DoesNotContain(_logger.Events, e => e.Level >= LogEventLevel.Warning);
     }
 
     [Fact]
@@ -1075,7 +1081,7 @@ public class FileExtractorServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ExtractArchiveAsyncMissingFileThrowsAndLogsError()
+    public async Task ExtractArchiveAsyncMissingFileThrowsAndLogsInformation()
     {
         var service = CreateService();
         var missing = Path.Combine(_tempDir, "missing-archive.zip");
@@ -1084,7 +1090,8 @@ public class FileExtractorServiceTests : IDisposable
         await Assert.ThrowsAnyAsync<IOException>(() =>
             service.ExtractArchiveAsync(missing, outDir, CancellationToken.None));
 
-        Assert.True(_logger.HasMessage(LogEventLevel.Error, "Error extracting"));
+        Assert.True(_logger.HasMessage(LogEventLevel.Information, "no longer exists"));
+        Assert.DoesNotContain(_logger.Events, e => e.Level >= LogEventLevel.Warning);
     }
 
     [Fact]

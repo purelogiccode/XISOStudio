@@ -6,6 +6,7 @@ using XISOStudio.Models;
 using Serilog;
 using SharpCompress.Archives;
 using SharpCompress.Common;
+using SharpCompress.Compressors.Deflate;
 
 namespace XISOStudio.Services;
 
@@ -334,6 +335,19 @@ public class FileExtractorService : IFileExtractor
     }
 
     /// <summary>
+    /// Returns <c>true</c> for an archive that cannot be read because the file is missing,
+    /// incomplete, corrupt, or in a format the built-in extractor does not support. These
+    /// are user-input conditions, not application defects.
+    /// </summary>
+    /// <param name="exception">Exception raised while reading the archive.</param>
+    /// <returns><c>true</c> for an expected archive-input condition; otherwise <c>false</c>.</returns>
+    private static bool IsArchiveInputError(Exception exception)
+    {
+        return ArchiveErrorClassifier.IsArchiveInputError(exception) ||
+               exception is FileNotFoundException or DirectoryNotFoundException or UnauthorizedAccessException;
+    }
+
+    /// <summary>
     /// Checks if there is enough disk space on the target drive for the extraction.
     /// </summary>
     /// <param name="extractionPath">Destination folder whose drive is checked.</param>
@@ -410,6 +424,23 @@ public class FileExtractorService : IFileExtractor
                 archivePath);
             throw;
         }
+        catch (Exception ex) when (PathHelper.IsFileInUseError(ex))
+        {
+            // A download client or antivirus scanner still holds the file. Expected input
+            // condition: the caller waits/retries and skips the archive, not a defect.
+            _logger.Information(ex,
+                "Could not analyze archive {ArchivePath} because it is in use by another process", archivePath);
+            throw;
+        }
+        catch (Exception ex) when (IsArchiveInputError(ex))
+        {
+            // Unknown/corrupt/incomplete archives are user input, not application defects.
+            // The extraction step retries with the bundled 7-Zip CLI, so this is not reported.
+            _logger.Information(ex,
+                "Could not analyze archive {ArchivePath}; the file may be missing, incomplete, corrupt, or in an unsupported format",
+                archivePath);
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.Warning(ex, "Failed to read archive info for {ArchivePath}", archivePath);
@@ -421,10 +452,14 @@ public class FileExtractorService : IFileExtractor
     {
         try
         {
-            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            // Read-only probe that coexists with other readers, writers and deleters:
+            // a download client or cloud sync process holding the file for writing must
+            // not be mistaken for an exclusive lock.
+            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
             return false;
         }
-        catch (IOException ex) when (ex.HResult == unchecked((int)0x80070020)) // ERROR_SHARING_VIOLATION
+        catch (IOException ex) when (PathHelper.IsFileInUseError(ex))
         {
             _logger.Debug(ex, "File is locked: {FilePath}", filePath);
             return true;
@@ -441,6 +476,9 @@ public class FileExtractorService : IFileExtractor
     /// <param name="token">Token used to cancel the wait.</param>
     private async Task WaitForFileUnlockedAsync(string archivePath, string archiveFileName, CancellationToken token)
     {
+        // Antivirus scanners and download clients usually release a file within seconds.
+        // Wait about 30 seconds (1+2+4+8+16s); ongoing multi-gigabyte downloads are reported
+        // to the user instead of blocking the rest of the batch for minutes.
         const int maxAttempts = 6;
 
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
@@ -452,7 +490,7 @@ public class FileExtractorService : IFileExtractor
                 var delayMs = 1000 * (1 << (attempt - 1)); // 1s, 2s, 4s, 8s, 16s
                 _logger.Information(
                     "{ArchiveFileName} is in use by another process. Waiting {DelaySeconds}s before retrying... (attempt {Attempt}/{MaxAttempts})",
-                    archiveFileName, delayMs / 1000, attempt, maxAttempts - 1);
+                    archiveFileName, delayMs / 1000, attempt, maxAttempts);
                 await Task.Delay(delayMs, token);
             }
         }
@@ -462,6 +500,50 @@ public class FileExtractorService : IFileExtractor
             throw new IOException(
                 $"The file '{archiveFileName}' is currently in use by another process. " +
                 "Please close any programs that may have the file open (file explorer, zip tools, antivirus, download manager, etc.) and try again.");
+        }
+    }
+
+    /// <summary>
+    /// Deletes any files a failed built-in extraction left in the (application-owned) temporary
+    /// folder before the 7-Zip fallback writes into it, so partially written images cannot be
+    /// mistaken for successfully extracted content.
+    /// </summary>
+    /// <param name="extractionPath">Temporary folder used for the current archive.</param>
+    private void ResetExtractionDirectory(string extractionPath)
+    {
+        try
+        {
+            if (!Directory.Exists(extractionPath)) return;
+
+            foreach (var file in Directory.EnumerateFiles(extractionPath, "*", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    File.Delete(file);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Debug(ex, "Could not delete partial extracted file {FilePath}", file);
+                }
+            }
+
+            foreach (var directory in Directory
+                         .EnumerateDirectories(extractionPath, "*", SearchOption.AllDirectories)
+                         .OrderByDescending(static d => d.Length))
+            {
+                try
+                {
+                    Directory.Delete(directory);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Debug(ex, "Could not delete partial extraction folder {Directory}", directory);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Debug(ex, "Could not reset extraction directory {ExtractionPath}", extractionPath);
         }
     }
 
@@ -787,31 +869,45 @@ public class FileExtractorService : IFileExtractor
                 archiveFileName);
             return ArchiveExtractionResult.Failed;
         }
-        catch (InvalidFormatException ex)
+        catch (Exception ex) when (ArchiveErrorClassifier.IsArchiveInputError(ex))
         {
-            var userMessage =
-                $"Error extracting {archiveFileName}: The archive uses a compression format not supported by SharpCompress.\n" +
-                "Please ensure the file is a valid archive or use an alternative extraction tool.\n" +
-                $"Exception: {ex.Message}";
+            // The built-in extractor could not read the archive. This is expected for
+            // incomplete, corrupted, or unusually packaged game archives (especially
+            // multi-gigabyte Xbox dumps), so it is logged below the bug-report threshold.
+            // Retry with the bundled 7-Zip CLI, which handles many archives SharpCompress
+            // cannot open or decompress.
+            _logger.Information(ex,
+                "The built-in extractor could not read {ArchiveFileName} ({ExceptionType}); trying the 7-Zip CLI fallback...",
+                archiveFileName, ex.GetType().Name);
+
+            if (File.Exists(_sevenZipExePath))
+            {
+                ResetExtractionDirectory(extractionPath);
+                if (await TryExtractWithSevenZipCliAsync(archivePath, extractionPath, token))
+                {
+                    _logger.Information("Successfully extracted: {ArchiveFileName}", archiveFileName);
+                    return new ArchiveExtractionResult(true, skippedEntries.ToList());
+                }
+
+                _logger.Information(
+                    "7-Zip CLI could not extract {ArchiveFileName} either. The archive is not extractable with the available tools.",
+                    archiveFileName);
+            }
+
+            var isCorrupt =
+                ex is EndOfStreamException or ZlibException ||
+                ex.Message.Contains("End of stream reached", StringComparison.OrdinalIgnoreCase) ||
+                ex.Message.Contains("Unable to read beyond the end of the stream", StringComparison.OrdinalIgnoreCase) ||
+                ex.Message.Contains("Bad state", StringComparison.OrdinalIgnoreCase);
+
+            var userMessage = isCorrupt
+                ? $"{archiveFileName} appears to be corrupt or incomplete. The file may have been damaged during download or transfer. Please re-download the archive and try again."
+                : $"Error extracting {archiveFileName}: The archive appears to be invalid, corrupted, or in an unsupported format.\n" +
+                  "Please ensure the file is a valid archive (Zip, Rar, 7Zip, etc.).\n" +
+                  $"Exception: {ex.Message}";
+
             _logger.Information("{Message:l}", userMessage);
             throw new IOException(userMessage, ex);
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("Archive", StringComparison.OrdinalIgnoreCase))
-        {
-            var errorMessage = $"Error extracting {archiveFileName}: Could not open the archive.\n" +
-                               "The archive may be corrupted or in an unsupported format.\n" +
-                               $"Exception: {ex.Message}";
-            _logger.Information("{Message:l}", errorMessage);
-            throw;
-        }
-        catch (Exception ex) when (ex is ArchiveException or ArchiveOperationException)
-        {
-            var errorMessage =
-                $"Error extracting {archiveFileName}: The archive appears to be invalid, corrupted, or in an unsupported format.\n" +
-                "Please ensure the file is a valid archive (Zip, Rar, 7Zip, etc.).\n" +
-                $"Exception: {ex.Message}";
-            _logger.Information("{Message:l}", errorMessage);
-            throw new IOException(errorMessage, ex);
         }
         catch (IOException ex) when (PathHelper.IsDiskSpaceError(ex))
         {
@@ -856,10 +952,18 @@ public class FileExtractorService : IFileExtractor
         catch (Exception ex)
         {
             // Provide user-friendly message for corrupt archives
-            if (ex.Message.Contains("being used by another process", StringComparison.OrdinalIgnoreCase))
+            if (PathHelper.IsFileInUseError(ex))
             {
                 _logger.Information(
                     "The file '{ArchiveFileName}' is currently in use by another process. Close any programs that may have the file open (file explorer preview, zip tools, antivirus, download manager, etc.) and try again.",
+                    archiveFileName);
+            }
+            else if (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                // The file was moved or deleted (for example by the user or a sync client)
+                // after it was listed. Expected input condition, not an application defect.
+                _logger.Information(
+                    "The file '{ArchiveFileName}' no longer exists at the expected location. It may have been moved, renamed, or deleted.",
                     archiveFileName);
             }
             else if (ex is EndOfStreamException ||

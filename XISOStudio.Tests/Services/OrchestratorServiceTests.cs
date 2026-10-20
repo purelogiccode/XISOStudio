@@ -3,6 +3,8 @@ using XISOStudio.Models;
 using XISOStudio.Services;
 using Moq;
 using Serilog.Events;
+using SharpCompress.Common;
+using SharpCompress.Compressors.Deflate;
 using Xunit;
 
 namespace XISOStudio.Tests.Services;
@@ -1715,6 +1717,59 @@ public class OrchestratorServiceTests : IDisposable
         Assert.True(logger.HasMessage(LogEventLevel.Error, "Archive processing failed"));
         Assert.Contains(progress.Reports, p => string.Equals(p.FailedPathToAdd, archivePath, StringComparison.Ordinal));
         Assert.Contains(progress.Reports, p => p.SuccessCount == 1);
+    }
+
+    [Fact]
+    public async Task ConvertFilesAsyncUnreadableArchiveInfoIsLoggedAsInputCondition()
+    {
+        var archivePath = CreateTempFile("unreadable-info.zip", "archive data");
+        var extractor = new Mock<IFileExtractor>();
+        extractor.Setup(static e => e.GetArchiveInfoAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ArchiveOperationException("Cannot determine compressed stream type."));
+        extractor.Setup(static e => e.ExtractArchiveAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string extractionPath, CancellationToken _) =>
+            {
+                Directory.CreateDirectory(extractionPath);
+                File.WriteAllText(Path.Combine(extractionPath, "game.iso"), "iso data");
+                return new ArchiveExtractionResult(true, []);
+            });
+        var logger = new TestLogger();
+        var progress = new CollectingProgress();
+        var orchestrator = CreateOrchestrator(extractor, FileProcessingStatus.Converted, logger: logger);
+
+        await orchestrator.ConvertFilesAsync([archivePath], Path.Combine(_tempDir, "out"), false, false, false,
+            OutputFormat.Xiso, progress, CloudRetrySkip, CancellationToken.None);
+
+        // An unreadable/unknown archive format is user input, not an application defect: the
+        // batch falls back to the default temp path and continues without a bug report.
+        Assert.True(logger.HasMessage(LogEventLevel.Information, "Could not analyze archive"));
+        Assert.DoesNotContain(logger.Events, e => e.Level >= LogEventLevel.Warning);
+        Assert.Contains(progress.Reports, p => p.SuccessCount == 1);
+    }
+
+    [Fact]
+    public async Task ConvertFilesAsyncCorruptArchiveExtractionIsLoggedAsInputCondition()
+    {
+        var archivePath = CreateTempFile("corrupt-extraction.zip", "archive data");
+        var extractor = new Mock<IFileExtractor>();
+        extractor.Setup(static e => e.GetArchiveInfoAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((100L, 1));
+        extractor.Setup(static e => e.ExtractArchiveAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ZlibException("Bad state (invalid block type)"));
+        var logger = new TestLogger();
+        var progress = new CollectingProgress();
+        var orchestrator = CreateOrchestrator(extractor, FileProcessingStatus.Converted, logger: logger);
+
+        await orchestrator.ConvertFilesAsync([archivePath], Path.Combine(_tempDir, "out"), false, false, false,
+            OutputFormat.Xiso, progress, CloudRetrySkip, CancellationToken.None);
+
+        // Corrupt compressed data is a damaged user file, not an application defect. The
+        // archive is counted as failed and the batch continues without a bug report.
+        Assert.True(logger.HasMessage(LogEventLevel.Information, "Archive processing failed"));
+        Assert.DoesNotContain(logger.Events, e => e.Level >= LogEventLevel.Warning);
+        Assert.Contains(progress.Reports, p => p.FailedCount == 1);
     }
 
     [Fact]
