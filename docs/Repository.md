@@ -33,9 +33,11 @@ This page describes the repository itself: where things live, how releases are m
 │   ├── Building-from-Source.md
 │   ├── Release-Notes.md                   Full version history
 │   ├── Repository.md                      This page
+│   ├── CI-and-Releases.md                 CI pipeline, bundles, and deployment
 │   ├── _Sidebar.md                        Side menu (GitHub wiki)
 │   ├── _config.yml                        GitHub Pages configuration (title, theme)
 │   └── _layouts/default.html              GitHub Pages layout with the side menu
+├── .github/workflows/                     CI, release, wiki, and Pages workflows
 ├── XISOStudio/                 Main Avalonia application project
 │   ├── Program.cs                         Entry point (Avalonia AppBuilder)
 │   ├── App.axaml(.cs)                     Theme/styles + DI composition
@@ -66,7 +68,7 @@ This page describes the repository itself: where things live, how releases are m
 
 - The primary branch is **`master`**.
 - **Releases** are tagged on GitHub and published on the [Releases](https://github.com/purelogiccode/XISOStudio/releases) page with ready-to-run archives for Windows, Linux, and macOS (x64 and ARM64).
-- **Versioning:** `MAJOR.MINOR.PATCH` (currently 3.1.0, October 2026). Releases are tagged `release_MAJOR.MINOR.PATCH` (for example `release_3.0.0`), and release archives follow the `release_MAJOR.MINOR.PATCH_<rid>.zip` naming used by previous releases. The application's update checker extracts the numeric version from the latest release tag, so keep the `MAJOR.MINOR.PATCH` part intact.
+- **Versioning:** `MAJOR.MINOR.PATCH` (currently 3.1.1, October 2026). Releases are tagged `release_MAJOR.MINOR.PATCH` (for example `release_3.1.1`), and release archives follow the `release_MAJOR.MINOR.PATCH_<rid>.zip` naming used by previous releases. The application's update checker extracts the numeric version from the latest release tag, so keep the `MAJOR.MINOR.PATCH` part intact.
 
 ## Contributing
 
@@ -110,10 +112,10 @@ gets a side menu:
 - **GitHub wiki** — `docs/_Sidebar.md` is the side menu (GitHub renders `_Sidebar.md` next to every
   wiki page automatically). The [Update Wiki workflow](https://github.com/purelogiccode/XISOStudio/blob/master/.github/workflows/wiki.yml)
   copies the pages into the wiki and rewrites internal links on every push to `docs/`.
-- **GitHub Pages** (<https://purelogiccode.github.io/XISOStudio/>) — `docs/_layouts/default.html`
+- **GitHub Pages** (<https://purelogiccode.github.io/XISOStudio/>) - `docs/_layouts/default.html`
   renders the side menu (mirroring `_Sidebar.md`) for every page, and `docs/_config.yml` holds the
-  site title, description, and theme. Pages is built by GitHub from the `master` branch `/docs`
-  folder.
+  site title, description, and theme. The *Deploy Pages* workflow builds the Jekyll site and deploys
+  it through the `github-pages` environment on every push to `docs/`.
 
 Every page also embeds the same navigation table at the top so the documentation is fully navigable
 when browsed inside the repository. When adding or renaming a page, update all three navigation
@@ -125,11 +127,14 @@ When adding features, please update the relevant documentation pages in the same
 
 | Workflow | Trigger | Purpose |
 |:---|:---|:---|
-| **CI** (`.github/workflows/ci.yml`) | Push / PR to `master` | Restores, builds in Release, and runs the xUnit suite on **Windows, Linux, and macOS** (the Linux leg also collects code coverage as a workflow artifact), uploads portable publish artifacts for all six RIDs (`win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`), and produces an informational [ReSharper InspectCode](https://www.jetbrains.com/help/resharper/InspectCode.html) report with a pinned tool version (non-blocking; a clean report uploads as `inspectcode-sarif`) |
-| **Release** (`.github/workflows/release.yml`) | Push of a `release_MAJOR.MINOR.PATCH` tag (or manual dispatch with an existing tag) | Runs the test suite on all three platforms, verifies the tag matches the `<Version>` in `XISOStudio.csproj`, builds the six platform bundles (`release_<version>_<rid>.zip`, with the bundled 7-Zip and the Unix execute bit preserved), writes the release notes from the matching section of the [Release Notes](Release-Notes.md) page, and creates or updates the GitHub release with the bundles |
-| **Update Wiki** (`.github/workflows/wiki.yml`) | Push to `docs/**` (or manual) | Copies the documentation into the GitHub wiki and rewrites internal links. Requires a `WIKI_TOKEN` repository secret (PAT with `repo` scope); skips with a notice when the secret is absent |
+| **CI** (`.github/workflows/ci.yml`) | Push / PR to `master` | Restores, builds in Release, and runs the xUnit suite on **Windows, Linux, and macOS** (the Linux leg also collects code coverage as a workflow artifact), validates documentation links and the Jekyll build, uploads portable publish artifacts for all six RIDs (`win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`), and **fails on any ReSharper InspectCode finding** while uploading the SARIF report |
+| **Release** (`.github/workflows/release.yml`) | Push of a `release_MAJOR.MINOR.PATCH` tag (or manual dispatch with an existing tag) | Runs the test suite on all three platforms, verifies the tag matches the `<Version>` in `XISOStudio.csproj`, builds the six platform bundles (`release_<version>_<rid>.zip`, with the bundled 7-Zip and the Unix execute bit preserved), validates every archive's name, contents, and permissions, writes the release notes from the matching section of the [Release Notes](Release-Notes.md) page, and creates or updates the GitHub release with the bundles and `SHA256SUMS.txt` |
+| **Update Wiki** (`.github/workflows/wiki.yml`) | Push to `docs/**` (or manual) | Copies the documentation into the GitHub wiki, rewrites internal links, verifies the published wiki page, and verifies the Pages build for the same commit. Requires a `WIKI_TOKEN` repository secret (PAT with `repo` scope); skips the sync with a notice when the secret is absent |
+| **Deploy Pages** (`.github/workflows/pages.yml`) | Push to `docs/**` (or manual) | Builds the Jekyll site from `docs/` and deploys it to <https://purelogiccode.github.io/XISOStudio/> through the `github-pages` environment |
 
-**GitHub Pages** is built automatically by GitHub from the `master` branch `/docs` folder and is published at <https://purelogiccode.github.io/XISOStudio/> — no workflow is required for it.
+**GitHub Pages source:** set **Settings → Pages → Build and deployment → Source** to
+**GitHub Actions** once; the *Deploy Pages* workflow then handles every deployment. The workflow can
+also be dispatched manually after the setting is changed.
 
 The `master` branch is protected: pull requests require the three **Build & Test** checks to pass, and force-pushes and branch deletion are blocked. Enforcement is deliberately off for administrators, so the release routine ("commit and push `master`") keeps working; anyone else must open a pull request with green CI.
 

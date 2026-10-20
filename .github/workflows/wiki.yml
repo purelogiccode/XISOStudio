@@ -1,7 +1,8 @@
 name: Update Wiki
 
-# The docs/ folder doubles as the GitHub wiki. GitHub Pages is built automatically
-# by GitHub from the master branch /docs folder; this workflow keeps the wiki in sync.
+# The docs/ folder doubles as the GitHub wiki. GitHub Pages is built and deployed
+# separately by .github/workflows/pages.yml; this workflow keeps the wiki in sync
+# and verifies the published wiki page.
 #
 # Requirements: add a repository secret named WIKI_TOKEN containing a personal access
 # token with the "repo" scope (the default GITHUB_TOKEN cannot push to the wiki repo).
@@ -68,3 +69,20 @@ jobs:
             git commit -m "docs: sync wiki from docs/ (${GITHUB_SHA})"
             git push
           fi
+
+      - name: Verify published wiki
+        if: steps.token.outputs.enabled == 'true'
+        run: |
+          set -euo pipefail
+          version="$(grep -oE '<Version>[^<]+' XISOStudio/XISOStudio.csproj | sed -E 's/<Version>//')"
+          url="https://raw.githubusercontent.com/wiki/${GITHUB_REPOSITORY}/Home.md"
+          for attempt in $(seq 1 30); do
+            if curl -fsSL "$url" -o /tmp/wiki-home.md && grep -q "$version" /tmp/wiki-home.md; then
+              echo "Wiki home page shows version $version."
+              exit 0
+            fi
+            echo "Waiting for the wiki to publish $version (attempt $attempt)..."
+            sleep 5
+          done
+          echo "::error::The wiki did not publish version $version."
+          exit 1

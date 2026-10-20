@@ -12,6 +12,7 @@
 
 | Version | Date | Summary |
 |:---|:---|:---|
+| [3.1.1](#311) | October 2026 | Reliability patch: 373 false archive reports eliminated, 7-Zip fallback for every archive format, locked and missing archives handled, documentation/wiki/Pages and bundle validation in CI (1,509 tests passing) |
 | [3.1.0](#310) | October 2026 | Reliability release: game-specific Xbox archives (XMem LZX / ZIP method 21), images held open by another program, and extracted files with no registered application no longer generate bug reports; the explorer browses images while another process keeps them open; dependency, analyzer, and CI maintenance (1,494 tests passing) |
 | [3.0.3](#303) | October 2026 | Reliability patch: invalid/unsupported images (CD/GD-ROM CHD, non-Xbox ISO/CSO/PS5 packages) and folder-picker failures no longer generate bug reports; drag/extract temp folders skip unwritable drives; friendlier messages for expected input problems |
 | [3.0.2](#302) | October 2026 | Post-3.0.1 patch: fatal device hardware errors (`0x800701E3`) recognized as environmental, locked output/source files no longer generate bug reports, XISOSharp 1.4.2 ZAR invalid-input handling preserved |
@@ -22,6 +23,79 @@
 | [2.7.0](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.7.0) | June 2026 | Improved ISO compatibility, disk-space detection, cancellation and performance |
 | [2.6.1](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.6.1) | June 2026 | XGD1/XGD2/XGD3 partition offsets, dark-theme tooltip fix |
 | [2.6.0](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.6.0) | June 2026 | 7-Zip CLI fallback, multilingual network errors, disk-space handling |
+
+---
+
+## 3.1.1
+
+*October 2026*
+
+> **A reliability patch for the archive pipeline.** A single Xbox Redump batch generated 373 bug
+> reports while its archives were still downloading, incomplete, corrupt, or locked. SharpCompress
+> format/header/deflate failures are now classified as user input, every failed archive is retried
+> with the bundled 7-Zip CLI regardless of format, and locked or missing files are explained instead
+> of uploaded. The release also hardens CI, validates every bundle, and publishes the documentation
+> to both the wiki and GitHub Pages with a shared side menu.
+
+### Bug Fixes
+
+- **373 false archive reports eliminated.** SharpCompress reports *"Cannot determine compressed
+  stream type. Supported Archive Formats: Zip, Rar, Tar, GZip, 7Zip"* when it cannot identify a
+  file, *"Failed to locate the Zip Header"* for a truncated ZIP, and `ZlibException` *"Bad state
+  (invalid block type / invalid stored block lengths / incomplete dynamic bit lengths tree)"* for
+  corrupt compressed data. These are conditions of the input file, not defects in the application.
+  They are now logged at Information; previously each one was logged at Warning and uploaded.
+- **No duplicate reports for one archive.** A failed analysis produced one Warning inside
+  `FileExtractorService.GetArchiveInfoAsync` and a second in `OrchestratorService.ProcessArchiveAsync`.
+  Both paths now classify archive-input failures, so a bad file produces zero reports instead of two.
+- **7-Zip fallback for every archive format.** `ExtractArchiveAsync` previously handed only `.7z`
+  archives (and entries with an unsupported compression method) to the CLI. Any `.zip`, `.rar`,
+  `.tar`, `.gz`, or `.7z` that SharpCompress cannot open or decompress is now retried with the
+  bundled 7-Zip CLI, which handles many large or unusually packaged Xbox images. The temporary folder
+  is cleared first so a partially written image cannot be treated as a successful extraction.
+- **Locked archives are recognized and retried.** The lock probe opens the file with
+  `FileShare.ReadWrite | FileShare.Delete`, so a download client holding the file for writing is not
+  mistaken for an exclusive lock. The friendly *"The file ... is currently in use by another
+  process"* message is now matched by `PathHelper.IsFileInUseError` (previously it missed the
+  `"in use by"` wording and was logged at Error, which uploaded a report). The wait is about 30
+  seconds before the archive is skipped as failed.
+- **Missing archives are explained.** A file moved or deleted after the folder was scanned now logs
+  at Information - *"no longer exists at the expected location"* - instead of an Error report.
+
+### Dependencies
+
+- **SharpCompress 0.50.6** - archive detection and extraction fixes.
+- **Meziantou.Analyzer 3.0.315** - build-time only.
+
+### Documentation and CI
+
+- **Shared side menu** - the GitHub wiki (`docs/_Sidebar.md`) and GitHub Pages
+  (`docs/_layouts/default.html`) render the same navigation, now including the
+  [CI & Releases](CI-and-Releases.md) page.
+- **InspectCode is gating** - the CI job now fails when the SARIF report contains any finding, and
+  the successful report is uploaded as an artifact.
+- **Documentation validation** - CI checks internal documentation links and builds the Jekyll site.
+- **Deployment verification** - the wiki sync verifies the published wiki page, and a Pages job waits
+  for the build of the pushed commit and checks the live site.
+- **Release validation** - bundles are checked for the six expected names, the complete file list,
+  and the Unix execute bit on `XISOStudio` and the 7-Zip helper.
+
+### Bundles
+
+Framework-dependent single-file builds for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`,
+`osx-x64`, and `osx-arm64`. Each `release_3.1.1_<rid>.zip` contains the executable, the matching
+7-Zip fallback, `7-Zip-License.txt`, `ReadMe.md`, `WhatsNew.md`, and `LICENSE.txt` at the root. The
+naming matches the update checker, which reads the numeric version from the release tag.
+
+### Tests
+
+- 1,509 tests passing. New coverage covers the archive-input classifier, archive-format analysis
+  failures, corrupt-archive extraction classification, and the *"in use by another process"* wording.
+
+### Upgrading
+
+Download the archive for your platform and replace the previous files. There are no configuration,
+format, or workflow changes - 3.1.1 is a drop-in replacement for 3.1.0.
 
 ---
 

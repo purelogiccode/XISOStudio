@@ -24,7 +24,7 @@
 [![Powered by ZArchiveSharp](https://img.shields.io/badge/Powered%20by-ZArchiveSharp-8A2BE2.svg)](https://github.com/purelogiccode/ZArchiveSharp)
 [![Powered by SharpCompress](https://img.shields.io/badge/Powered%20by-SharpCompress-8A2BE2.svg)](https://github.com/adamhathcock/sharpcompress)
 [![Formats](https://img.shields.io/badge/formats-ISO%20%7C%20XISO%20%7C%20ZAR%20%7C%20CSO%20%7C%20CHD-orange.svg)](#supported-formats)
-[![Tests](https://img.shields.io/badge/tests-1494%20passing-brightgreen.svg)](https://github.com/purelogiccode/XISOStudio/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-1509%20passing-brightgreen.svg)](https://github.com/purelogiccode/XISOStudio/actions/workflows/ci.yml)
 [![Code analyzers](https://img.shields.io/badge/analyzers-Meziantou%20%7C%20Roslynator-blueviolet)](docs/Architecture.md)
 [![Made with C#](https://img.shields.io/badge/Made%20with-C%23-239120.svg?logo=csharp&logoColor=white)](https://dotnet.microsoft.com/languages/csharp)
 [![Nullable](https://img.shields.io/badge/nullable-enabled-blue.svg)](https://learn.microsoft.com/dotnet/csharp/nullable-references)
@@ -66,6 +66,14 @@ Whether you're managing a large collection of Xbox game backups or verifying the
 ---
 
 ## What's New
+
+### v3.1.1 - unreadable and locked archives no longer generate bug reports
+
+- **373 false reports eliminated** - a single Xbox Redump batch produced 373 reports when archives were still downloading, truncated, corrupt, or locked. SharpCompress format/header/deflate failures (*"Cannot determine compressed stream type"*, *"Failed to locate the Zip Header"*, *"Bad state..."*) are now recognized as user input and logged at Information.
+- **7-Zip fallback for every archive format** - when the built-in extractor cannot open or decompress a `.zip`, `.rar`, `.tar`, `.gz`, or `.7z` archive, the bundled 7-Zip CLI is tried automatically. Partial output from the failed attempt is cleared first.
+- **Locked archives are handled** - a file held open by a download client or sync app is detected with a permissive share probe, retried for about 30 seconds, and then explained as failed. The *"currently in use by another process"* message is no longer logged at Error.
+- **No duplicate reports** - one bad archive used to upload a report during analysis and another during extraction; neither is uploaded now.
+- **Docs, CI, and bundles** - the wiki and Pages documentation now share the same side menu, CI enforces zero InspectCode findings and validates the docs build, and all six release bundles are verified for contents, naming, and Unix execute bits.
 
 ### v3.1.0 - fewer false bug reports for game archives, locked images, and unopenable files
 
@@ -140,7 +148,7 @@ Read the full [What's New](WhatsNew.md) or browse the [Release Notes](docs/Relea
 - **In-Process Engine**: All conversion is performed in-process by [XISOSharp](https://github.com/purelogiccode/XISOSharp) for XISO/ZAR/CSO and by [CHDSharp](https://github.com/purelogiccode/CHDSharp) for CHD — no external conversion binaries required
 - **Output Formats**: Optimized **XISO** (`.iso`), **ZAR** (`.zar`, ZArchive/zstd — Xenia canary loads it directly), **CSO** (`.cso`, CISO v2/LZ4), or **CHD** (`.chd`, CHD v5 with the chdman `createdvd` preset) — selected per batch on the Convert tab
 - **Smart Processing**: Removes video partitions and padding, converting Redump ISOs to playable XISO format
-- **Archive Support**: Process `.zip`, `.7z`, and `.rar` files directly with high-performance extraction via SharpCompress, with automatic 7-Zip CLI fallback for complex `.7z` archives
+- **Archive Support**: Process `.zip`, `.7z`, and `.rar` files directly with high-performance extraction via SharpCompress, with an automatic 7-Zip CLI fallback for any archive the built-in extractor cannot open or decompress
 - **Encrypted Archive Detection**: Automatically detects password-protected archives and provides clear guidance for manual extraction, preventing cryptic extraction failures
 - **System Update Removal**: Option to skip the `$SystemUpdate` folder for additional space savings
 - **Skip Already Optimized**: Images that already carry the optimized XISO tag are detected and skipped
@@ -266,7 +274,7 @@ Utilizes `Microsoft.Extensions.DependencyInjection` for comprehensive service ma
 Logging runs through a single [Serilog](https://serilog.net/) pipeline with three sinks: the on-screen log viewer (`UiLogSink`), a rolling daily file log (`%LocalAppData%\XISOStudio\logs`), and a bug-report sink (`BugReportSink`) that forwards every **Warning-or-higher** event to the Bug Report API. Reports include complete environment, error, and exception sections; expected user/environmental errors are logged at Information level so they never generate noise.
 
 ### Testing
-A comprehensive [xUnit](https://xunit.net/) test suite (`XISOStudio.Tests`) covers models, services, and image services with 1,450+ tests, using [Moq](https://github.com/devlooped/moq) for mocking.
+A comprehensive [xUnit](https://xunit.net/) test suite (`XISOStudio.Tests`) covers models, services, and image services with 1,500+ tests, using [Moq](https://github.com/devlooped/moq) for mocking.
 
 ### Technical Documentation
 For a deep dive into the XDVDFS format, binary file structures, and the conversion algorithm, see the [XDVDFS Technical Documentation](docs/XDVDFS-Technical-Documentation.md). The full documentation (including installation, usage, troubleshooting, architecture, and [release notes](docs/Release-Notes.md)) lives in the [docs folder](docs/index.md) and is published both as the repository wiki and as the [GitHub Pages site](https://purelogiccode.github.io/XISOStudio/) — the wiki uses `docs/_Sidebar.md` and the Pages site uses `docs/_layouts/default.html`, so both get the same side menu. Highlights of the latest release are summarized in [What's New](WhatsNew.md).

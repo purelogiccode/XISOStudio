@@ -2,6 +2,63 @@
 
 <!-- Keep this file focused on the newest release. Full history lives in docs/Release-Notes.md. -->
 
+## Version 3.1.1
+
+**Release date:** October 2026
+
+Version 3.1.1 is a **reliability patch for 3.1.0** that closes the largest remaining source of false
+bug reports. A single Xbox Redump batch produced **373 reports** when archives were still downloading,
+incomplete, corrupt, or locked by another process. Those conditions are now recognised as user input,
+retried with the bundled 7-Zip CLI regardless of archive format, and never uploaded as application
+defects.
+
+### Fixes
+
+#### Archive handling
+- **Unreadable Xbox archives are user input, not bugs.** SharpCompress failures such as *"Cannot
+  determine compressed stream type"*, *"Failed to locate the Zip Header"*, and *"Bad state (invalid
+  block type)"* now log at Information instead of Warning. A file that is still downloading, was
+  truncated, or is corrupt no longer creates one report during analysis and a second during extraction.
+- **Every archive format gets the 7-Zip fallback.** When the built-in extractor cannot open or
+  decompress an archive, the bundled 7-Zip CLI is tried for `.zip`, `.rar`, `.tar`, `.gz`, and `.7z` -
+  not just `.7z`. Many archives that SharpCompress cannot identify, including very large Xbox images
+  and unusual ZIP variants, now extract successfully.
+- **Failed partial extractions are cleared first.** Before the 7-Zip fallback writes into the temporary
+  folder, files left by the failed attempt are removed, so a partial image cannot be mistaken for a
+  successful extraction.
+- **Locked archives are recognised and retried.** The lock probe now shares the file for read, write,
+  and delete, so a download client or cloud-sync process holding the archive for writing is no longer
+  mistaken for an exclusive lock. The friendly *"currently in use by another process"* message is now
+  classified correctly (it was previously logged at Error and uploaded as a bug). The app waits about
+  30 seconds before skipping the archive, then reports it as failed with guidance.
+- **Missing archives are explained.** A file moved or deleted between scanning and processing now logs
+  at Information with a clear message instead of uploading an Error report.
+
+#### Dependencies
+- **SharpCompress 0.50.6** - archive detection and extraction fixes.
+- **Meziantou.Analyzer 3.0.315** - build-time only.
+
+#### Documentation, CI, and bundles
+- **Documentation** - the `docs/` folder remains the single source for the GitHub wiki and GitHub
+  Pages. Every page has the same side menu (wiki `_Sidebar.md`, Pages `_layouts/default.html`), and a
+  new [CI & Releases](docs/CI-and-Releases.md) page documents the pipeline and bundle contents.
+- **CI and release pipeline** - ReSharper InspectCode findings now fail CI, the documentation is built
+  and link-checked, release bundles are verified (file list, names, and Unix execute bits), and the
+  wiki plus Pages deployments are checked after every documentation push.
+- **Bundles** - all six framework-dependent single-file bundles (`win-x64`, `win-arm64`, `linux-x64`,
+  `linux-arm64`, `osx-x64`, `osx-arm64`) include `LICENSE.txt`, `ReadMe.md`, `WhatsNew.md`, and
+  `7-Zip-License.txt`, and are named `release_3.1.1_<rid>.zip` for the update checker.
+
+### Tests
+- 1,509 tests passing across Windows, Linux, and macOS; the solution is free of ReSharper InspectCode
+  findings and builds with zero warnings.
+
+### Upgrading
+Download the archive for your platform and replace the previous files. There are no configuration,
+format, or workflow changes - 3.1.1 is a drop-in replacement for 3.1.0.
+
+---
+
 ## Version 3.1.0
 
 **Release date:** October 2026

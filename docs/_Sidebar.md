@@ -21,6 +21,7 @@
 
 - [Building from Source](Building-from-Source)
 - [Repository](Repository)
+- [CI & Releases](CI-and-Releases)
 - [Release Notes](Release-Notes)
 
 **Releases**

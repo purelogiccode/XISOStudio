@@ -13,7 +13,7 @@ Welcome to the official documentation for **XISO Studio** — a high-performance
 - **Repository:** <https://github.com/purelogiccode/XISOStudio>
 - **Website:** <https://www.purelogiccode.com>
 - **License:** GNU General Public License v3.0
-- **Current version:** 3.1.0 (October 2026) — see the [Release Notes](Release-Notes.md#310)
+- **Current version:** 3.1.1 (October 2026) — see the [Release Notes](Release-Notes.md#311)
 - **Platform:** Windows, Linux, and macOS (x64 / ARM64), .NET 10.0 Runtime
 
 ---
@@ -69,6 +69,7 @@ Whether you are managing a large collection of game backups, preparing files for
 | [XDVDFS Technical Docs](XDVDFS-Technical-Documentation.md) | Binary format internals and the XISO conversion algorithm |
 | [Building from Source](Building-from-Source.md) | Prerequisites, build, and test instructions |
 | [Repository](Repository.md) | Repository layout, releases, contributing, and license |
+| [CI & Releases](CI-and-Releases.md) | Build pipeline, bundle contents, wiki/Pages deployment |
 | [Release Notes](Release-Notes.md) | Version history and detailed release notes |
 | [What's New](https://github.com/purelogiccode/XISOStudio/blob/master/WhatsNew.md) | Highlights of the latest release |
 

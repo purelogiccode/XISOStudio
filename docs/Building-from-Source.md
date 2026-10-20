@@ -92,6 +92,25 @@ Supported runtime identifiers:
 
 All RIDs can be cross-published from any OS (the native Avalonia/Skia assets come from NuGet). After extracting a Linux/macOS build, mark the executable runnable with `chmod +x XISOStudio`.
 
+### Release Bundle Layout
+
+The release workflow adds the license and documentation files and writes
+`release_<version>_<rid>.zip`. Each archive contains, at its root:
+
+```text
+XISOStudio.exe | XISOStudio
+7za.exe + 7za_arm64.exe | 7zz_linux_x64 | 7zz_linux_arm64 | 7zz_osx
+7-Zip-License.txt
+ReadMe.md
+WhatsNew.md
+LICENSE.txt
+```
+
+The Linux and macOS executables keep the Unix execute bit (`0755`) inside the ZIP, and the bundles are
+framework-dependent: end users need the [.NET 10.0 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0).
+A local `SHA256SUMS.txt` is published with every release. Finished bundles are archived in
+`XISOStudio/bin/Release/`; that folder is append-only, so never delete or overwrite existing ZIPs.
+
 ## Project Notes
 
 - **Target framework:** `net10.0` with **Avalonia** (`Avalonia`, `Avalonia.Desktop`, `Avalonia.Themes.Fluent`, `Avalonia.Controls.DataGrid`).

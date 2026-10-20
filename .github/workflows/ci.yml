@@ -51,13 +51,8 @@ jobs:
           if-no-files-found: error
 
   inspectcode:
-    name: InspectCode (informational)
-    if: github.event_name != 'pull_request'
+    name: InspectCode
     runs-on: windows-latest
-    # Informational first: the report proves the solution is clean without gating the
-    # pipeline. Once it has proven stable across a few runs, make this job a required
-    # status check (and drop continue-on-error) to enforce zero findings permanently.
-    continue-on-error: true
 
     steps:
       - name: Checkout
@@ -76,6 +71,21 @@ jobs:
       - name: Run InspectCode
         run: jb inspectcode --output=InspectCode.sarif --swea --jobs=0 CSharp_XISOStudio.sln
 
+      - name: Fail on InspectCode findings
+        shell: pwsh
+        run: |
+          $report = Get-Content InspectCode.sarif -Raw | ConvertFrom-Json
+          $results = @($report.runs[0].results)
+          if ($results.Count -gt 0) {
+            foreach ($result in $results) {
+              $location = $result.locations[0].physicalLocation
+              Write-Host "::error file=$($location.artifactLocation.uri),line=$($location.region.startLine)::$($result.ruleId): $($result.message.text)"
+            }
+            Write-Host "InspectCode reported $($results.Count) finding(s)."
+            exit 1
+          }
+          Write-Host "InspectCode: 0 findings."
+
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v7
@@ -84,9 +94,48 @@ jobs:
           path: InspectCode.sarif
           if-no-files-found: warn
 
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Validate documentation navigation and links
+        shell: bash
+        run: |
+          set -euo pipefail
+          failed=0
+          for file in docs/*.md; do
+            page="$(basename "$file" .md)"
+            [[ "$page" == "_Sidebar" ]] && continue
+            if ! grep -q "$page" docs/_Sidebar.md; then
+              echo "::error file=docs/_Sidebar.md::$page is missing from the wiki side menu"
+              failed=1
+            fi
+            if ! grep -q "$page" docs/_layouts/default.html; then
+              echo "::error file=docs/_layouts/default.html::$page is missing from the Pages side menu"
+              failed=1
+            fi
+          done
+          while IFS= read -r target; do
+            if [[ ! -f "docs/$target" ]]; then
+              echo "::error::Broken documentation link: $target"
+              failed=1
+            fi
+          done < <(grep -rhoE '\]\([A-Za-z0-9_-]+\.md' docs/*.md | sed -E 's/^\]\(//' | sort -u)
+          exit "$failed"
+
+      - name: Build documentation site
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./docs
+          destination: ./_site
+
   publish:
     name: Publish ${{ matrix.rid }}
-    needs: build-test
+    needs: [build-test, inspectcode, docs]
     if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false

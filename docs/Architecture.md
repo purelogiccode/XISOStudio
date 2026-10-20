@@ -39,6 +39,7 @@ CSharp_XISOStudio.sln
 │       ├── ChdImageExplorer.cs          IImageExplorer over CHD via CHDSharp + XISOSharp (on-demand decompression)
 │       ├── ImagePaths.cs                Shared internal-path normalization helpers
 │       ├── FileExtractorService.cs      Archive handling (zip/7z/rar), locked-file retries
+│       ├── ArchiveErrorClassifier.cs    Classifies SharpCompress failures as user input
 │       ├── FileMoverService.cs          File moves with network/lock retries
 │       ├── DiskMonitorService.cs        Read/write speed and free-space monitoring
 │       ├── BugReportService.cs          Automatic bug reporting client
@@ -51,7 +52,7 @@ CSharp_XISOStudio.sln
 └── XISOStudio.Tests/         xUnit + Moq test suite
 ```
 
-The bundled 7-Zip CLI fallback (`7za.exe`/`7za_arm64.exe` on Windows, `7zz_linux_x64`/`7zz_linux_arm64` on Linux, `7zz_osx` on macOS) is copied next to the executable and invoked as an isolated child process when SharpCompress cannot extract an archive; a system `7z` on `PATH` is used as a further fallback. All XISO and CHD encoding/decoding is performed in-process by the `XISOSharp` and `CHDSharp` NuGet packages, and all image libraries are pure managed code with no native dependencies.
+The bundled 7-Zip CLI fallback (`7za.exe`/`7za_arm64.exe` on Windows, `7zz_linux_x64`/`7zz_linux_arm64` on Linux, `7zz_osx` on macOS) is copied next to the executable and invoked as an isolated child process when SharpCompress cannot open or decompress an archive. Since 3.1.1 the fallback covers every archive format (not only `.7z`), and `ArchiveErrorClassifier` recognises SharpCompress format, header, and deflate failures as user input so they are logged at Information instead of being uploaded as bug reports. A system `7z` on `PATH` is used as a further fallback. All XISO and CHD encoding/decoding is performed in-process by the `XISOSharp` and `CHDSharp` NuGet packages, and all image libraries are pure managed code with no native dependencies.
 
 ## Dependency Injection
 
@@ -121,6 +122,7 @@ Safety characteristics of the pipeline:
 
 - **Pre-flight checks** — output-drive free space (size-aware for compressed formats) and FAT32 file-size limits are verified before conversion starts; failures skip the file with a clear message instead of failing late.
 - **Environmental errors are surfaced, not reported** — disk-space, network, and device failures (including `ERROR_IO_DEVICE` `0x45D` and the fatal `ERROR_DEVICE_HARDWARE_ERROR` `0x800701E3`) stop or skip with actionable messages and are excluded from automatic bug reports.
+- **Unreadable archives are input, not defects** — SharpCompress format/header/deflate failures, truncated downloads, and archives held open by another process are classified by `ArchiveErrorClassifier` and `PathHelper.IsFileInUseError`, logged at Information, and retried with the 7-Zip CLI before the file is marked failed.
 - **Transient failures retry** — locked files and network hiccups use exponential backoff (see `FileExtractorService`, `FileMoverService`); permanent errors are not retried. A pre-existing output held open by another process is retried briefly before the conversion is reported as failed (`PathHelper.TryDeleteExistingFileWithRetryAsync`).
 - **Atomic replace-originals** — deletion of inputs happens only after the converted file exists and (optionally) passes validation. An archive is removed only when every entry was extracted and every extracted image was converted; skipped entries or unconverted images keep the archive.
 - **Unique output names** — output paths are reserved per batch, so two inputs with the same base name cannot overwrite each other.

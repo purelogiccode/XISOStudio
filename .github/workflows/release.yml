@@ -118,6 +118,51 @@ jobs:
           done
           ls -l "$zip_dir"
 
+      - name: Validate bundles
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          declare -A EXPECTED=(
+            [win-x64]="XISOStudio.exe 7za.exe 7za_arm64.exe 7-Zip-License.txt ReadMe.md WhatsNew.md LICENSE.txt"
+            [win-arm64]="XISOStudio.exe 7za.exe 7za_arm64.exe 7-Zip-License.txt ReadMe.md WhatsNew.md LICENSE.txt"
+            [linux-x64]="XISOStudio 7zz_linux_x64 7-Zip-License.txt ReadMe.md WhatsNew.md LICENSE.txt"
+            [linux-arm64]="XISOStudio 7zz_linux_arm64 7-Zip-License.txt ReadMe.md WhatsNew.md LICENSE.txt"
+            [osx-x64]="XISOStudio 7zz_osx 7-Zip-License.txt ReadMe.md WhatsNew.md LICENSE.txt"
+            [osx-arm64]="XISOStudio 7zz_osx 7-Zip-License.txt ReadMe.md WhatsNew.md LICENSE.txt"
+          )
+          for rid in "${!EXPECTED[@]}"; do
+            zip="bundles/release_${VERSION}_${rid}.zip"
+            if [[ ! -f "$zip" ]]; then
+              echo "::error::Missing bundle $zip"
+              exit 1
+            fi
+            actual="$(unzip -Z1 "$zip" | sort | tr '\n' ' ' | sed 's/ $//')"
+            expected="$(printf '%s\n' ${EXPECTED[$rid]} | sort | tr '\n' ' ' | sed 's/ $//')"
+            if [[ "$actual" != "$expected" ]]; then
+              echo "::error file=$zip::Unexpected bundle contents. Expected: $expected. Actual: $actual"
+              exit 1
+            fi
+            if [[ "$rid" != win-* ]]; then
+              while read -r mode entry; do
+                if [[ "$mode" != rwx* ]]; then
+                  echo "::error file=$zip::$entry is not executable (mode $mode)"
+                  exit 1
+                fi
+              done < <(zipinfo -l "$zip" | awk '$NF ~ /^(XISOStudio|7zz_)/ { print $1, $NF }')
+            fi
+            echo "Validated $zip"
+          done
+
+      - name: Create checksums
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          cd bundles
+          sha256sum "release_${VERSION}_"*.zip > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
       - name: Create release notes
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -145,9 +190,9 @@ jobs:
           set -euo pipefail
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" --title "XISO Studio ${{ steps.version.outputs.version }}" --notes-file release-notes.md
-            gh release upload "$TAG" bundles/release_*.zip --clobber
+            gh release upload "$TAG" bundles/release_*.zip bundles/SHA256SUMS.txt --clobber
           else
-            gh release create "$TAG" bundles/release_*.zip \
+            gh release create "$TAG" bundles/release_*.zip bundles/SHA256SUMS.txt \
               --title "XISO Studio ${{ steps.version.outputs.version }}" \
               --notes-file release-notes.md
           fi

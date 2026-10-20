@@ -7,4 +7,6 @@ title: XISO Studio
 description: >-
   Documentation for XISO Studio - a cross-platform utility for converting, testing,
   and exploring Xbox and Xbox 360 images (ISO, CSO, ZAR, and CHD).
+repository: purelogiccode/XISOStudio
+url: "https://purelogiccode.github.io"
 theme: jekyll-theme-primer

@@ -41,8 +41,9 @@ The output folder (or the application folder itself) does not grant write permis
 
 Another program (most commonly antivirus real-time scanning, a cloud-sync client, or an indexer) temporarily holds the file.
 
-- The application **waits and retries automatically** with exponential backoff (up to six attempts) before giving up.
-- If the message persists, add your working folders to your antivirus exclusion list or close the program that holds the file.
+- The application **waits and retries automatically** with exponential backoff (about 30 seconds) before giving up.
+- Since **3.1.1** the probe shares the file for read, write, and delete, so a download client holding the archive for writing is not mistaken for an exclusive lock; the *"currently in use by another process"* message is classified as environmental and never uploaded.
+- If the message persists, add your working folders to your antivirus exclusion list or close the program that holds the file - including the download client if the file is still being downloaded.
 - Files created moments ago are especially prone to this while the antivirus scans them; the retry logic exists precisely for this case.
 - A file that stays locked after the retries is reported as failed (or left in place) but is **not sent as an automatic bug report** — since 3.0.1 the application treats persistent locks as environmental and logs them at Information level.
 - The same applies to an existing output file that must be replaced: the delete is retried briefly, and if the file stays locked (for example, an emulator is still running the previous result) the conversion is reported as failed with guidance to close the program using it. Locked outputs are never uploaded as bugs.
@@ -92,6 +93,41 @@ convert.
   remove them from the input list (the application converts game images, not game asset archives).
 - Unsupported compression methods that the bundled 7-Zip CLI can handle (for example Zstandard) still
   extract normally through the automatic fallback.
+
+### An archive cannot be opened or extracted
+
+**Message patterns:** *"Cannot determine compressed stream type. Supported Archive Formats: Zip, Rar,
+Tar, GZip, 7Zip"*, *"Failed to locate the Zip Header"*, *"Bad state (invalid block type / invalid
+stored block lengths / invalid literal/length code)"*.
+
+The built-in extractor could not identify the file, find the ZIP central directory, or decompress
+the data. The usual causes are:
+
+- **The archive is still downloading.** Torrent clients and download managers preallocate the file
+  and write pieces out of order, so the header or the end-of-central-directory record may not exist
+  yet even though the file appears in the folder.
+- **The download is incomplete or interrupted.** A truncated ZIP has no central directory - that is
+  exactly the *"Failed to locate the Zip Header"* message.
+- **The file is corrupt.** Deflate *"Bad state"* errors mean the compressed data itself is damaged.
+- **The file is not the archive its extension claims.** A renamed ISO or a partial download from
+  another format fails detection.
+
+What the application does since **3.1.1**:
+
+- It logs the condition at **Information** and does **not** upload a bug report. (Previously one bad
+  file produced two reports, one during analysis and one during extraction.)
+- It retries with the bundled **7-Zip CLI for every archive format** - `.zip`, `.rar`, `.tar`, `.gz`,
+  and `.7z` - after clearing any partial output from the failed attempt. Many large or unusually
+  packaged Xbox images extract successfully this way even when SharpCompress cannot open them.
+- If extraction still fails, the archive is counted as failed, the batch continues, and the original
+  is kept when **Delete Originals** is enabled.
+
+What you can do:
+
+1. Wait until the download reports **100%** and no `.part`, `.!qB`, or temporary file remains.
+2. Pause the download client (or close it) while converting if it keeps the files open.
+3. Test the archive with 7-Zip's **Test** command; re-download it if the test reports CRC or header
+   errors.
 
 ### Not a valid Xbox ISO image
 
