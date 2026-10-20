@@ -68,7 +68,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Meziantou.Analyzer" Version="3.0.303">
+        <PackageReference Include="Meziantou.Analyzer" Version="3.0.315">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
@@ -81,7 +81,7 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="CHDSharp" Version="1.5.0" />
-        <PackageReference Include="SharpCompress" Version="0.50.5" />
+        <PackageReference Include="SharpCompress" Version="0.50.6" />
         <PackageReference Include="XISOSharp" Version="1.4.3" />
         <PackageReference Include="ZArchiveSharp" Version="1.4.0" />
         <PackageReference Include="Avalonia" Version="12.1.4" />
