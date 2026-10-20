@@ -145,7 +145,7 @@ jobs:
             fi
             if [[ "$rid" != win-* ]]; then
               while read -r mode entry; do
-                if [[ "$mode" != rwx* ]]; then
+                if [[ ! "$mode" =~ ^-rwx ]]; then
                   echo "::error file=$zip::$entry is not executable (mode $mode)"
                   exit 1
                 fi
