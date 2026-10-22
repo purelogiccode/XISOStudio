@@ -32,7 +32,7 @@
 
 The application is **fully portable** — there is no installer and no registry footprint.
 
-1. Download the release archive for your platform from the [Releases](https://github.com/purelogiccode/XISOStudio/releases) page. Bundles are named `release_<version>_<rid>.zip` (for example `release_3.1.1_win-x64.zip`) for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, and `osx-arm64`.
+1. Download the release archive for your platform from the [Releases](https://github.com/purelogiccode/XISOStudio/releases) page. Bundles are named `release_<version>_<rid>.zip` (for example `release_3.1.2_win-x64.zip`) for `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, and `osx-arm64`.
 2. Extract the archive to any folder on a local drive (for example `C:\Tools\XISOStudio` or `~/Tools/XISOStudio`).
 3. Run the application — `XISOStudio.exe` on Windows, or `./XISOStudio` on Linux/macOS (run `chmod +x XISOStudio` once if needed).
 

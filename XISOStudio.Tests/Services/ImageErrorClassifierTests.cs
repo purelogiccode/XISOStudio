@@ -1,4 +1,5 @@
 using XISOSharp;
+using XISOSharp.Models;
 using XISOStudio.Services;
 using Xunit;
 
@@ -47,6 +48,23 @@ public class ImageErrorClassifierTests
     public void IsEnvironmentalIoErrorWithIoFailuresReturnsTrue(Exception exception)
     {
         Assert.True(ImageErrorClassifier.IsEnvironmentalIoError(exception));
+    }
+
+    [Fact]
+    public void IsEnvironmentalIoErrorWithWrappedWriteFailureReturnsTrue()
+    {
+        var exception = new ExtractFileException(ExtractError.ErrFileWrite,
+            "Failed to extract file", new IOException("No space left on device"));
+
+        Assert.True(ImageErrorClassifier.IsEnvironmentalIoError(exception));
+    }
+
+    [Fact]
+    public void IsEnvironmentalIoErrorWithTruncatedEntryReturnsFalse()
+    {
+        var exception = new ExtractFileException(ExtractError.ErrFileTruncated, "truncated entry");
+
+        Assert.False(ImageErrorClassifier.IsEnvironmentalIoError(exception));
     }
 
     [Fact]

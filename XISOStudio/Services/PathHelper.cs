@@ -392,8 +392,9 @@ public static class PathHelper
 
     /// <summary>
     /// Resolves and creates a temporary directory path with sufficient disk space.
-    /// First checks the system temp drive, then falls back to other local drives. Each
-    /// candidate is created immediately so a drive whose root is not writable (ACL
+    /// The free space of the filesystem that actually hosts the system temp folder is
+    /// checked first, then a per-user cache folder and finally other local drives. Each
+    /// candidate is created immediately so a location that is not writable (ACL
     /// restrictions, BitLocker-locked or read-only volumes) is skipped before the caller
     /// starts extracting into it.
     /// </summary>
@@ -410,20 +411,12 @@ public static class PathHelper
 
         var candidateRoots = new List<string>();
 
-        if (defaultTempDriveRoot != null)
-        {
-            try
-            {
-                var defaultDrive = new DriveInfo(defaultTempDriveRoot);
-                if (defaultDrive.IsReady && defaultDrive.AvailableFreeSpace >= requiredWithBuffer)
-                    candidateRoots.Add(defaultTempPath);
-            }
-            catch (Exception ex)
-            {
-                // Ignore and fall through to alternative search
-                Log.Debug(ex, "Could not inspect default temp drive: {TempDriveRoot}", defaultTempDriveRoot);
-            }
-        }
+        // Query the filesystem that actually hosts the temp folder. On Unix /tmp is
+        // commonly a separate tmpfs with its own, much smaller capacity, so inspecting
+        // Path.GetPathRoot would report the free space of "/" and approve an
+        // extraction that fills the temp mount almost immediately.
+        if (diskMonitorService.GetAvailableFreeSpace(defaultTempPath) >= requiredWithBuffer)
+            candidateRoots.Add(defaultTempPath);
 
         Exception? lastCreationError = null;
         foreach (var root in Candidates())
@@ -455,15 +448,55 @@ public static class PathHelper
         throw new IOException(
             $"Not enough disk space to create temporary files. Required: {requiredFormatted}, Available: {defaultAvailable}. No other local drives have sufficient free space. Please free up disk space and try again.");
 
-        // Alternative drives are only scanned when the default temp path is not usable,
-        // so the common case does not inspect every drive.
+        // Alternative locations are only probed when the system temp folder is not
+        // usable, so the common case does not inspect every drive.
         IEnumerable<string> Candidates()
         {
             foreach (var root in candidateRoots)
                 yield return root;
 
+            // A mount root is usually owned by root and not writable by a regular user.
+            // The per-user data folder is writable and generally lives on a different
+            // filesystem than the system temp mount.
+            var userRoot = GetUserTempFallbackRoot(requiredWithBuffer, diskMonitorService);
+            if (userRoot != null)
+                yield return userRoot;
+
             foreach (var root in diskMonitorService.FindDrivesWithFreeSpace(requiredSize, defaultTempDriveRoot))
                 yield return root;
+        }
+    }
+
+    /// <summary>
+    /// Returns a per-user folder that can host temporary files when the system temp
+    /// filesystem is full, creating it when the user profile has enough space.
+    /// </summary>
+    /// <param name="requiredWithBuffer">Required size in bytes, including the safety buffer.</param>
+    /// <param name="diskMonitorService">Service used to query the free space of the user profile.</param>
+    /// <returns>The fallback folder, or <c>null</c> when it cannot be used.</returns>
+    private static string? GetUserTempFallbackRoot(long requiredWithBuffer,
+        IDiskMonitorService diskMonitorService)
+    {
+        try
+        {
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (string.IsNullOrEmpty(localAppData)) return null;
+
+            // Check the user profile instead of the (possibly not yet created) data
+            // folder: on Unix statfs needs an existing path and both live on the same
+            // filesystem.
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (string.IsNullOrEmpty(userProfile)) return null;
+            if (diskMonitorService.GetAvailableFreeSpace(userProfile) < requiredWithBuffer) return null;
+
+            var root = Path.Combine(localAppData, "XISOStudio");
+            Directory.CreateDirectory(root);
+            return root;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            Log.Debug(ex, "Could not prepare a per-user fallback temp folder");
+            return null;
         }
     }
 

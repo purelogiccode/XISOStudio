@@ -466,8 +466,61 @@ public partial class MainWindow
     /// <param name="e">The pointer event data.</param>
     private void ExplorerDataGrid_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        // Only the primary button can start a file drag; storing a right- or middle-click
+        // would let the next pointer move start a drag that the user never initiated.
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            _dragPointerArgs = null;
+            return;
+        }
+
         _dragStartPoint = e.GetPosition(null);
         _dragPointerArgs = e;
+    }
+
+    /// <summary>Ends the drag gesture candidate when the primary button is released.</summary>
+    /// <param name="sender">The grid that raised the event.</param>
+    /// <param name="e">The pointer event data.</param>
+    private void ExplorerDataGrid_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        _dragPointerArgs = null;
+    }
+
+    /// <summary>Ends the drag gesture candidate when the pointer capture is lost.</summary>
+    /// <param name="sender">The grid that raised the event.</param>
+    /// <param name="e">The capture event data.</param>
+    private void ExplorerDataGrid_PointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        _dragPointerArgs = null;
+    }
+
+    /// <summary>
+    /// Builds the pointer-pressed event handed to the platform drag source. The control
+    /// that raised the original press can be detached from the visual tree by DataGrid
+    /// virtualization or an items refresh before the drag threshold is crossed; X11
+    /// rejects such a trigger event because it cannot find the owning top level.
+    /// </summary>
+    /// <param name="current">Current pointer-move event used for the fallback coordinates.</param>
+    /// <returns>The trigger event, or <c>null</c> when the gesture is no longer valid.</returns>
+    private PointerPressedEventArgs? CreateDragTriggerEvent(PointerEventArgs current)
+    {
+        var pressed = _dragPointerArgs;
+        if (pressed is null) return null;
+
+        if (GetTopLevel(pressed.Source as Visual) is not null) return pressed;
+
+        // Re-root the trigger at the window, which is always attached to a top level.
+        if (GetTopLevel(this) is null) return null;
+
+        return new PointerPressedEventArgs(
+            this,
+            pressed.Pointer,
+            this,
+            current.GetPosition(this),
+            pressed.Timestamp,
+            pressed.GetCurrentPoint(this).Properties,
+            pressed.KeyModifiers,
+            pressed.ClickCount);
     }
 
     /// <summary>Starts a file drag once the pointer moved far enough with the left button held.</summary>
@@ -478,7 +531,13 @@ public partial class MainWindow
         try
         {
             if (_isDragging || _dragPointerArgs is null) return;
-            if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+            if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            {
+                // The button was released without a PointerReleased event reaching the
+                // grid (for example after a capture change), so the gesture is stale.
+                _dragPointerArgs = null;
+                return;
+            }
 
             var currentPosition = e.GetPosition(null);
             var diff = _dragStartPoint - currentPosition;
@@ -493,6 +552,12 @@ public partial class MainWindow
                 .ToList();
 
             if (selectedItems is not { Count: > 0 }) return;
+
+            var triggerEvent = CreateDragTriggerEvent(e);
+            if (triggerEvent is null) return;
+
+            // One drag gesture per press: do not reuse the stored event after this attempt.
+            _dragPointerArgs = null;
 
             CancellationToken token;
             try
@@ -551,7 +616,7 @@ public partial class MainWindow
                     if (addedCount > 0)
                     {
                         dragStarted = true;
-                        await DragDrop.DoDragDropAsync(_dragPointerArgs, data, DragDropEffects.Copy);
+                        await DragDrop.DoDragDropAsync(triggerEvent, data, DragDropEffects.Copy);
                     }
                 }
             }
@@ -565,6 +630,13 @@ public partial class MainWindow
                 // not defects, so they are logged below the automatic bug-report threshold.
                 _logger.Information(ex, "Could not prepare files for drag operation: {Message}", ex.Message);
                 await ShowErrorSafeAsync($"Could not prepare files for drag operation: {ex.Message}");
+            }
+            catch (Exception ex) when (ImageErrorClassifier.IsUserInputImageError(ex))
+            {
+                // Truncated or corrupt entries are expected input problems, not defects.
+                _logger.Information(ex, "Could not read the selected files for the drag operation: {Message}",
+                    ex.Message);
+                await ShowErrorSafeAsync($"Could not read the selected files from the image: {ex.Message}");
             }
             catch (Exception ex)
             {

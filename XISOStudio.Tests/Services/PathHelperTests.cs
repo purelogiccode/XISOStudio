@@ -310,6 +310,7 @@ public class PathHelperTests
     public void ResolveTempDirectoryCreatesFolderUnderDefaultTempWhenSpaceIsAvailable()
     {
         var diskMonitor = new Mock<IDiskMonitorService>();
+        diskMonitor.Setup(static d => d.GetAvailableFreeSpace(Path.GetTempPath())).Returns(long.MaxValue);
         string? result = null;
         try
         {
@@ -320,6 +321,9 @@ public class PathHelperTests
             Assert.Contains("PathHelperTests", result, StringComparison.Ordinal);
             diskMonitor.Verify(
                 static d => d.FindDrivesWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()), Times.Never);
+            // The free space of the folder that actually hosts the temp files must be
+            // queried: on Unix /tmp is often a separate tmpfs from the root drive.
+            diskMonitor.Verify(static d => d.GetAvailableFreeSpace(Path.GetTempPath()), Times.AtLeastOnce);
         }
         finally
         {
@@ -348,6 +352,34 @@ public class PathHelperTests
         finally
         {
             if (Directory.Exists(altRoot)) Directory.Delete(altRoot, true);
+        }
+    }
+
+    [Fact]
+    public void ResolveTempDirectoryFallsBackToPerUserFolderWhenDefaultTempIsFull()
+    {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrEmpty(localAppData) || string.IsNullOrEmpty(userProfile)) return;
+
+        var diskMonitor = new Mock<IDiskMonitorService>();
+        diskMonitor.Setup(static d => d.GetAvailableFreeSpace(Path.GetTempPath())).Returns(0);
+        diskMonitor.Setup(d => d.GetAvailableFreeSpace(userProfile)).Returns(long.MaxValue);
+        diskMonitor.Setup(static d => d.FindDrivesWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
+            .Returns([]);
+
+        string? result = null;
+        try
+        {
+            result = PathHelper.ResolveTempDirectory(long.MaxValue, "PathHelperUser", diskMonitor.Object);
+
+            Assert.True(Directory.Exists(result));
+            Assert.StartsWith(Path.Combine(localAppData, "XISOStudio"), result, PathHelper.PathComparison);
+        }
+        finally
+        {
+            var parent = result == null ? null : Path.GetDirectoryName(result);
+            if (parent != null && Directory.Exists(parent)) Directory.Delete(parent, true);
         }
     }
 

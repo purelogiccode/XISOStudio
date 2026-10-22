@@ -171,6 +171,25 @@ public static class TempFolderCleanupHelper
 
                 try
                 {
+                    // PathHelper falls back to this folder when the system temp filesystem
+                    // is full, so orphaned work folders can live there too. Only scan it
+                    // when it exists: a missing root would otherwise log a warning and be
+                    // auto-reported by the bug-report sink.
+                    var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                    if (!string.IsNullOrEmpty(localAppData))
+                    {
+                        var fallbackRoot = Path.Combine(localAppData, "XISOStudio");
+                        if (Directory.Exists(fallbackRoot))
+                            rootsToScan.Add(fallbackRoot);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.Debug(ex, "Could not resolve the per-user temp fallback for cleanup");
+                }
+
+                try
+                {
                     foreach (var drive in DriveInfo.GetDrives())
                     {
                         cancellationToken.ThrowIfCancellationRequested();

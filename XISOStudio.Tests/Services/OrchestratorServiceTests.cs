@@ -166,8 +166,11 @@ public class OrchestratorServiceTests : IDisposable
         TestLogger? logger = null)
     {
         logger ??= new TestLogger();
-        diskMonitor ??= new Mock<IDiskMonitorService>();
-        diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(long.MaxValue);
+        if (diskMonitor == null)
+        {
+            diskMonitor = new Mock<IDiskMonitorService>();
+            diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(long.MaxValue);
+        }
         if (fileMover == null)
         {
             fileMover = new Mock<IFileMover>();

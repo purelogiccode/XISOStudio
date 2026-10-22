@@ -65,7 +65,11 @@ The selected items are extracted from the ISO to the drop target. This is the qu
   problem. Since **3.0.3** these expected rejections no longer generate automatic bug reports.
 - Drag-and-drop and open-with-default-application extractions create their temp folder on a drive
   with enough free space and skip drives that cannot be written (ACL-restricted, BitLocker-locked, or
-  read-only volumes).
+  read-only volumes). Since **3.1.2** the free-space check uses the filesystem that actually hosts the
+  system temp folder (on Linux `/tmp` is often a separate tmpfs), and a full temp filesystem falls
+  back to a writable per-user data folder. Failed or canceled extractions remove their partial output.
+- Since **3.1.2** a drag gesture survives a DataGrid row being rebuilt between the press and the drag
+  threshold, and stale drag state is discarded when the button is released or pointer capture is lost.
 - An image that another program keeps open (sync client, antivirus, another application) can still be
   browsed: the explorer opens images with read/write sharing, including split `.1.cso` part sets.
   If the file is held exclusively, the explorer explains that the image is in use — since **3.1.0**

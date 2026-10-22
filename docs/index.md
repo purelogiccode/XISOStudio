@@ -13,7 +13,7 @@ Welcome to the official documentation for **XISO Studio** — a high-performance
 - **Repository:** <https://github.com/purelogiccode/XISOStudio>
 - **Website:** <https://www.purelogiccode.com>
 - **License:** GNU General Public License v3.0
-- **Current version:** 3.1.1 (October 2026) — see the [Release Notes](Release-Notes.md#311)
+- **Current version:** 3.1.2 (October 2026) - see the [Release Notes](Release-Notes.md#312)
 - **Platform:** Windows, Linux, and macOS (x64 / ARM64), .NET 10.0 Runtime
 
 ---

@@ -45,6 +45,14 @@ public static class ImageErrorClassifier
     /// <returns><c>true</c> when the error is an environmental I/O failure; otherwise <c>false</c>.</returns>
     public static bool IsEnvironmentalIoError(Exception exception)
     {
-        return exception is IOException or UnauthorizedAccessException or NotSupportedException;
+        // Library wrappers such as XISOSharp's ExtractFileException carry the OS-level
+        // IOException as their inner exception. Walk the chain instead of looking only at
+        // the outermost type, otherwise disk-full writes are logged as application defects.
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is IOException or UnauthorizedAccessException or NotSupportedException) return true;
+        }
+
+        return false;
     }
 }

@@ -47,7 +47,19 @@ internal sealed class XisoImageExplorer : IImageExplorer
         }
         catch (Exception ex)
         {
-            _logger?.Error(ex, "Failed to list '{InternalPath}' in the image", internalPath);
+            // Expected input problems (corrupt image) and environmental failures (device
+            // removed) are handled by the caller and must stay below the automatic
+            // bug-report threshold.
+            if (ImageErrorClassifier.IsUserInputImageError(ex) || ImageErrorClassifier.IsEnvironmentalIoError(ex))
+            {
+                _logger?.Information(ex, "Could not list '{InternalPath}' in the image: {Reason}", internalPath,
+                    ex.Message);
+            }
+            else
+            {
+                _logger?.Error(ex, "Failed to list '{InternalPath}' in the image", internalPath);
+            }
+
             throw;
         }
     }
@@ -61,7 +73,18 @@ internal sealed class XisoImageExplorer : IImageExplorer
         }
         catch (Exception ex)
         {
-            _logger?.Error(ex, "Failed to copy out '{InternalPath}' from the image", internalPath);
+            // Disk-full, access-denied, and corrupt/truncated entries are expected
+            // conditions: report them to the user but not as application defects.
+            if (ImageErrorClassifier.IsUserInputImageError(ex) || ImageErrorClassifier.IsEnvironmentalIoError(ex))
+            {
+                _logger?.Information(ex, "Could not copy out '{InternalPath}' from the image: {Reason}", internalPath,
+                    ex.Message);
+            }
+            else
+            {
+                _logger?.Error(ex, "Failed to copy out '{InternalPath}' from the image", internalPath);
+            }
+
             throw;
         }
     }

@@ -63,12 +63,12 @@ Every release publishes six archives. The name is part of the update contract:
 
 ```text
 release_MAJOR.MINOR.PATCH_<rid>.zip
-release_3.1.1_win-x64.zip
-release_3.1.1_win-arm64.zip
-release_3.1.1_linux-x64.zip
-release_3.1.1_linux-arm64.zip
-release_3.1.1_osx-x64.zip
-release_3.1.1_osx-arm64.zip
+release_3.1.2_win-x64.zip
+release_3.1.2_win-arm64.zip
+release_3.1.2_linux-x64.zip
+release_3.1.2_linux-arm64.zip
+release_3.1.2_osx-x64.zip
+release_3.1.2_osx-arm64.zip
 ```
 
 The application does not download a specific asset; `UpdateChecker` reads the latest release tag,
@@ -143,9 +143,9 @@ absent, the sync step is skipped with a notice.
 4. Tag and push:
 
    ```bash
-   git tag release_3.1.1
+   git tag release_3.1.2
    git push origin master
-   git push origin release_3.1.1
+   git push origin release_3.1.2
    ```
 
 5. The tag triggers the *Release* workflow, which tests, validates, builds the six bundles, and

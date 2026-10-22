@@ -12,6 +12,7 @@
 
 | Version | Date | Summary |
 |:---|:---|:---|
+| [3.1.2](#312) | October 2026 | Reliability patch: Explorer drag-and-drop no longer crashes on X11, Linux temp-space detection uses the real temp filesystem with a per-user fallback, failed extractions remove partial output, and expected I/O failures stay out of bug reports (1,512 tests passing) |
 | [3.1.1](#311) | October 2026 | Reliability patch: 373 false archive reports eliminated, 7-Zip fallback for every archive format, locked and missing archives handled, documentation/wiki/Pages and bundle validation in CI (1,509 tests passing) |
 | [3.1.0](#310) | October 2026 | Reliability release: game-specific Xbox archives (XMem LZX / ZIP method 21), images held open by another program, and extracted files with no registered application no longer generate bug reports; the explorer browses images while another process keeps them open; dependency, analyzer, and CI maintenance (1,494 tests passing) |
 | [3.0.3](#303) | October 2026 | Reliability patch: invalid/unsupported images (CD/GD-ROM CHD, non-Xbox ISO/CSO/PS5 packages) and folder-picker failures no longer generate bug reports; drag/extract temp folders skip unwritable drives; friendlier messages for expected input problems |
@@ -23,6 +24,67 @@
 | [2.7.0](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.7.0) | June 2026 | Improved ISO compatibility, disk-space detection, cancellation and performance |
 | [2.6.1](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.6.1) | June 2026 | XGD1/XGD2/XGD3 partition offsets, dark-theme tooltip fix |
 | [2.6.0](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.6.0) | June 2026 | 7-Zip CLI fallback, multilingual network errors, disk-space handling |
+
+---
+
+## 3.1.2
+
+*October 2026*
+
+> **A reliability patch for the Explorer drag-and-drop path and temporary storage.** A single
+> session produced 31 bug reports: 7 were *"Invalid drag source"* crashes on Linux/X11 and 24 were
+> disk-full failures while preparing a drag because `/tmp` was full. The drag trigger is now
+> re-rooted when its row is rebuilt, free space is checked on the filesystem that actually hosts the
+> temp folder, and a full system temp falls back to a writable per-user folder. Failed extractions
+> also remove their partial output, and expected input or environmental failures are no longer
+> uploaded as application defects.
+
+### Bug Fixes
+
+- **Drag-and-drop no longer crashes with "Invalid drag source".** Avalonia X11 rejects a drag whose
+  `PointerPressedEventArgs` source is no longer attached to a top level. Between the press and the
+  drag threshold, a DataGrid row can be detached by virtualization or an items refresh. The Explorer
+  now checks whether the pressed visual is still attached and, when it is not, re-roots the trigger
+  event at the window. Drag state is also cleared on `PointerReleased` and `PointerCaptureLost`, only
+  the primary button starts a drag, and each press starts at most one drag operation.
+- **Full Linux temp filesystems are detected correctly.** `PathHelper.ResolveTempDirectory` inspected
+  `Path.GetPathRoot(Path.GetTempPath())`, which is `/`. On Linux `/tmp` is frequently a separate
+  tmpfs with a much smaller capacity, so an extraction could be approved against the root drive and
+  then fail with `No space left on device`. The check now queries the filesystem that actually hosts
+  the temp folder through `IDiskMonitorService.GetAvailableFreeSpace`.
+- **Per-user fallback when the system temp is full.** When the system temp filesystem lacks room, the
+  resolver tries a writable per-user data folder before falling back to local drive roots. Mount
+  roots are usually owned by root and are commonly not writable by a regular user; the per-user
+  folder is on the same filesystem as the user profile and is writable.
+- **Failed extractions leave no partial files.** XISOSharp 1.4.4 removes a partially written
+  destination after a failed or canceled copy in `CopyOutFile` and `ExtractFile`. XISOStudio uses the
+  fixed package for Explorer drag/drop and open-with-default-application extraction.
+- **Fewer false bug reports for the Explorer.** `ImageErrorClassifier.IsEnvironmentalIoError` now
+  walks the inner-exception chain, so XISOSharp's `ExtractFileException` wrapping an `IOException`
+  (including disk-full write failures) is classified as environmental. `XisoImageExplorer` logs
+  expected input and environmental failures at Information instead of Error, and the drag handler
+  treats truncated or corrupt entries as input problems rather than defects.
+- **Dead drag state is discarded.** If the primary button is no longer pressed on a pointer move (for
+  example after a capture change), the stored press is cleared instead of being reused by a later
+  gesture.
+
+### Dependencies
+
+- **XISOSharp 1.4.4** - removes partial extraction output after a failed or canceled copy and adds
+  `IFilesystem.DeleteFile` for custom destination stores.
+- **CHDSharp 1.5.2** - dependency refresh.
+- **SharpCompress 0.50.7** - dependency refresh.
+- **Meziantou.Analyzer 3.0.316** - build-time only.
+
+### Tests
+
+- 1,512 tests passing. The solution builds with zero warnings and has no ReSharper InspectCode
+  findings.
+
+### Upgrading
+
+Download the archive for your platform and replace the previous files. There are no configuration,
+format, or workflow changes - 3.1.2 is a drop-in replacement for 3.1.1.
 
 ---
 

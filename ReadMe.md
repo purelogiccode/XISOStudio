@@ -24,7 +24,7 @@
 [![Powered by ZArchiveSharp](https://img.shields.io/badge/Powered%20by-ZArchiveSharp-8A2BE2.svg)](https://github.com/purelogiccode/ZArchiveSharp)
 [![Powered by SharpCompress](https://img.shields.io/badge/Powered%20by-SharpCompress-8A2BE2.svg)](https://github.com/adamhathcock/sharpcompress)
 [![Formats](https://img.shields.io/badge/formats-ISO%20%7C%20XISO%20%7C%20ZAR%20%7C%20CSO%20%7C%20CHD-orange.svg)](#supported-formats)
-[![Tests](https://img.shields.io/badge/tests-1509%20passing-brightgreen.svg)](https://github.com/purelogiccode/XISOStudio/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-1512%20passing-brightgreen.svg)](https://github.com/purelogiccode/XISOStudio/actions/workflows/ci.yml)
 [![Code analyzers](https://img.shields.io/badge/analyzers-Meziantou%20%7C%20Roslynator-blueviolet)](docs/Architecture.md)
 [![Made with C#](https://img.shields.io/badge/Made%20with-C%23-239120.svg?logo=csharp&logoColor=white)](https://dotnet.microsoft.com/languages/csharp)
 [![Nullable](https://img.shields.io/badge/nullable-enabled-blue.svg)](https://learn.microsoft.com/dotnet/csharp/nullable-references)
@@ -66,6 +66,14 @@ Whether you're managing a large collection of Xbox game backups or verifying the
 ---
 
 ## What's New
+
+### v3.1.2 - reliable drag-and-drop and correct temp-space detection
+
+- **No more "Invalid drag source" crashes** - dragging files out of the Explorer now re-roots the drag trigger at the window when the pressed row was detached by DataGrid virtualization or an items refresh, clears the stored press on release or capture loss, and starts at most one drag per press.
+- **Full temp filesystems are detected correctly** - on Linux, `/tmp` is often a separate tmpfs; free space is now checked on the filesystem that actually hosts the temp folder instead of the root drive, with a writable per-user fallback when it is full.
+- **Failed extractions leave no partial files** - XISOSharp 1.4.4 removes a partially written destination after a failed or canceled copy, for local disk and custom destination stores.
+- **Fewer false reports** - disk-full, access-denied, truncated, and corrupt entries are classified as expected conditions and logged at Information; only unexpected failures reach the bug-report pipeline.
+- **Maintenance** - XISOSharp 1.4.4, CHDSharp 1.5.2, SharpCompress 0.50.7, and Meziantou.Analyzer 3.0.316; the solution remains ReSharper InspectCode-clean with 1,512 tests passing.
 
 ### v3.1.1 - unreadable and locked archives no longer generate bug reports
 

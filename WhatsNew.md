@@ -2,6 +2,56 @@
 
 <!-- Keep this file focused on the newest release. Full history lives in docs/Release-Notes.md. -->
 
+## Version 3.1.2
+
+**Release date:** October 2026
+
+Version 3.1.2 is a **reliability patch for the Explorer drag-and-drop path and temporary storage**.
+Dragging files out of an open image no longer crashes on Linux/X11 when the pressed row is rebuilt
+before the drag starts, and a full `/tmp` filesystem is detected before extraction instead of failing
+partway through. Failed extractions also remove their partial output, and expected input or
+environmental failures stay out of the automatic bug reports.
+
+### Fixes
+
+#### Explorer drag-and-drop
+- **No more "Invalid drag source" crashes.** Avalonia X11 rejects a drag whose trigger event belongs
+  to a visual that is no longer attached to a window. The Explorer now re-roots the trigger at the
+  window when the pressed row was detached by DataGrid virtualization or an items refresh, and clears
+  the stored press on release or pointer-capture loss. Only the primary button can start a drag, and
+  each press starts at most one drag operation.
+- **Drag preparation failures are explained instead of reported.** Disk-full, access-denied, and
+  truncated or corrupt entries now show a clear message and log at Information; only unexpected
+  failures reach the bug-report pipeline.
+
+#### Temporary storage
+- **Full temp filesystems are detected correctly.** On Linux, `/tmp` is often a separate tmpfs with a
+  much smaller capacity than `/`. The free-space check now queries the filesystem that actually hosts
+  the temp folder instead of the root drive, so an extraction is not approved against the wrong
+  volume.
+- **Per-user fallback when the system temp is full.** If the system temp filesystem has no room, the
+  app falls back to a writable per-user data folder before scanning other drives, which regular users
+  usually cannot write to at their mount roots.
+- **Failed extractions leave no partial files.** XISOSharp 1.4.4 removes a partially written
+  destination after a failed or canceled copy, for both the local disk and custom
+  `IFilesystem` destinations.
+
+#### Dependencies
+- **XISOSharp 1.4.4** - removes partial extraction output after a failed or canceled copy; adds
+  `IFilesystem.DeleteFile` for custom destination stores.
+- **CHDSharp 1.5.2**, **SharpCompress 0.50.7**, and **Meziantou.Analyzer 3.0.316** - dependency and
+  analyzer refresh.
+
+### Tests
+- 1,512 tests passing; the solution remains free of ReSharper InspectCode findings and builds with
+  zero warnings.
+
+### Upgrading
+Download the archive for your platform and replace the previous files. There are no configuration,
+format, or workflow changes - 3.1.2 is a drop-in replacement for 3.1.1.
+
+---
+
 ## Version 3.1.1
 
 **Release date:** October 2026

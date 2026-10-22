@@ -137,6 +137,8 @@
                                           DoubleTapped="ExplorerDataGrid_DoubleTappedAsync"
                                           PointerPressed="ExplorerDataGrid_PointerPressed"
                                           PointerMoved="ExplorerDataGrid_PointerMovedAsync"
+                                          PointerReleased="ExplorerDataGrid_PointerReleased"
+                                          PointerCaptureLost="ExplorerDataGrid_PointerCaptureLost"
                                           ToolTip.Tip="Double-click directories to navigate, double-click files to extract. Drag and drop files to copy them out of the image.">
                                     <DataGrid.Columns>
                                         <DataGridTemplateColumn Header="Name" Width="*">
