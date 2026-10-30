@@ -194,6 +194,20 @@ the output directly to the requested path; if the file cannot be found or read b
 conversion is reported as failed and the partial output is removed. Check your antivirus quarantine
 list and consider excluding the input/output folders from real-time scanning.
 
+### A source file disappears during a batch
+
+**Message pattern:** *"Error: Source file not found ... Skipping."* or *"Copy failed: the source file no
+longer exists ..."*.
+
+The file was moved or deleted after the batch started (for example by a download client that renames
+completed downloads, a sync client, or another tool managing the folder), or its drive was disconnected.
+The file is counted as failed and the batch continues with the next entry.
+
+- Let the program that manages the folder finish before starting a batch, and avoid moving or renaming
+  files while a conversion or test is running.
+- A vanished source is an input condition: it is logged at Information level and does **not** generate
+  a bug report.
+
 ---
 
 ## Frequently Asked Questions

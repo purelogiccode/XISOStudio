@@ -751,6 +751,19 @@ public class OrchestratorService : IOrchestratorService
                     using var stream = File.OpenRead(inputFile);
                 }, token);
             }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                // The source vanished after the batch checked it (another process moved or
+                // deleted it, or its drive was disconnected). That is an input condition,
+                // not an application defect, and must not be uploaded as a bug report.
+                progress.Report(new BatchOperationProgress
+                {
+                    LogMessage = $"Error: Source file not found: {inputFile}. Skipping."
+                });
+                _logger.Information(ex, "Source file no longer exists while preparing conversion: {FileName}",
+                    inputFile);
+                return FileProcessingStatus.Failed;
+            }
             catch (IOException)
             {
                 _logger.Debug("File {FileName} is not directly readable; copying to a local temp file",
@@ -765,6 +778,17 @@ public class OrchestratorService : IOrchestratorService
                     _logger.Information(ex, "Not enough disk space while preparing conversion of {FileName}",
                         originalFileName);
                     throw;
+                }
+                catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+                {
+                    // Same race as above, now detected while sizing the temporary copy.
+                    progress.Report(new BatchOperationProgress
+                    {
+                        LogMessage = $"Error: Source file not found: {inputFile}. Skipping."
+                    });
+                    _logger.Information(ex, "Source file no longer exists while preparing conversion: {FileName}",
+                        inputFile);
+                    return FileProcessingStatus.Failed;
                 }
                 catch (Exception ex)
                 {
@@ -1145,6 +1169,19 @@ public class OrchestratorService : IOrchestratorService
                     using var stream = File.OpenRead(isoPath);
                 }, token);
             }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                // The image vanished after the batch listed it (another process moved or
+                // deleted it, or its drive was disconnected). That is an input condition,
+                // not an application defect, and must not be uploaded as a bug report.
+                progress.Report(new BatchOperationProgress
+                {
+                    LogMessage = $"Error: Source file not found: {isoPath}. Skipping."
+                });
+                _logger.Information(ex, "Source file no longer exists while preparing the test: {ImagePath}",
+                    isoPath);
+                return IsoTestResultStatus.Failed;
+            }
             catch (IOException)
             {
                 // Likely cloud file issue, use existing copy logic
@@ -1337,6 +1374,20 @@ public class OrchestratorService : IOrchestratorService
                     default:
                         return false;
                 }
+            }
+            catch (FileNotFoundException ex)
+            {
+                // The source disappeared between the existence check and the copy (another
+                // process moved or deleted it). That is an input condition, not an
+                // application defect, so it stays below the bug-report threshold and the
+                // batch continues with the next file. A missing destination directory is
+                // handled by the environmental-error path below instead.
+                progress.Report(new BatchOperationProgress
+                {
+                    LogMessage = $"Copy failed: the source file no longer exists: {source}"
+                });
+                _logger.Information(ex, "Source file no longer exists while copying {Source}", source);
+                return false;
             }
             catch (OperationCanceledException)
             {

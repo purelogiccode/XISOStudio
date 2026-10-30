@@ -1,3 +1,4 @@
+using System.Reflection;
 using XISOStudio.Interfaces;
 using XISOStudio.Models;
 using XISOStudio.Services;
@@ -1935,6 +1936,56 @@ public class OrchestratorServiceTests : IDisposable
         Assert.Contains(progress.Reports, p => p.LogMessage?.Contains("Copy failed", StringComparison.Ordinal) == true);
         Assert.Contains(progress.Reports, p => p.FailedCount == 1);
         Assert.DoesNotContain(progress.Reports, p => p.SuccessCount > 0);
+    }
+
+    [Fact]
+    public async Task TestFilesAsyncMissingSourceIsReportedAsInputCondition()
+    {
+        // The image vanished after the file list was built: that is an input condition,
+        // not an application defect, so it must not produce an automatic bug report.
+        var missingPath = Path.Combine(_tempDir, "missing-source.iso");
+        var logger = new TestLogger();
+        var progress = new CollectingProgress();
+        var orchestrator = CreateOrchestrator(new Mock<IFileExtractor>(), FileProcessingStatus.Converted,
+            integrityResult: true, logger: logger);
+
+        await orchestrator.TestFilesAsync(_tempDir, [missingPath], false, false, false, progress,
+            CloudRetrySkip, CancellationToken.None);
+
+        Assert.True(logger.HasMessage(LogEventLevel.Information, "no longer exists"));
+        Assert.DoesNotContain(logger.Events, e => e.Level >= LogEventLevel.Warning);
+        Assert.Contains(progress.Reports,
+            p => p.LogMessage?.Contains("Source file not found", StringComparison.Ordinal) == true);
+        Assert.Contains(progress.Reports, p => p.FailedCount == 1);
+    }
+
+    [Fact]
+    public async Task CopyFileWithCloudRetryAsyncMissingSourceLogsInformationAndReturnsFalse()
+    {
+        // Regression test for the reports where File.Copy threw FileNotFoundException after
+        // the source had been deleted or its drive disconnected mid-batch. The failure is an
+        // input condition and must stay below the bug-report threshold (Warning).
+        var missingSource = Path.Combine(_tempDir, "vanished.iso");
+        var destination = Path.Combine(_tempDir, "vanished-copy.iso");
+        var logger = new TestLogger();
+        var progress = new CollectingProgress();
+        var orchestrator = CreateOrchestrator(new Mock<IFileExtractor>(), FileProcessingStatus.Converted,
+            logger: logger);
+        var method = typeof(OrchestratorService).GetMethod("CopyFileWithCloudRetryAsync",
+            BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        var copied = await (Task<bool>)method.Invoke(orchestrator,
+        [
+            missingSource, destination, (Func<string, Task<CloudRetryResult>>)CloudRetrySkip, progress,
+            CancellationToken.None
+        ])!;
+
+        Assert.False(copied);
+        Assert.False(File.Exists(destination));
+        Assert.True(logger.HasMessage(LogEventLevel.Information, "no longer exists"));
+        Assert.DoesNotContain(logger.Events, e => e.Level >= LogEventLevel.Warning);
+        Assert.Contains(progress.Reports,
+            p => p.LogMessage?.Contains("no longer exists", StringComparison.Ordinal) == true);
     }
 
     #endregion
