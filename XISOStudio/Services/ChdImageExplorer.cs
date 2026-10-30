@@ -65,7 +65,18 @@ internal sealed class ChdImageExplorer : IImageExplorer
         }
         catch (Exception ex)
         {
-            _logger?.Error(ex, "Failed to list '{InternalPath}' in the CHD image", internalPath);
+            // Missing paths, corrupt images, and environmental I/O failures are expected
+            // conditions; only unexpected defects belong at Error (the bug-report threshold).
+            if (ImageErrorClassifier.IsUserInputImageError(ex) || ImageErrorClassifier.IsEnvironmentalIoError(ex))
+            {
+                _logger?.Information(ex, "Could not list '{InternalPath}' in the CHD image: {Reason}", internalPath,
+                    ex.Message);
+            }
+            else
+            {
+                _logger?.Error(ex, "Failed to list '{InternalPath}' in the CHD image", internalPath);
+            }
+
             throw;
         }
     }
@@ -79,7 +90,17 @@ internal sealed class ChdImageExplorer : IImageExplorer
         }
         catch (Exception ex)
         {
-            _logger?.Error(ex, "Failed to copy out '{InternalPath}' from the CHD image", internalPath);
+            // Disk-full, access-denied, and missing/corrupt entries are expected conditions.
+            if (ImageErrorClassifier.IsUserInputImageError(ex) || ImageErrorClassifier.IsEnvironmentalIoError(ex))
+            {
+                _logger?.Information(ex, "Could not copy out '{InternalPath}' from the CHD image: {Reason}",
+                    internalPath, ex.Message);
+            }
+            else
+            {
+                _logger?.Error(ex, "Failed to copy out '{InternalPath}' from the CHD image", internalPath);
+            }
+
             throw;
         }
     }

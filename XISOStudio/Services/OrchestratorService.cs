@@ -358,8 +358,10 @@ public class OrchestratorService : IOrchestratorService
                     progress.Report(new BatchOperationProgress
                         { LogMessage = logMessage, FailedCount = 1, FailedPathToAdd = entryPath });
 
-                    // Filter environmental errors (disconnected drives, network issues, etc.)
-                    var isEnvironmentalError = IsFatalEnvironmentalError(ex) || PathHelper.IsNetworkError(ex);
+                    // Filter environmental errors (disconnected drives, network issues,
+                    // permission problems, etc.)
+                    var isEnvironmentalError = IsFatalEnvironmentalError(ex) || PathHelper.IsNetworkError(ex) ||
+                                               ex is UnauthorizedAccessException;
 
                     // Filter common archive errors (corruption, incomplete downloads, etc.)
                     var isArchiveError = ex.Message.Contains("Data error", StringComparison.OrdinalIgnoreCase) ||
@@ -417,7 +419,7 @@ public class OrchestratorService : IOrchestratorService
             // The caller (MainWindow) logs the rethrown failure; unexpected defects must be
             // visible to the bug-report sink, so they are logged at Error here.
             if (PathHelper.IsDiskSpaceError(ex) || PathHelper.IsNetworkError(ex) || IsFatalEnvironmentalError(ex) ||
-                ex is IOException)
+                ex is IOException or UnauthorizedAccessException)
             {
                 _logger.Information(ex, "OrchestratorService.{OperationName} stopped due to an environmental error",
                     operationName);

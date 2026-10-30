@@ -64,6 +64,14 @@ public static class SupportedFiles
     /// <returns><c>true</c> when the file name ends in a split part number of 2 or greater; otherwise <c>false</c>.</returns>
     private static bool IsSplitContinuationPart(string path)
     {
+        // Only CISO part sets use the ".N.cso" naming convention. A plain ISO, ZAR, or
+        // CHD whose name happens to end in a number (for example "Game.2.iso") is a
+        // standalone image and must remain testable.
+        if (!Path.GetExtension(path).Equals(".cso", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
         var stem = Path.GetFileNameWithoutExtension(path);
         var lastDot = stem.LastIndexOf('.');
         if (lastDot < 0) return false;

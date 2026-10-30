@@ -1563,6 +1563,30 @@ public class OrchestratorServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ConvertFilesAsyncAccessDeniedEngineFailureIsLoggedAsEnvironmental()
+    {
+        var source = CreateTempFile("denied.iso", "iso data");
+        var xisoSharp = new Mock<IXisoSharpService>();
+        xisoSharp.Setup(static s => s.ConvertIsoAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<OutputFormat>(), It.IsAny<bool>(), It.IsAny<bool>(),
+                It.IsAny<IProgress<BatchOperationProgress>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new UnauthorizedAccessException("Access denied"));
+        var logger = new TestLogger();
+        var progress = new CollectingProgress();
+        var orchestrator = CreateOrchestrator(new Mock<IFileExtractor>(), FileProcessingStatus.Converted,
+            xisoSharp: xisoSharp, logger: logger);
+
+        await orchestrator.ConvertFilesAsync([source], Path.Combine(_tempDir, "out"), false, false, false,
+            OutputFormat.Xiso, progress, CloudRetrySkip, CancellationToken.None);
+
+        // A protected file or output folder is an environmental condition: the file is
+        // reported as failed, but nothing is auto-uploaded as an application defect.
+        Assert.True(logger.HasMessage(LogEventLevel.Information, "Handled processing error"));
+        Assert.DoesNotContain(logger.Events, e => e.Level >= LogEventLevel.Warning);
+        Assert.Contains(progress.Reports, p => p.FailedCount == 1);
+    }
+
+    [Fact]
     public async Task ConvertFilesAsyncCorruptIsoMessageContinuesBatchWithFriendlyMessage()
     {
         var first = CreateTempFile("first.iso", "iso data");

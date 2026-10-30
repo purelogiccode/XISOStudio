@@ -87,6 +87,16 @@ public class ChdService : IChdService
                 return FileProcessingStatus.Failed;
             }
         }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException
+                                       or UnauthorizedAccessException)
+        {
+            // The source vanished or cannot be accessed between the existence check and
+            // the output-path preparation. That is an input/environmental condition, not
+            // an application defect, so it must stay below the bug-report threshold.
+            _logger.Information(ex, "Could not prepare the conversion of '{FileName}': {Reason}", fileName,
+                ex.Message);
+            return FileProcessingStatus.Failed;
+        }
         catch (Exception ex)
         {
             _logger.Error(ex, "Failed to prepare the conversion of '{FileName}'", fileName);
@@ -192,9 +202,11 @@ public class ChdService : IChdService
         catch (UnauthorizedAccessException ex)
         {
             DeletePartialOutput(outputPath);
-            _logger.Warning(ex, "Access denied while converting '{FileName}' to CHD.\n\n" +
-                                "The output folder may be write-protected or require administrator rights.\n" +
-                                "Please choose a different output folder or run the application as administrator.",
+            // Permission problems are environmental, not application defects; Warning or
+            // higher would auto-upload the failure as a bug report.
+            _logger.Information(ex, "Access denied while converting '{FileName}' to CHD.\n\n" +
+                                    "The output folder may be write-protected or require administrator rights.\n" +
+                                    "Please choose a different output folder or run the application as administrator.",
                 fileName);
             return FileProcessingStatus.Failed;
         }

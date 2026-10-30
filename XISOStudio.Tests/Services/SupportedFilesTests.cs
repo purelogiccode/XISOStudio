@@ -79,6 +79,22 @@ public class SupportedFilesTests
     }
 
     [Theory]
+    [InlineData("game.2.iso")]
+    [InlineData("game.2.ISO")]
+    [InlineData("game.10.iso")]
+    [InlineData("game.2.zar")]
+    [InlineData("game.2.ZAR")]
+    [InlineData("game.2.chd")]
+    [InlineData("game.2.CHD")]
+    [InlineData(@"C:\folder\my.game.12.iso")]
+    public void IsTestableNumericSuffixOnNonCisoImageReturnsTrue(string path)
+    {
+        // Only split CISO part sets use the ".N.cso" naming convention. A standalone ISO,
+        // ZAR, or CHD whose name ends in a number must not be mistaken for a continuation part.
+        Assert.True(SupportedFiles.IsTestable(path));
+    }
+
+    [Theory]
     [InlineData("game.ISO")]
     [InlineData("game.Iso")]
     [InlineData("game.ZIP")]

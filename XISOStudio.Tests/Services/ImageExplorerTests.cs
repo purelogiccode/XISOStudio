@@ -1,3 +1,4 @@
+using Serilog.Events;
 using XISOStudio.Models;
 using XISOStudio.Services;
 using XISOSharp;
@@ -188,6 +189,19 @@ public sealed class ImageExplorerTests : IDisposable
     }
 
     [Fact]
+    public void ChdImageExplorerMissingPathIsNotLoggedAsError()
+    {
+        var logger = new TestLogger();
+        using var explorer = ImageExplorerFactory.Open(CreateChd(), logger.Logger);
+
+        Assert.Throws<InvalidDataException>(() => explorer.ListChildren("/missing"));
+        Assert.Throws<InvalidDataException>(() =>
+            explorer.CopyOut("/missing", Path.Combine(_tempRoot, "missing-copy")));
+
+        Assert.DoesNotContain(logger.Events, e => e.Level >= LogEventLevel.Warning);
+    }
+
+    [Fact]
     public void ChdImageExplorerInvalidChdThrows()
     {
         var badChd = Path.Combine(_tempRoot, "bad.chd");
@@ -227,6 +241,19 @@ public sealed class ImageExplorerTests : IDisposable
 
         Assert.Throws<InvalidDataException>(() => explorer.ListChildren("/missing"));
         Assert.Throws<InvalidDataException>(() => explorer.CopyOut("/missing", Path.Combine(_tempRoot, "x")));
+    }
+
+    [Fact]
+    public void ZarImageExplorerMissingPathIsNotLoggedAsError()
+    {
+        var logger = new TestLogger();
+        using var explorer = ImageExplorerFactory.Open(CreateZar(), logger.Logger);
+
+        Assert.Throws<InvalidDataException>(() => explorer.ListChildren("/missing"));
+        Assert.Throws<InvalidDataException>(() =>
+            explorer.CopyOut("/missing", Path.Combine(_tempRoot, "missing-copy")));
+
+        Assert.DoesNotContain(logger.Events, e => e.Level >= LogEventLevel.Warning);
     }
 
     [Fact]
