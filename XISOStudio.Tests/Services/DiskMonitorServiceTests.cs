@@ -390,6 +390,42 @@ public class DiskMonitorServiceTests
             excludedDrive, StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void FindDrivesWithAtLeastFreeSpaceZeroBytesReturnsDrives()
+    {
+        using var service = CreateService();
+
+        var result = service.FindDrivesWithAtLeastFreeSpace(0);
+
+        Assert.NotEmpty(result);
+    }
+
+    [Fact]
+    public void FindDrivesWithAtLeastFreeSpaceEnormousRequirementReturnsEmpty()
+    {
+        using var service = CreateService();
+
+        // 1 Exabyte - no drive should have this much space
+        var result = service.FindDrivesWithAtLeastFreeSpace(long.MaxValue / 2);
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void FindDrivesWithAtLeastFreeSpaceExcludesSpecifiedDrive()
+    {
+        using var service = CreateService();
+        var tempRoot = Path.GetPathRoot(Path.GetTempPath());
+        Assert.False(string.IsNullOrEmpty(tempRoot));
+        var excludedDrive = tempRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        var result = service.FindDrivesWithAtLeastFreeSpace(0, excludedDrive);
+
+        Assert.DoesNotContain(result, root => string.Equals(
+            root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+            excludedDrive, StringComparison.OrdinalIgnoreCase));
+    }
+
     #endregion
 
     #region StopMonitoring Tests

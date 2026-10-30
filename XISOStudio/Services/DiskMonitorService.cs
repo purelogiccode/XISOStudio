@@ -299,12 +299,39 @@ public class DiskMonitorService : IDiskMonitorService, IDisposable
     /// <returns>The names of the suitable drives; empty when none has enough free space.</returns>
     public IReadOnlyList<string> FindDrivesWithFreeSpace(long requiredBytes, string? excludeDrive = null)
     {
+        return FindDrives(requiredBytes, excludeDrive, applySafetyBuffer: true);
+    }
+
+    /// <summary>
+    /// Finds every eligible local drive with at least the requested free space, without
+    /// adding the safety buffer. This lets callers fall back to a drive that can still hold
+    /// the data when no drive satisfies the buffered requirement.
+    /// </summary>
+    /// <param name="requiredBytes">Minimum number of free bytes that must be available.</param>
+    /// <param name="excludeDrive">Optional drive root to skip during the search.</param>
+    /// <returns>The names of the suitable drives; empty when none has enough free space.</returns>
+    public IReadOnlyList<string> FindDrivesWithAtLeastFreeSpace(long requiredBytes, string? excludeDrive = null)
+    {
+        return FindDrives(requiredBytes, excludeDrive, applySafetyBuffer: false);
+    }
+
+    /// <summary>
+    /// Enumerates eligible local drives and returns those with enough free space. The
+    /// safety buffer is optional so the same scan can serve both the preferred (buffered)
+    /// and last-resort (unbuffered) searches.
+    /// </summary>
+    /// <param name="requiredBytes">Number of bytes that must be available.</param>
+    /// <param name="excludeDrive">Optional drive root to skip during the search.</param>
+    /// <param name="applySafetyBuffer">Whether to require the standard safety buffer in addition to the data.</param>
+    /// <returns>The names of the suitable drives; empty when none has enough free space.</returns>
+    private IReadOnlyList<string> FindDrives(long requiredBytes, string? excludeDrive, bool applySafetyBuffer)
+    {
         var candidates = new List<string>();
 
         try
         {
             var excludedRoot = excludeDrive?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var requiredWithBuffer = PathHelper.AddSafetyBuffer(requiredBytes);
+            var requiredWithBuffer = applySafetyBuffer ? PathHelper.AddSafetyBuffer(requiredBytes) : requiredBytes;
 
             var drives = DriveInfo.GetDrives();
             foreach (var drive in drives)

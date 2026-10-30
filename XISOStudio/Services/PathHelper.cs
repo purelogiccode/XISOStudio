@@ -391,12 +391,13 @@ public static class PathHelper
     }
 
     /// <summary>
-    /// Resolves and creates a temporary directory path with sufficient disk space.
+    /// Resolves and creates a temporary directory path with enough disk space for the data.
     /// The free space of the filesystem that actually hosts the system temp folder is
-    /// checked first, then a per-user cache folder and finally other local drives. Each
-    /// candidate is created immediately so a location that is not writable (ACL
-    /// restrictions, BitLocker-locked or read-only volumes) is skipped before the caller
-    /// starts extracting into it.
+    /// checked first, then a per-user cache folder and finally other local drives. The
+    /// standard safety margin is preferred; when no location can satisfy it, a location
+    /// that can still hold the data is used. Each candidate is created immediately so a
+    /// location that is not writable (ACL restrictions, BitLocker-locked or read-only
+    /// volumes) is skipped before the caller starts extracting into it.
     /// </summary>
     /// <param name="requiredSize">Number of bytes the temporary files will need.</param>
     /// <param name="tempSubfolder">Name of the subfolder created under the selected drive.</param>
@@ -409,13 +410,16 @@ public static class PathHelper
         var defaultTempDriveRoot = Path.GetPathRoot(defaultTempPath);
         var requiredWithBuffer = AddSafetyBuffer(requiredSize);
 
-        var candidateRoots = new List<string>();
-
         // Query the filesystem that actually hosts the temp folder. On Unix /tmp is
         // commonly a separate tmpfs with its own, much smaller capacity, so inspecting
         // Path.GetPathRoot would report the free space of "/" and approve an
         // extraction that fills the temp mount almost immediately.
-        if (diskMonitorService.GetAvailableFreeSpace(defaultTempPath) >= requiredWithBuffer)
+        var defaultAvailable = diskMonitorService.GetAvailableFreeSpace(defaultTempPath);
+        var defaultHasSafetyMargin = defaultAvailable >= requiredWithBuffer;
+        var defaultHasEnoughSpace = defaultAvailable >= requiredSize;
+
+        var candidateRoots = new List<string>();
+        if (defaultHasSafetyMargin)
             candidateRoots.Add(defaultTempPath);
 
         Exception? lastCreationError = null;
@@ -443,10 +447,13 @@ public static class PathHelper
                 lastCreationError);
         }
 
-        var requiredFormatted = Formatter.FormatBytes(requiredWithBuffer);
-        var defaultAvailable = Formatter.FormatBytes(diskMonitorService.GetAvailableFreeSpace(defaultTempPath));
+        var requiredFormatted = Formatter.FormatBytes(requiredSize);
+        var requiredWithBufferFormatted = Formatter.FormatBytes(requiredWithBuffer);
+        var defaultAvailableFormatted = Formatter.FormatBytes(defaultAvailable);
         throw new IOException(
-            $"Not enough disk space to create temporary files. Required: {requiredFormatted}, Available: {defaultAvailable}. No other local drives have sufficient free space. Please free up disk space and try again.");
+            $"Not enough disk space to create temporary files. Required: {requiredFormatted} ({requiredSize:N0} bytes), " +
+            $"Available: {defaultAvailableFormatted} ({defaultAvailable:N0} bytes); with the safety margin the requirement is " +
+            $"{requiredWithBufferFormatted}. No other local drives have sufficient free space. Please free up disk space and try again.");
 
         // Alternative locations are only probed when the system temp folder is not
         // usable, so the common case does not inspect every drive.
@@ -462,19 +469,48 @@ public static class PathHelper
             if (userRoot != null)
                 yield return userRoot;
 
-            foreach (var root in diskMonitorService.FindDrivesWithFreeSpace(requiredSize, defaultTempDriveRoot))
+            foreach (var root in DrivesOrEmpty(
+                         diskMonitorService.FindDrivesWithFreeSpace(requiredSize, defaultTempDriveRoot)))
+                yield return root;
+
+            // The safety margin is a preference, not a hard requirement. A drive that can
+            // hold the uncompressed data is still usable when the full margin does not fit;
+            // otherwise a conversion with enough room for its files would be rejected before
+            // it even starts. A real disk-full condition during extraction is handled there.
+            if (!defaultHasSafetyMargin && defaultHasEnoughSpace)
+            {
+                Log.Information(
+                    "Using the system temp folder without the full safety margin: {Available} available, {RequiredWithBuffer} recommended",
+                    Formatter.FormatBytes(defaultAvailable), Formatter.FormatBytes(requiredWithBuffer));
+                yield return defaultTempPath;
+            }
+
+            var userRootWithoutMargin = GetUserTempFallbackRoot(requiredSize, diskMonitorService);
+            if (userRootWithoutMargin != null)
+                yield return userRootWithoutMargin;
+
+            foreach (var root in DrivesOrEmpty(
+                         diskMonitorService.FindDrivesWithAtLeastFreeSpace(requiredSize, defaultTempDriveRoot)))
                 yield return root;
         }
     }
 
     /// <summary>
+    /// Returns the supplied drive list, treating a null result as an empty list so an
+    /// unavailable drive search behaves like a search that found no suitable drive.
+    /// </summary>
+    /// <param name="drives">Drive list returned by the disk monitor.</param>
+    /// <returns>The same list, or an empty list when it is <c>null</c>.</returns>
+    private static IReadOnlyList<string> DrivesOrEmpty(IReadOnlyList<string>? drives) => drives ?? [];
+
+    /// <summary>
     /// Returns a per-user folder that can host temporary files when the system temp
     /// filesystem is full, creating it when the user profile has enough space.
     /// </summary>
-    /// <param name="requiredWithBuffer">Required size in bytes, including the safety buffer.</param>
+    /// <param name="requiredBytes">Minimum free space in bytes the user profile must have.</param>
     /// <param name="diskMonitorService">Service used to query the free space of the user profile.</param>
     /// <returns>The fallback folder, or <c>null</c> when it cannot be used.</returns>
-    private static string? GetUserTempFallbackRoot(long requiredWithBuffer,
+    private static string? GetUserTempFallbackRoot(long requiredBytes,
         IDiskMonitorService diskMonitorService)
     {
         try
@@ -487,7 +523,7 @@ public static class PathHelper
             // filesystem.
             var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             if (string.IsNullOrEmpty(userProfile)) return null;
-            if (diskMonitorService.GetAvailableFreeSpace(userProfile) < requiredWithBuffer) return null;
+            if (diskMonitorService.GetAvailableFreeSpace(userProfile) < requiredBytes) return null;
 
             var root = Path.Combine(localAppData, "XISOStudio");
             Directory.CreateDirectory(root);

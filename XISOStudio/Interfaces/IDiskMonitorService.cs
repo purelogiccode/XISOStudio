@@ -49,4 +49,14 @@ public interface IDiskMonitorService
     /// <param name="excludeDrive">Optional drive root to exclude from the search.</param>
     /// <returns>The root paths of the suitable drives, ordered by drive enumeration; empty when none was found.</returns>
     IReadOnlyList<string> FindDrivesWithFreeSpace(long requiredBytes, string? excludeDrive = null);
+
+    /// <summary>
+    /// Finds every local drive with at least <paramref name="requiredBytes" /> of free space,
+    /// without adding the safety buffer. Callers use this as a last resort when no drive can
+    /// satisfy the buffered requirement but the data itself still fits.
+    /// </summary>
+    /// <param name="requiredBytes">Minimum number of free bytes that must be available.</param>
+    /// <param name="excludeDrive">Optional drive root to exclude from the search.</param>
+    /// <returns>The root paths of the suitable drives; empty when none was found.</returns>
+    IReadOnlyList<string> FindDrivesWithAtLeastFreeSpace(long requiredBytes, string? excludeDrive = null);
 }

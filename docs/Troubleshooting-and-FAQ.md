@@ -14,9 +14,9 @@
 
 **Message pattern:** *"Not enough disk space ... Required: ... Available: ..."*
 
-The output drive does not have room for the converted file (with a safety margin).
+The output or temporary drive does not have room for the converted file or extracted archive (the check includes a safety margin). When the data itself fits but the full margin does not, extraction still proceeds; a real full-disk condition during the write is reported and partial files are cleaned up.
 
-- Free up space on the output drive, or
+- Free up space on the output or temporary drive, or
 - Select a different output folder on another drive.
 
 The application checks the output drive **before** converting, so a full disk skips the file with this message instead of failing halfway and leaving a corrupt partial file. If a write does still hit a full disk (for example, another program filled the drive concurrently), any partial output file is deleted automatically.

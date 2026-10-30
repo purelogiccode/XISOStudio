@@ -1314,4 +1314,32 @@ public class FileExtractorServiceTests : IDisposable
     }
 
     #endregion
+
+    #region Disk Space Check Tests
+
+    [Fact]
+    public void GetInsufficientSpaceMessageReturnsNullWhenUnbufferedDataFits()
+    {
+        const long totalSize = 1L * 1024 * 1024 * 1024;
+
+        // The safety margin is preferred, not mandatory: a drive with room for the
+        // uncompressed data must not be rejected because the margin does not fit too.
+        Assert.Null(FileExtractorService.GetInsufficientSpaceMessage(totalSize, totalSize, "game.zip"));
+        Assert.Null(FileExtractorService.GetInsufficientSpaceMessage(totalSize + 1, totalSize, "game.zip"));
+    }
+
+    [Fact]
+    public void GetInsufficientSpaceMessageReportsExactSizesWhenDataDoesNotFit()
+    {
+        const long totalSize = 1L * 1024 * 1024 * 1024;
+
+        var message = FileExtractorService.GetInsufficientSpaceMessage(totalSize - 1, totalSize, "game.zip");
+
+        Assert.NotNull(message);
+        Assert.Contains("Required:", message, StringComparison.Ordinal);
+        Assert.Contains("Available:", message, StringComparison.Ordinal);
+        Assert.Contains("safety buffer", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    #endregion
 }

@@ -362,17 +362,26 @@ public class FileExtractorService : IFileExtractor
             if (string.IsNullOrEmpty(root)) return;
 
             var drive = new DriveInfo(root);
+            var availableBytes = drive.AvailableFreeSpace;
+            var errorMessage = GetInsufficientSpaceMessage(availableBytes, totalSize, archiveFileName);
+            if (errorMessage != null)
+            {
+                _logger.Information("{Message:l}", errorMessage);
+                throw new IOException(errorMessage);
+            }
+
             // Saturating buffer: an archive declaring sizes near long.MaxValue must not wrap
             // around and make an undersized drive look sufficient.
             var requiredWithBuffer = PathHelper.AddSafetyBuffer(totalSize);
-            if (drive.AvailableFreeSpace < requiredWithBuffer)
+            if (availableBytes < requiredWithBuffer)
             {
-                var requiredSpace = Formatter.FormatBytes(totalSize);
-                var availableSpace = Formatter.FormatBytes(drive.AvailableFreeSpace);
-                var errorMessage =
-                    $"Not enough disk space to extract {archiveFileName}. Required: {requiredSpace} ({totalSize:N0} bytes), Available: {availableSpace} ({drive.AvailableFreeSpace:N0} bytes), with safety buffer requires: {Formatter.FormatBytes(requiredWithBuffer)}.";
-                _logger.Information("{Message:l}", errorMessage);
-                throw new IOException(errorMessage);
+                // The uncompressed data fits, but the preferred safety margin does not.
+                // Proceed anyway instead of rejecting a conversion that has enough room;
+                // a real disk-full condition during extraction is reported and cleaned up.
+                _logger.Information(
+                    "Extracting {ArchiveFileName} without the full safety margin: {Available} free, {RequiredWithBuffer} recommended.",
+                    archiveFileName, Formatter.FormatBytes(availableBytes),
+                    Formatter.FormatBytes(requiredWithBuffer));
             }
         }
         catch (IOException ex)
@@ -385,6 +394,29 @@ public class FileExtractorService : IFileExtractor
             // Environmental condition (drive probing failed); not an application defect.
             _logger.Information(ex, "Could not check disk space: {Message}", ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Builds the error message for an extraction whose uncompressed data does not fit on
+    /// the target drive, or returns <c>null</c> when it fits. The safety buffer is reported
+    /// for context but is not a hard requirement: a drive that can hold the data is used even
+    /// when the full margin is unavailable.
+    /// </summary>
+    /// <param name="availableBytes">Free bytes reported by the target drive.</param>
+    /// <param name="totalSize">Uncompressed size of the archive contents in bytes.</param>
+    /// <param name="archiveFileName">Archive name used in the message.</param>
+    /// <returns>The error message, or <c>null</c> when the data fits.</returns>
+    internal static string? GetInsufficientSpaceMessage(long availableBytes, long totalSize, string archiveFileName)
+    {
+        if (availableBytes >= totalSize) return null;
+
+        var requiredWithBuffer = PathHelper.AddSafetyBuffer(totalSize);
+        var requiredSpace = Formatter.FormatBytes(totalSize);
+        var availableSpace = Formatter.FormatBytes(availableBytes);
+        return
+            $"Not enough disk space to extract {archiveFileName}. Required: {requiredSpace} ({totalSize:N0} bytes), " +
+            $"Available: {availableSpace} ({availableBytes:N0} bytes), with safety buffer requires: " +
+            $"{Formatter.FormatBytes(requiredWithBuffer)}.";
     }
 
     /// <summary>

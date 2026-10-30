@@ -1,3 +1,4 @@
+using System.Globalization;
 using Moq;
 using XISOStudio.Interfaces;
 using XISOStudio.Services;
@@ -393,6 +394,8 @@ public class PathHelperTests
             var diskMonitor = new Mock<IDiskMonitorService>();
             diskMonitor.Setup(static d => d.FindDrivesWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
                 .Returns([blockedRoot]);
+            diskMonitor.Setup(static d => d.FindDrivesWithAtLeastFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
+                .Returns([blockedRoot]);
             diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(0);
 
             // long.MaxValue exceeds any real drive, forcing the alternative-drive path.
@@ -405,5 +408,110 @@ public class PathHelperTests
         {
             if (File.Exists(blockedRoot)) File.Delete(blockedRoot);
         }
+    }
+
+    [Fact]
+    public void ResolveTempDirectoryUsesDefaultTempWhenOnlyUnbufferedSpaceIsAvailable()
+    {
+        // A drive that can hold the uncompressed data must not be rejected just because the
+        // preferred safety margin does not fit as well (the reported "Required 2.0 GB,
+        // Available 2.0 GB" false negative).
+        const long requiredSize = 1L * 1024 * 1024 * 1024;
+        var diskMonitor = new Mock<IDiskMonitorService>();
+        diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(0);
+        diskMonitor.Setup(static d => d.GetAvailableFreeSpace(Path.GetTempPath())).Returns(requiredSize);
+        diskMonitor.Setup(static d => d.FindDrivesWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
+            .Returns([]);
+        diskMonitor.Setup(static d => d.FindDrivesWithAtLeastFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
+            .Returns([]);
+
+        string? result = null;
+        try
+        {
+            result = PathHelper.ResolveTempDirectory(requiredSize, "PathHelperNoMargin", diskMonitor.Object);
+
+            Assert.True(Directory.Exists(result));
+            Assert.StartsWith(Path.GetTempPath(), result, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            var parent = result == null ? null : Path.GetDirectoryName(result);
+            if (parent != null && Directory.Exists(parent)) Directory.Delete(parent, true);
+        }
+    }
+
+    [Fact]
+    public void ResolveTempDirectoryPrefersDriveWithSafetyMarginOverUnbufferedDefault()
+    {
+        const long requiredSize = 1L * 1024 * 1024 * 1024;
+        var altRoot = Path.Combine(Path.GetTempPath(), $"PathHelperAltMargin_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(altRoot);
+        try
+        {
+            var diskMonitor = new Mock<IDiskMonitorService>();
+            diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(0);
+            diskMonitor.Setup(static d => d.GetAvailableFreeSpace(Path.GetTempPath())).Returns(requiredSize);
+            diskMonitor.Setup(static d => d.FindDrivesWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
+                .Returns([altRoot]);
+            diskMonitor.Setup(static d => d.FindDrivesWithAtLeastFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
+                .Returns([]);
+
+            var result = PathHelper.ResolveTempDirectory(requiredSize, "PathHelperAltMargin", diskMonitor.Object);
+
+            Assert.True(Directory.Exists(result));
+            Assert.StartsWith(altRoot, result, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (Directory.Exists(altRoot)) Directory.Delete(altRoot, true);
+        }
+    }
+
+    [Fact]
+    public void ResolveTempDirectoryFallsBackToDriveWithUnbufferedSpace()
+    {
+        const long requiredSize = 1L * 1024 * 1024 * 1024;
+        var altRoot = Path.Combine(Path.GetTempPath(), $"PathHelperRawAlt_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(altRoot);
+        try
+        {
+            var diskMonitor = new Mock<IDiskMonitorService>();
+            diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(0);
+            diskMonitor.Setup(static d => d.FindDrivesWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
+                .Returns([]);
+            diskMonitor.Setup(static d => d.FindDrivesWithAtLeastFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
+                .Returns([altRoot]);
+
+            var result = PathHelper.ResolveTempDirectory(requiredSize, "PathHelperRawAlt", diskMonitor.Object);
+
+            Assert.True(Directory.Exists(result));
+            Assert.StartsWith(altRoot, result, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (Directory.Exists(altRoot)) Directory.Delete(altRoot, true);
+        }
+    }
+
+    [Fact]
+    public void ResolveTempDirectoryErrorMessageShowsExactSizesAndSafetyMargin()
+    {
+        const long requiredSize = 1L * 1024 * 1024 * 1024;
+        const long available = requiredSize - 1;
+        var diskMonitor = new Mock<IDiskMonitorService>();
+        diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(available);
+        diskMonitor.Setup(static d => d.FindDrivesWithFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
+            .Returns([]);
+        diskMonitor.Setup(static d => d.FindDrivesWithAtLeastFreeSpace(It.IsAny<long>(), It.IsAny<string>()))
+            .Returns([]);
+
+        var exception = Assert.Throws<IOException>(() =>
+            PathHelper.ResolveTempDirectory(requiredSize, "PathHelperMessage", diskMonitor.Object));
+
+        Assert.Contains(requiredSize.ToString("N0", CultureInfo.CurrentCulture), exception.Message,
+            StringComparison.Ordinal);
+        Assert.Contains(available.ToString("N0", CultureInfo.CurrentCulture), exception.Message,
+            StringComparison.Ordinal);
+        Assert.Contains("safety margin", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -325,7 +325,7 @@ public class OrchestratorService : IOrchestratorService
                     progress.Report(new BatchOperationProgress
                     {
                         LogMessage =
-                            "ERROR: Not enough disk space on the output drive. Batch operation stopped. Please free up disk space and try again.",
+                            "ERROR: Not enough disk space on the temporary or output drive. Batch operation stopped. Please free up disk space and try again.",
                         FailedCount = 1,
                         FailedPathToAdd = entryPath
                     });
@@ -1010,7 +1010,7 @@ public class OrchestratorService : IOrchestratorService
                 progress.Report(new BatchOperationProgress
                 {
                     LogMessage =
-                        "ERROR: Not enough disk space on the drive. Batch operation stopped. Please free up disk space and try again.",
+                        "ERROR: Not enough disk space on the temporary or output drive. Batch operation stopped. Please free up disk space and try again.",
                     FailedCount = 1,
                     FailedPathToAdd = imagePath
                 });
