@@ -12,6 +12,12 @@ namespace XISOStudio.Services;
 internal static class ArchiveErrorClassifier
 {
     /// <summary>
+    /// Full name of SharpCompress's LZMA decoder failure. The type is internal, so it is
+    /// matched by name rather than by a compile-time reference.
+    /// </summary>
+    private const string LzmaDataErrorExceptionTypeName = "SharpCompress.Compressors.LZMA.DataErrorException";
+
+    /// <summary>
     /// Returns <c>true</c> when the exception (or one of its inner exceptions) indicates that
     /// the archive itself cannot be read: wrong/unknown format, missing ZIP header, truncated
     /// stream, unsupported compression, or corrupt compressed data.
@@ -23,6 +29,15 @@ internal static class ArchiveErrorClassifier
         if (exception is null) return false;
 
         if (exception is ArchiveException or ArchiveOperationException or InvalidFormatException or ZlibException)
+        {
+            return true;
+        }
+
+        // LZMA/LZMA2 payloads that fail their range decoder or header checks surface as
+        // DataErrorException ("Data Error") from the 7z decoder. This means the compressed
+        // data is corrupt or uses an unsupported variant, not that the application failed;
+        // the caller retries with the 7-Zip CLI.
+        if (string.Equals(exception.GetType().FullName, LzmaDataErrorExceptionTypeName, StringComparison.Ordinal))
         {
             return true;
         }

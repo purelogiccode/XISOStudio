@@ -39,6 +39,21 @@ public class ArchiveErrorClassifierTests
     }
 
     [Fact]
+    public void LzmaDataErrorExceptionIsArchiveInputError()
+    {
+        // Reported when a 7z archive's LZMA payload is corrupt or truncated.
+        Assert.True(ArchiveErrorClassifier.IsArchiveInputError(CreateLzmaDataErrorException()));
+    }
+
+    [Fact]
+    public void WrappedLzmaDataErrorExceptionIsArchiveInputError()
+    {
+        var exception = new IOException("failed", CreateLzmaDataErrorException());
+
+        Assert.True(ArchiveErrorClassifier.IsArchiveInputError(exception));
+    }
+
+    [Fact]
     public void EndOfStreamExceptionIsArchiveInputError()
     {
         Assert.True(ArchiveErrorClassifier.IsArchiveInputError(new EndOfStreamException()));
@@ -86,5 +101,14 @@ public class ArchiveErrorClassifierTests
     public void NullIsNotArchiveInputError()
     {
         Assert.False(ArchiveErrorClassifier.IsArchiveInputError(null));
+    }
+
+    private static Exception CreateLzmaDataErrorException()
+    {
+        // SharpCompress marks its LZMA DataErrorException as internal, so it cannot be
+        // constructed directly; the classifier matches it by full type name.
+        var type = typeof(ArchiveException).Assembly.GetType(
+            "SharpCompress.Compressors.LZMA.DataErrorException", throwOnError: true)!;
+        return (Exception)Activator.CreateInstance(type)!;
     }
 }
