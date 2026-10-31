@@ -210,6 +210,16 @@ public class ChdService : IChdService
                 fileName);
             return FileProcessingStatus.Failed;
         }
+        catch (Exception ex) when (ImageErrorClassifier.IsMissingApplicationComponentError(ex))
+        {
+            DeletePartialOutput(outputPath);
+            // A missing or damaged application assembly is an installation problem, not an
+            // image-input problem or an application defect.
+            _logger.Information(ex,
+                "A required image engine component could not be loaded while converting '{FileName}' to CHD. " +
+                "The application files may be incomplete or damaged; please reinstall XISO Studio.", fileName);
+            return FileProcessingStatus.Failed;
+        }
         catch (Exception ex) when (ImageErrorClassifier.IsInvalidImageError(ex))
         {
             DeletePartialOutput(outputPath);

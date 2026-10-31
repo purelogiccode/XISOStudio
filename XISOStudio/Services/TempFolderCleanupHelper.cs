@@ -134,6 +134,16 @@ public static class TempFolderCleanupHelper
                     logger?.Debug(ex, "Skipping inaccessible temp root {Root}", root);
                     break;
                 }
+                catch (IOException ex)
+                {
+                    // Removable media can disappear or report a device error between the
+                    // drive scan and the directory enumeration (for example a failing USB
+                    // drive on X:). That is an environmental condition, not an application
+                    // defect, so keep it below the bug-report threshold. Every pattern
+                    // fails identically for such a root, so move on after the first.
+                    logger?.Debug(ex, "Skipping unreadable temp root {Root}", root);
+                    break;
+                }
                 catch (Exception ex)
                 {
                     logger?.Warning(ex, "Error enumerating temp folders on {Root}", root);

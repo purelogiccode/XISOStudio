@@ -58,6 +58,19 @@ The conversion needs to replace (or delete) an existing result, but another prog
 - The delete is retried automatically a few times before giving up; if the file is held continuously, the retry cannot succeed.
 - This is an environmental condition: it is logged at Information level and does **not** generate a bug report.
 
+### A required image engine component could not be loaded
+
+**Message pattern:** *"XISO Studio could not load one of its image engine components ... Please reinstall ..."*
+
+The release is a framework-dependent single-file build: the managed image engines (`XISOSharp`, `ZArchiveSharp`, and `CHDSharp`) are stored inside the executable. A truncated download, a disk error, or an antivirus tool that quarantined part of the application can prevent one of them from loading.
+
+- Download the release archive again from the official GitHub release page and extract it to a fresh, writable folder. Do not run the executable from inside the ZIP.
+- Verify the archive against the published `SHA256SUMS.txt` before running it.
+- Make sure the [.NET 10.0 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) is installed; the framework-dependent build cannot start without it.
+- If the message persists after a clean download, reinstall the application.
+
+This is an installation problem rather than an image-input problem or an application defect, so it is logged at Information level and is **not** sent as an automatic bug report.
+
 ### Network errors (UNC paths and mapped drives)
 
 Network paths are fully supported. Transient network failures are retried automatically with exponential backoff.

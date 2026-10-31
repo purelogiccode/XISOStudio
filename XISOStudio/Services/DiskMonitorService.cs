@@ -1,5 +1,6 @@
-using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using XISOStudio.Interfaces;
 using Serilog;
 
@@ -12,8 +13,7 @@ namespace XISOStudio.Services;
 public class DiskMonitorService : IDiskMonitorService, IDisposable
 {
     private readonly ILogger _logger;
-    private PerformanceCounter? _diskReadSpeedCounter;
-    private PerformanceCounter? _diskWriteSpeedCounter;
+    private IDiskSpeedCounter? _diskSpeedCounters;
 
     /// <summary>Drive letter currently being monitored, or <c>null</c> when monitoring is inactive.</summary>
     public string? CurrentDriveLetter { get; private set; }
@@ -97,36 +97,16 @@ public class DiskMonitorService : IDiskMonitorService, IDisposable
 
         try
         {
-            // Check if LogicalDisk category exists
-            if (!PerformanceCounterCategory.Exists("LogicalDisk"))
+            var counters = CreateWindowsCounters(perfCounterInstanceName, out var statusMessage);
+            if (counters is null)
             {
-                StatusMessage = "Disk speed monitoring unavailable - performance counters disabled";
-                _logger.Information(
-                    "Performance counter category 'LogicalDisk' not available. Performance counters may be disabled.");
+                StatusMessage = statusMessage;
+                _logger.Information("Disk speed monitoring unavailable for {Drive}: {Reason}",
+                    perfCounterInstanceName, statusMessage);
                 return;
             }
 
-            // Check if drive instance exists
-            if (!PerformanceCounterCategory.InstanceExists(perfCounterInstanceName, "LogicalDisk"))
-            {
-                StatusMessage = $"Disk speed monitoring unavailable for drive {perfCounterInstanceName}";
-                _logger.Information("Performance counter for drive {Drive} not available.", perfCounterInstanceName);
-                return;
-            }
-
-            // Initialize read speed counter. Assign the field before priming so the catch
-            // path (StopMonitoring) disposes the handle when NextValue throws.
-            var readCounter =
-                new PerformanceCounter("LogicalDisk", "Disk Read Bytes/sec", perfCounterInstanceName, true);
-            _diskReadSpeedCounter = readCounter;
-            readCounter.NextValue(); // Prime the counter
-
-            // Initialize write speed counter
-            var writeCounter =
-                new PerformanceCounter("LogicalDisk", "Disk Write Bytes/sec", perfCounterInstanceName, true);
-            _diskWriteSpeedCounter = writeCounter;
-            writeCounter.NextValue(); // Prime the counter
-
+            _diskSpeedCounters = counters;
             CurrentDriveLetter = driveLetter;
             StatusMessage = null; // Clear any previous status
             _logger.Information("Monitoring disk speed for drive: {Drive}", perfCounterInstanceName);
@@ -143,19 +123,34 @@ public class DiskMonitorService : IDiskMonitorService, IDisposable
     }
 
     /// <summary>
+    /// Creates the Windows performance counters for a drive. Kept in its own non-inlined
+    /// method so the JIT never has to resolve <c>System.Diagnostics.PerformanceCounter</c>
+    /// on macOS or Linux, where that assembly is not available at runtime.
+    /// </summary>
+    /// <param name="instanceName">LogicalDisk performance-counter instance name.</param>
+    /// <param name="statusMessage">Reason the counters are unavailable, or <c>null</c> on success.</param>
+    /// <returns>The initialized counters, or <c>null</c> when they are unavailable.</returns>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    [SupportedOSPlatform("windows")]
+    private static IDiskSpeedCounter? CreateWindowsCounters(string instanceName, out string? statusMessage)
+    {
+        return WindowsDiskSpeedCounter.TryCreate(instanceName, out statusMessage);
+    }
+
+    /// <summary>
     /// Stops monitoring, releases the performance counters, and clears the drive letter and
     /// status message.
     /// </summary>
     public void StopMonitoring()
     {
+        var counters = _diskSpeedCounters;
+        _diskSpeedCounters = null;
+        CurrentDriveLetter = null;
+        StatusMessage = null;
+
         try
         {
-            _diskReadSpeedCounter?.Dispose();
-            _diskReadSpeedCounter = null;
-            _diskWriteSpeedCounter?.Dispose();
-            _diskWriteSpeedCounter = null;
-            CurrentDriveLetter = null;
-            StatusMessage = null;
+            counters?.Dispose();
         }
         catch (Exception ex)
         {
@@ -172,12 +167,12 @@ public class DiskMonitorService : IDiskMonitorService, IDisposable
     public string GetCurrentReadSpeedFormatted()
     {
         if (!OperatingSystem.IsWindows()) return "N/A";
-        if (_diskReadSpeedCounter == null) return "N/A";
+        var counters = _diskSpeedCounters;
+        if (counters is null) return "N/A";
 
         try
         {
-            var val = _diskReadSpeedCounter.NextValue();
-            return Formatter.FormatBytesPerSecond(val);
+            return Formatter.FormatBytesPerSecond(counters.GetReadBytesPerSecond());
         }
         catch (Exception ex)
         {
@@ -195,12 +190,12 @@ public class DiskMonitorService : IDiskMonitorService, IDisposable
     public string GetCurrentWriteSpeedFormatted()
     {
         if (!OperatingSystem.IsWindows()) return "N/A";
-        if (_diskWriteSpeedCounter == null) return "N/A";
+        var counters = _diskSpeedCounters;
+        if (counters is null) return "N/A";
 
         try
         {
-            var val = _diskWriteSpeedCounter.NextValue();
-            return Formatter.FormatBytesPerSecond(val);
+            return Formatter.FormatBytesPerSecond(counters.GetWriteBytesPerSecond());
         }
         catch (Exception ex)
         {

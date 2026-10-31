@@ -297,7 +297,7 @@ public class TempFolderCleanupHelperTests : IDisposable
     }
 
     [Fact]
-    public void FindOrphanedWorkDirectoriesMissingRootLogsWarningAndReturnsEmpty()
+    public void FindOrphanedWorkDirectoriesMissingRootIsSkippedWithoutWarning()
     {
         var missing = Path.Combine(Path.GetTempPath(), $"Missing_{Guid.NewGuid():N}");
         var logger = new TestLogger();
@@ -305,7 +305,29 @@ public class TempFolderCleanupHelperTests : IDisposable
         var found = TempFolderCleanupHelper.FindOrphanedWorkDirectories([missing], DateTime.UtcNow, logger.Logger);
 
         Assert.Empty(found);
-        Assert.True(logger.HasMessage(LogEventLevel.Warning, "Error enumerating temp folders"));
+        Assert.True(logger.HasMessage(LogEventLevel.Debug, "Skipping unreadable temp root"));
+        Assert.DoesNotContain(logger.Events, e => e.Level >= LogEventLevel.Warning);
+    }
+
+    [Fact]
+    public void FindOrphanedWorkDirectoriesRootThatIsAFileIsSkippedWithoutWarning()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"CleanupRoot_{Guid.NewGuid():N}");
+        File.WriteAllText(file, "not a directory");
+        var logger = new TestLogger();
+
+        try
+        {
+            var found = TempFolderCleanupHelper.FindOrphanedWorkDirectories([file], DateTime.UtcNow, logger.Logger);
+
+            Assert.Empty(found);
+            Assert.True(logger.HasMessage(LogEventLevel.Debug, "Skipping unreadable temp root"));
+            Assert.DoesNotContain(logger.Events, e => e.Level >= LogEventLevel.Warning);
+        }
+        finally
+        {
+            File.Delete(file);
+        }
     }
 
     [Fact]

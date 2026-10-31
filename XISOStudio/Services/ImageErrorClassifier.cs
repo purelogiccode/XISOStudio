@@ -1,5 +1,3 @@
-using XISOSharp;
-
 namespace XISOStudio.Services;
 
 /// <summary>
@@ -11,6 +9,22 @@ namespace XISOStudio.Services;
 public static class ImageErrorClassifier
 {
     /// <summary>
+    /// Full names of the XISOSharp exception types that indicate an invalid input image.
+    /// They are matched by name rather than by a compile-time reference: if the XISOSharp
+    /// assembly itself is missing or damaged, this classifier must still be able to run
+    /// and classify the resulting <see cref="FileNotFoundException" />.
+    /// </summary>
+    private static readonly string[] InvalidImageExceptionTypeNames =
+    [
+        "XISOSharp.ExtractErrorException",
+        "XISOSharp.ExtractFileException",
+        "XISOSharp.TruncatedCopyException",
+        "XISOSharp.XisoEmptyException",
+        "XISOSharp.XisoFileTooLargeException",
+        "XISOSharp.XisoFormatException"
+    ];
+
+    /// <summary>
     /// Errors that indicate the input image itself is unsupported or corrupt rather
     /// than an application defect. XISOSharp's low-level reader reports truncated
     /// images as a plain IOException with a "Read error" message.
@@ -19,10 +33,12 @@ public static class ImageErrorClassifier
     /// <returns><c>true</c> when the error indicates an invalid input image; otherwise <c>false</c>.</returns>
     public static bool IsInvalidImageError(Exception exception)
     {
-        return exception is XisoFormatException or XisoEmptyException or XisoFileTooLargeException
-                   or InvalidDataException or ExtractErrorException or EndOfStreamException ||
-               (exception is IOException ioException &&
-                ioException.Message.StartsWith("Read error", StringComparison.OrdinalIgnoreCase));
+        if (exception is InvalidDataException or EndOfStreamException) return true;
+
+        if (HasAnyTypeName(exception, InvalidImageExceptionTypeNames)) return true;
+
+        return exception is IOException ioException &&
+               ioException.Message.StartsWith("Read error", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -51,6 +67,52 @@ public static class ImageErrorClassifier
         for (var current = exception; current is not null; current = current.InnerException)
         {
             if (current is IOException or UnauthorizedAccessException or NotSupportedException) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Errors caused by a missing or damaged application assembly (for example a truncated
+    /// download or a partially deleted installation). These are installation problems, not
+    /// image-input problems or application defects, and the user can fix them by reinstalling.
+    /// </summary>
+    /// <param name="exception">Exception to inspect.</param>
+    /// <returns><c>true</c> when the exception reports a failed application-assembly load.</returns>
+    public static bool IsMissingApplicationComponentError(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is not (FileNotFoundException or FileLoadException or BadImageFormatException))
+                continue;
+
+            if (current.Message.Contains("Could not load file or assembly", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (current is FileNotFoundException { FileName: { Length: > 0 } fileName } &&
+                fileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the exception or one of its base types has one of the
+    /// supplied full names. Type names are compared instead of types so that classifying
+    /// an error never requires loading the library that raised it.
+    /// </summary>
+    /// <param name="exception">Exception whose inheritance chain is inspected.</param>
+    /// <param name="typeNames">Full type names to look for.</param>
+    /// <returns><c>true</c> when a matching type name is found; otherwise <c>false</c>.</returns>
+    private static bool HasAnyTypeName(Exception exception, string[] typeNames)
+    {
+        for (var type = exception.GetType(); type is not null; type = type.BaseType)
+        {
+            var fullName = type.FullName;
+            if (fullName is not null && Array.IndexOf(typeNames, fullName) >= 0) return true;
         }
 
         return false;

@@ -73,6 +73,49 @@ public class ImageErrorClassifierTests
         Assert.False(ImageErrorClassifier.IsEnvironmentalIoError(new InvalidOperationException("bug")));
     }
 
+    [Fact]
+    public void IsMissingApplicationComponentErrorWithAssemblyLoadFailureReturnsTrue()
+    {
+        var exception = new FileNotFoundException(
+            "Could not load file or assembly 'XISOSharp, Version=1.0.0.0, Culture=neutral, " +
+            "PublicKeyToken=8368ef6ea2a36128'. The system cannot find the file specified.",
+            "XISOSharp, Version=1.0.0.0, Culture=neutral, PublicKeyToken=8368ef6ea2a36128");
+
+        Assert.True(ImageErrorClassifier.IsMissingApplicationComponentError(exception));
+    }
+
+    [Fact]
+    public void IsMissingApplicationComponentErrorWithDllFileNameReturnsTrue()
+    {
+        var exception = new FileNotFoundException("Could not load the engine.", "XISOSharp.dll");
+
+        Assert.True(ImageErrorClassifier.IsMissingApplicationComponentError(exception));
+    }
+
+    [Fact]
+    public void IsMissingApplicationComponentErrorWithUserFileNotFoundReturnsFalse()
+    {
+        var exception = new FileNotFoundException("The image was not found.", "game.iso");
+
+        Assert.False(ImageErrorClassifier.IsMissingApplicationComponentError(exception));
+    }
+
+    [Fact]
+    public void IsMissingApplicationComponentErrorWithWrappedAssemblyLoadFailureReturnsTrue()
+    {
+        var exception = new TypeInitializationException(
+            "XISOStudio.Services.XisoImageExplorer",
+            new FileNotFoundException("Could not load file or assembly 'XISOSharp'."));
+
+        Assert.True(ImageErrorClassifier.IsMissingApplicationComponentError(exception));
+    }
+
+    [Fact]
+    public void IsMissingApplicationComponentErrorWithUnexpectedErrorReturnsFalse()
+    {
+        Assert.False(ImageErrorClassifier.IsMissingApplicationComponentError(new InvalidOperationException("bug")));
+    }
+
     public static TheoryData<Exception> InvalidImageErrors()
     {
         return
@@ -80,6 +123,8 @@ public class ImageErrorClassifierTests
             new XisoFormatException("Not a valid XISO"),
             new XisoEmptyException("empty image"),
             new XisoFileTooLargeException("file too large"),
+            new ExtractFileException("Failed to extract file"),
+            new TruncatedCopyException(1, 2),
             new InvalidDataException("not an Xbox DVD image"),
             new EndOfStreamException(),
             new IOException("Read error while reading sector 0")

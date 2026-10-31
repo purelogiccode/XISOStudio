@@ -97,6 +97,27 @@ public partial class MainWindow
 
             await LoadDirectoryAsync("/");
         }
+        catch (Exception ex) when (ImageErrorClassifier.IsMissingApplicationComponentError(ex))
+        {
+            lock (_explorerLock)
+            {
+                _explorer = null;
+            }
+
+            // A missing or damaged application assembly is an installation problem, not an
+            // image-input problem or an application defect. Keep it below the automatic
+            // bug-report threshold and give the user a way to fix it.
+            _logger.Information(ex, "A required image engine component could not be loaded: {Message}", ex.Message);
+            await ShowErrorSafeAsync(
+                "XISO Studio could not load one of its image engine components (XISOSharp, ZArchiveSharp, or CHDSharp). " +
+                "The application files may be incomplete or damaged. Please reinstall XISO Studio from the official release and try again.\n\n" +
+                $"Details: {ex.Message}");
+
+            // The grid would otherwise keep showing the previous (now disposed) image.
+            ExplorerDataGrid.ItemsSource = null;
+            _currentInternalPath = "/";
+            UpdateExplorerUiState();
+        }
         catch (Exception ex) when (ImageErrorClassifier.IsUserInputImageError(ex))
         {
             lock (_explorerLock)

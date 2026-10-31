@@ -350,17 +350,22 @@ public class OrchestratorService : IOrchestratorService
                 }
                 catch (Exception ex)
                 {
-                    // Provide user-friendly message for corrupt archives
-                    var logMessage = ex.Message.Contains("End of stream reached", StringComparison.OrdinalIgnoreCase)
-                        ? $"ERROR: {fileName} appears to be corrupt or incomplete. The file may have been damaged during download or transfer. Please re-download the archive and try again."
-                        : $"Critical error processing {fileName}: {ex.Message}";
+                    var isMissingComponent = ImageErrorClassifier.IsMissingApplicationComponentError(ex);
+
+                    // Provide user-friendly message for corrupt archives and damaged installations
+                    var logMessage = isMissingComponent
+                        ? "ERROR: XISO Studio could not load one of its image engine components (XISOSharp, ZArchiveSharp, or CHDSharp). The application files may be incomplete or damaged. Please reinstall XISO Studio from the official release and try again."
+                        : ex.Message.Contains("End of stream reached", StringComparison.OrdinalIgnoreCase)
+                            ? $"ERROR: {fileName} appears to be corrupt or incomplete. The file may have been damaged during download or transfer. Please re-download the archive and try again."
+                            : $"Critical error processing {fileName}: {ex.Message}";
 
                     progress.Report(new BatchOperationProgress
                         { LogMessage = logMessage, FailedCount = 1, FailedPathToAdd = entryPath });
 
                     // Filter environmental errors (disconnected drives, network issues,
-                    // permission problems, etc.)
-                    var isEnvironmentalError = IsFatalEnvironmentalError(ex) || PathHelper.IsNetworkError(ex) ||
+                    // permission problems, etc.) and damaged installations.
+                    var isEnvironmentalError = isMissingComponent || IsFatalEnvironmentalError(ex) ||
+                                               PathHelper.IsNetworkError(ex) ||
                                                ex is UnauthorizedAccessException;
 
                     // Filter common archive errors (corruption, incomplete downloads, etc.)
