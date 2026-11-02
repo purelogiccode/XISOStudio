@@ -60,6 +60,52 @@ public class ArchiveErrorClassifierTests
     }
 
     [Fact]
+    public void LzmaDataErrorExceptionIsCorruptArchiveData()
+    {
+        // "Data Error" from the LZMA decoder means the compressed payload is damaged.
+        Assert.True(ArchiveErrorClassifier.IsCorruptArchiveData(CreateLzmaDataErrorException()));
+    }
+
+    [Fact]
+    public void WrappedLzmaDataErrorExceptionIsCorruptArchiveData()
+    {
+        var exception = new IOException("failed", CreateLzmaDataErrorException());
+
+        Assert.True(ArchiveErrorClassifier.IsCorruptArchiveData(exception));
+    }
+
+    [Fact]
+    public void DataErrorMessageIsCorruptArchiveData()
+    {
+        Assert.True(ArchiveErrorClassifier.IsCorruptArchiveData(new IOException("Data Error")));
+    }
+
+    [Fact]
+    public void EndOfStreamExceptionIsCorruptArchiveData()
+    {
+        Assert.True(ArchiveErrorClassifier.IsCorruptArchiveData(new EndOfStreamException()));
+    }
+
+    [Fact]
+    public void ZlibBadStateIsCorruptArchiveData()
+    {
+        Assert.True(ArchiveErrorClassifier.IsCorruptArchiveData(new ZlibException("Bad state (invalid block type)")));
+    }
+
+    [Fact]
+    public void ArchiveHeaderErrorIsNotCorruptArchiveData()
+    {
+        Assert.False(ArchiveErrorClassifier.IsCorruptArchiveData(
+            new ArchiveException("Failed to locate the Zip Header")));
+    }
+
+    [Fact]
+    public void NullIsNotCorruptArchiveData()
+    {
+        Assert.False(ArchiveErrorClassifier.IsCorruptArchiveData(null));
+    }
+
+    [Fact]
     public void WrappedArchiveExceptionIsArchiveInputError()
     {
         var exception = new IOException("failed", new ArchiveException("Failed to locate the Zip Header"));

@@ -111,7 +111,8 @@ convert.
 
 **Message patterns:** *"Cannot determine compressed stream type. Supported Archive Formats: Zip, Rar,
 Tar, GZip, 7Zip"*, *"Failed to locate the Zip Header"*, *"Bad state (invalid block type / invalid
-stored block lengths / invalid literal/length code)"*.
+stored block lengths / invalid literal/length code)"*, *"Data Error"* (corrupt LZMA/LZMA2 data in a
+`.7z` archive).
 
 The built-in extractor could not identify the file, find the ZIP central directory, or decompress
 the data. The usual causes are:
@@ -132,8 +133,9 @@ What the application does since **3.1.1**:
 - It retries with the bundled **7-Zip CLI for every archive format** - `.zip`, `.rar`, `.tar`, `.gz`,
   and `.7z` - after clearing any partial output from the failed attempt. Many large or unusually
   packaged Xbox images extract successfully this way even when SharpCompress cannot open them.
-- If extraction still fails, the archive is counted as failed, the batch continues, and the original
-  is kept when **Delete Originals** is enabled.
+- If both the built-in extractor and the 7-Zip CLI fail, the archive is probably corrupt or
+  incomplete. It is counted as failed, the batch continues, and the original is kept when
+  **Delete Originals** is enabled.
 
 What you can do:
 

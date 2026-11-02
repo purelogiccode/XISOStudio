@@ -37,7 +37,7 @@ internal static class ArchiveErrorClassifier
         // DataErrorException ("Data Error") from the 7z decoder. This means the compressed
         // data is corrupt or uses an unsupported variant, not that the application failed;
         // the caller retries with the 7-Zip CLI.
-        if (string.Equals(exception.GetType().FullName, LzmaDataErrorExceptionTypeName, StringComparison.Ordinal))
+        if (IsLzmaDataError(exception))
         {
             return true;
         }
@@ -60,5 +60,44 @@ internal static class ArchiveErrorClassifier
         }
 
         return exception.InnerException is not null && IsArchiveInputError(exception.InnerException);
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the exception indicates that the archive's compressed data is
+    /// damaged or truncated, so the file is probably corrupt rather than merely unsupported.
+    /// The caller uses this to choose an actionable "re-download the archive" message.
+    /// </summary>
+    /// <param name="exception">Exception raised while reading or extracting the archive.</param>
+    /// <returns><c>true</c> for damaged or truncated compressed data; otherwise <c>false</c>.</returns>
+    internal static bool IsCorruptArchiveData(Exception? exception)
+    {
+        if (exception is null) return false;
+
+        if (exception is EndOfStreamException or ZlibException) return true;
+
+        // SharpCompress reports corrupt LZMA/LZMA2 data as "Data Error"; this is the exact
+        // failure seen when a large game .7z is truncated or damaged during download.
+        if (IsLzmaDataError(exception)) return true;
+
+        if (exception.Message.Contains("End of stream reached", StringComparison.OrdinalIgnoreCase) ||
+            exception.Message.Contains("Unable to read beyond the end of the stream",
+                StringComparison.OrdinalIgnoreCase) ||
+            exception.Message.Contains("Bad state", StringComparison.OrdinalIgnoreCase) ||
+            exception.Message.Contains("Data Error", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (exception is AggregateException aggregate)
+        {
+            return aggregate.Flatten().InnerExceptions.Any(IsCorruptArchiveData);
+        }
+
+        return exception.InnerException is not null && IsCorruptArchiveData(exception.InnerException);
+    }
+
+    private static bool IsLzmaDataError(Exception exception)
+    {
+        return string.Equals(exception.GetType().FullName, LzmaDataErrorExceptionTypeName, StringComparison.Ordinal);
     }
 }

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Reflection;
@@ -1192,6 +1193,48 @@ public class FileExtractorServiceTests : IDisposable
 
     #endregion
 
+    #region Extraction Fallback Tests
+
+    [Fact]
+    public async Task ExtractArchiveAsyncCorruptLzmaSevenZipFallsBackAndReportsCorruption()
+    {
+        var service = CreateService();
+        var sevenZipPath = GetSevenZipPath(service);
+
+        // The fallback tool is not bundled for plain test builds on Linux/macOS, and a
+        // system 7-Zip is optional. Without it the handoff cannot be exercised.
+        if (string.IsNullOrEmpty(sevenZipPath)) return;
+
+        var sourcePath = Path.Combine(_tempDir, "payload.bin");
+        var payload = new byte[64 * 1024];
+        new Random(42).NextBytes(payload);
+        await File.WriteAllBytesAsync(sourcePath, payload);
+
+        var archivePath = Path.Combine(_tempDir, "corrupt-lzma.7z");
+        var createExitCode = await RunSevenZipAsync(sevenZipPath,
+            ["a", "-t7z", "-y", archivePath, sourcePath]);
+        Assert.Equal(0, createExitCode);
+
+        // A 7z archive starts with a 32-byte signature header; the compressed payload
+        // follows. Damaging its first byte makes SharpCompress throw the internal
+        // LZMA DataErrorException reported in bug #69265, which must hand off to 7-Zip.
+        var archiveBytes = await File.ReadAllBytesAsync(archivePath);
+        archiveBytes[32] ^= 0xFF;
+        await File.WriteAllBytesAsync(archivePath, archiveBytes);
+
+        var outDir = Path.Combine(_tempDir, "corrupt_lzma_out");
+        var exception = await Assert.ThrowsAnyAsync<IOException>(() =>
+            service.ExtractArchiveAsync(archivePath, outDir, CancellationToken.None));
+
+        Assert.Contains("appears to be corrupt or incomplete", exception.Message, StringComparison.Ordinal);
+        Assert.True(_logger.HasMessage(LogEventLevel.Information, "DataErrorException"));
+        Assert.True(_logger.HasMessage(LogEventLevel.Information, "trying the 7-Zip CLI fallback"));
+        Assert.True(_logger.HasMessage(LogEventLevel.Information, "Extracting with 7-Zip CLI"));
+        Assert.DoesNotContain(_logger.Events, e => e.Level >= LogEventLevel.Warning);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private string CreateTestZipOrdered(string zipName, params (string Name, string Content)[] entries)
@@ -1289,6 +1332,40 @@ public class FileExtractorServiceTests : IDisposable
         bw.Write(cdSize); // central directory size
         bw.Write(cdOffset); // central directory offset
         bw.Write((ushort)0); // comment length
+    }
+
+    private static string GetSevenZipPath(FileExtractorService service)
+    {
+        var field = typeof(FileExtractorService).GetField("_sevenZipExePath",
+            BindingFlags.NonPublic | BindingFlags.Instance)!;
+        return (string?)field.GetValue(service) ?? string.Empty;
+    }
+
+    private static async Task<int> RunSevenZipAsync(string executablePath, string[] arguments)
+    {
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = executablePath,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }
+        };
+
+        foreach (var argument in arguments)
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
+
+        process.Start();
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        await Task.WhenAll(stdoutTask, stderrTask);
+        return process.ExitCode;
     }
 
     #endregion

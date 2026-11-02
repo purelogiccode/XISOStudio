@@ -6,7 +6,6 @@ using XISOStudio.Models;
 using Serilog;
 using SharpCompress.Archives;
 using SharpCompress.Common;
-using SharpCompress.Compressors.Deflate;
 
 namespace XISOStudio.Services;
 
@@ -926,11 +925,7 @@ public class FileExtractorService : IFileExtractor
                     archiveFileName);
             }
 
-            var isCorrupt =
-                ex is EndOfStreamException or ZlibException ||
-                ex.Message.Contains("End of stream reached", StringComparison.OrdinalIgnoreCase) ||
-                ex.Message.Contains("Unable to read beyond the end of the stream", StringComparison.OrdinalIgnoreCase) ||
-                ex.Message.Contains("Bad state", StringComparison.OrdinalIgnoreCase);
+            var isCorrupt = ArchiveErrorClassifier.IsCorruptArchiveData(ex);
 
             var userMessage = isCorrupt
                 ? $"{archiveFileName} appears to be corrupt or incomplete. The file may have been damaged during download or transfer. Please re-download the archive and try again."
