@@ -51,8 +51,9 @@ This page describes the repository itself: where things live, how releases are m
 │   │   ├── XisoSharpService.cs            XISO/ZAR/CSO conversion via the XISOSharp library
 │   │   ├── ChdService.cs                  CHD conversion via the CHDSharp library
 │   │   ├── XisoIntegrityService.cs        Integrity validation via XISOSharp / ZArchiveSharp / CHDSharp
-│   │   ├── ImageExplorerFactory.cs        Explorer over ISO/CSO (XisoExplorer), ZAR (ZArchiveReader) or CHD (ChdImageExplorer)
-│   │   └── ChdImageExplorer.cs            Explorer over CHD via CHDSharp + XISOSharp
+│   │   ├── ImageExplorerFactory.cs        Explorer over ISO/CISO/CCI/GOD, ZAR or CHD (resolves GOD header/.data/parent paths)
+│   │   ├── ChdImageExplorer.cs            Explorer over CHD via CHDSharp + XISOSharp
+│   │   └── XisoImageExplorer.cs           Explorer over ISO/CISO/CCI/GOD via XisoImage + title/XBE metadata
 │   ├── 7za*.exe, 7zz_linux_*, 7zz_osx    Bundled 7-Zip CLI fallback (one binary per platform/architecture)
 │   └── XISOStudio.csproj
 ├── XISOStudio.Tests/           xUnit + Moq test project
@@ -147,5 +148,6 @@ This project is licensed under the **GNU General Public License v3.0** — see [
 - **[Avalonia](https://avaloniaui.net/)** — cross-platform UI framework powering the Windows/Linux/macOS interface
 - **[XISOSharp](https://github.com/purelogiccode/XISOSharp)** — XISO/XDVDFS library powering XISO/ZAR/CSO conversion, integrity testing, and exploration
 - **[ZArchiveSharp](https://github.com/purelogiccode/ZArchiveSharp)** — ZArchive/zstd library powering ZAR output and reading
+- **[StfsSharp](https://github.com/purelogiccode/STFSSharp)** — Xbox 360 STFS/GOD reader used for SVOD fragment mapping and XContent title metadata
 - **[CHDSharp](https://github.com/purelogiccode/CHDSharp)** — CHD reading, verification, and creation powering CHD conversion, testing, and exploration
 - **[SharpCompress](https://github.com/adamhathcock/sharpcompress)** — archive extraction

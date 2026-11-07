@@ -47,8 +47,12 @@ public sealed class ImageMetadataTests : IDisposable
     {
         var isoPath = CreateXbeXiso("god-source.iso");
         var godDirectory = Directory.CreateDirectory(Path.Combine(_tempRoot, "god")).FullName;
-        var header = Path.Combine(godDirectory, "58480813ABCDEF0123456789");
-        SyntheticGodContainer.CreateFromIso(isoPath, header, "GOD Metadata Test", 0x58480813, discNumber: 1,
+        var header = SyntheticGodContainer.CreateFromIso(
+            isoPath,
+            Path.Combine(godDirectory, "58480813ABCDEF0123456789"),
+            "GOD Metadata Test",
+            0x58480813,
+            discNumber: 1,
             discCount: 2);
         dataDirectory = header + ".data";
         return header;

@@ -509,11 +509,11 @@ public partial class MainWindow
         UpdateNavigationButtonStyles(BtnNavExplorer);
     }
 
-    /// <summary>Log/details column width saved while the explorer replaced the log.</summary>
-    private GridLength _savedLogColumnWidth = new(1, GridUnitType.Star);
+    /// <summary>Default width of the log/details column.</summary>
+    private static readonly GridLength DefaultLogColumnWidth = new(1, GridUnitType.Star);
 
-    /// <summary>Splitter column width saved while the explorer replaced the log.</summary>
-    private GridLength _savedSplitterColumnWidth = new(10);
+    /// <summary>Default width of the splitter column.</summary>
+    private static readonly GridLength DefaultSplitterColumnWidth = new(10);
 
     /// <summary>The splitter column of the main content grid (see MainWindow.axaml).</summary>
     private ColumnDefinition SplitterColumn => ContentGrid.ColumnDefinitions[1];
@@ -528,8 +528,8 @@ public partial class MainWindow
     private void ShowExplorerDetailsPanel()
     {
         LogColumn.MinWidth = 300;
-        LogColumn.Width = _savedLogColumnWidth.Value > 0 ? _savedLogColumnWidth : new GridLength(1, GridUnitType.Star);
-        SplitterColumn.Width = _savedSplitterColumnWidth;
+        LogColumn.Width = DefaultLogColumnWidth;
+        SplitterColumn.Width = DefaultSplitterColumnWidth;
         LogBorder.IsVisible = false;
         ExplorerDetailsBorder.IsVisible = true;
     }
@@ -541,8 +541,8 @@ public partial class MainWindow
     {
         ExplorerDetailsBorder.IsVisible = false;
         LogColumn.MinWidth = 300;
-        LogColumn.Width = _savedLogColumnWidth;
-        SplitterColumn.Width = _savedSplitterColumnWidth;
+        LogColumn.Width = DefaultLogColumnWidth;
+        SplitterColumn.Width = DefaultSplitterColumnWidth;
         LogBorder.IsVisible = true;
     }
 

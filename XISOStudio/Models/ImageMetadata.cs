@@ -62,7 +62,7 @@ public sealed record ImageMetadata
     public bool HasSaveImage { get; init; }
 
     /// <summary>Reason title metadata or preview images are unavailable, or <c>null</c>.</summary>
-    public string? UnavailableReason { get; init; }
+    public string? UnavailableReason { get; private init; }
 
     /// <summary>Creates metadata for a container that does not expose game-title fields.</summary>
     /// <param name="format">Container format label.</param>

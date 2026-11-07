@@ -54,20 +54,17 @@ internal static class SyntheticGodContainer
         string dataDirectory = headerPath + ".data";
         Directory.CreateDirectory(dataDirectory);
         string fragment = Path.Combine(dataDirectory, "Data0000");
-        using (FileStream stream = new(fragment, FileMode.Create, FileAccess.Write, FileShare.None))
+        using FileStream stream = new(fragment, FileMode.Create, FileAccess.Write, FileShare.None);
+        long length = 0;
+        for (int sector = 0; sector < sectors; sector++)
         {
-            long length = 0;
-            for (int sector = 0; sector < sectors; sector++)
-            {
-                long offset = MapSector(sector);
-                stream.Seek(offset, SeekOrigin.Begin);
-                stream.Write(image, sector * Constants.SectorSize, Constants.SectorSize);
-                length = Math.Max(length, offset + Constants.SectorSize);
-            }
-
-            stream.SetLength(length);
+            long offset = MapSector(sector);
+            stream.Seek(offset, SeekOrigin.Begin);
+            stream.Write(image, sector * Constants.SectorSize, Constants.SectorSize);
+            length = Math.Max(length, offset + Constants.SectorSize);
         }
 
+        stream.SetLength(length);
         return headerPath;
     }
 
