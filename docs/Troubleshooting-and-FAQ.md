@@ -36,6 +36,7 @@ The output folder (or the application folder itself) does not grant write permis
 - Do **not** run the application from, or write output to, protected folders such as `C:\Program Files`, `/usr`, or `/Applications`.
 - Pick a normal user-writable folder (for example `D:\Games\Out` or `~/Games/Out`).
 - If you must write to a protected location, adjust the folder's permissions — running the application as administrator/root is not required for normal use.
+- This is an environmental condition: it is logged at Information level and does **not** generate a bug report.
 
 ### File locked / being used by another process
 

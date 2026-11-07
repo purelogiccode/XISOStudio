@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using XISOStudio.Interfaces;
 using XISOStudio.Models;
 using XISOStudio.Services;
@@ -594,6 +596,78 @@ public sealed class XisoSharpServiceTests : IDisposable
 
         Assert.Equal(FileProcessingStatus.Failed, status);
         Assert.True(File.Exists(isoPath));
+    }
+
+    [Fact]
+    public async Task ZarOutputAccessDeniedReturnsFailedWithoutBugReport()
+    {
+        var isoPath = CreateOptimizedXiso();
+        var service = CreateService();
+        var outputFolder = Path.Combine(_tempRoot, "out");
+        Directory.CreateDirectory(outputFolder);
+
+        FileSystemAccessRule? denyRule = null;
+        if (OperatingSystem.IsWindows())
+        {
+            // Deny creating files in the output folder so the ZAR writer fails with
+            // UnauthorizedAccessException ("access denied").
+            var directory = new DirectoryInfo(outputFolder);
+            denyRule = new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null),
+                FileSystemRights.CreateFiles, AccessControlType.Deny);
+            var security = directory.GetAccessControl();
+            security.AddAccessRule(denyRule);
+            directory.SetAccessControl(security);
+        }
+        else
+        {
+            // Removing write permission from the output folder makes the ZAR writer
+            // fail with UnauthorizedAccessException on Unix.
+            File.SetUnixFileMode(outputFolder, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        }
+
+        try
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                // Root bypasses permission checks, so skip when the OS does not enforce them.
+                try
+                {
+                    await File.WriteAllTextAsync(Path.Combine(outputFolder, "probe.tmp"), "probe");
+                    return;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Expected: the output folder is not writable now.
+                }
+            }
+
+            var status = await service.ConvertIsoAsync(isoPath, outputFolder, "game.zar", OutputFormat.Zar, false,
+                false, new CollectingProgress(), CancellationToken.None);
+
+            Assert.Equal(FileProcessingStatus.Failed, status);
+            Assert.True(_logger.HasMessage("Access denied while converting"));
+            Assert.DoesNotContain(_logger.Events, e => e.Level >= LogEventLevel.Warning);
+        }
+        finally
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                if (denyRule != null)
+                {
+                    var directory = new DirectoryInfo(outputFolder);
+                    var security = directory.GetAccessControl();
+                    security.RemoveAccessRule(denyRule);
+                    directory.SetAccessControl(security);
+                }
+            }
+            else
+            {
+                File.SetUnixFileMode(outputFolder,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                var probePath = Path.Combine(outputFolder, "probe.tmp");
+                if (File.Exists(probePath)) File.Delete(probePath);
+            }
+        }
     }
 
     [Theory]

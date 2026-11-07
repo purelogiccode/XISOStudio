@@ -613,9 +613,11 @@ public class XisoSharpService : IXisoSharpService
         catch (UnauthorizedAccessException ex)
         {
             DeletePartialOutput(outputPath);
-            _logger.Warning(ex, "Access denied while converting '{FileName}' to {Format}.\n\n" +
-                                "The output folder may be write-protected or require administrator rights.\n" +
-                                "Please choose a different output folder or run the application as administrator.",
+            // Permission problems are environmental, not application defects; Warning or
+            // higher would auto-upload the failure as a bug report.
+            _logger.Information(ex, "Access denied while converting '{FileName}' to {Format}.\n\n" +
+                                    "The output folder may be write-protected or require administrator rights.\n" +
+                                    "Please choose a different output folder or run the application as administrator.",
                 fileName, formatName);
             return FileProcessingStatus.Failed;
         }
