@@ -36,7 +36,8 @@ public static class DisplayInstructions
                 "2. Test Integrity: Verifies ISO/CSO (XDVDFS), ZAR, and Xbox CHD structure and readability.");
             logger.Information(
                 "   NOTE: This test checks if the image is structurally valid and readable. It does NOT perform data checksum (MD5/SHA) verification.");
-            logger.Information("3. Explorer: Explore the content of .iso, .cso, .zar, and .chd files.");
+            logger.Information(
+                "3. Explorer: Explore the content of .iso, .cso, .zar, .chd and GOD/SVOD containers, with title metadata and XBE image previews.");
             logger.Information("");
             logger.Information("IMPORTANT: This tool ONLY works with Xbox and Xbox 360 ISO files.");
             logger.Information("It cannot convert or test ISOs from PlayStation, PlayStation 2, or other consoles.");

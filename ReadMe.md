@@ -23,8 +23,8 @@
 [![Powered by CHDSharp](https://img.shields.io/badge/Powered%20by-CHDSharp-8A2BE2.svg)](https://github.com/purelogiccode/CHDSharp)
 [![Powered by ZArchiveSharp](https://img.shields.io/badge/Powered%20by-ZArchiveSharp-8A2BE2.svg)](https://github.com/purelogiccode/ZArchiveSharp)
 [![Powered by SharpCompress](https://img.shields.io/badge/Powered%20by-SharpCompress-8A2BE2.svg)](https://github.com/adamhathcock/sharpcompress)
-[![Formats](https://img.shields.io/badge/formats-ISO%20%7C%20XISO%20%7C%20ZAR%20%7C%20CSO%20%7C%20CHD-orange.svg)](#supported-formats)
-[![Tests](https://img.shields.io/badge/tests-1512%20passing-brightgreen.svg)](https://github.com/purelogiccode/XISOStudio/actions/workflows/ci.yml)
+[![Formats](https://img.shields.io/badge/formats-ISO%20%7C%20XISO%20%7C%20ZAR%20%7C%20CSO%20%7C%20CHD%20%7C%20GOD-orange.svg)](#supported-formats)
+[![Tests](https://img.shields.io/badge/tests-1561%20passing-brightgreen.svg)](https://github.com/purelogiccode/XISOStudio/actions/workflows/ci.yml)
 [![Code analyzers](https://img.shields.io/badge/analyzers-Meziantou%20%7C%20Roslynator-blueviolet)](docs/Architecture.md)
 [![Made with C#](https://img.shields.io/badge/Made%20with-C%23-239120.svg?logo=csharp&logoColor=white)](https://dotnet.microsoft.com/languages/csharp)
 [![Nullable](https://img.shields.io/badge/nullable-enabled-blue.svg)](https://learn.microsoft.com/dotnet/csharp/nullable-references)
@@ -36,7 +36,7 @@
 [![Maintenance](https://img.shields.io/badge/maintenance-active-brightgreen.svg)](https://github.com/purelogiccode/XISOStudio/commits/master)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](docs/Repository.md#contributing)
 
-A high-performance, cross-platform desktop utility for the Xbox preservation and emulation community, running on **Windows, Linux, and macOS**. Convert, verify, and explore Xbox and Xbox 360 images (ISO, CSO, ZAR, and CHD), powered by the XISOSharp and CHDSharp libraries.
+A high-performance, cross-platform desktop utility for the Xbox preservation and emulation community, running on **Windows, Linux, and macOS**. Convert, verify, and explore Xbox and Xbox 360 images (ISO, CSO, ZAR, CHD and GOD/SVOD), powered by the XISOSharp, StfsSharp and CHDSharp libraries.
 
 ---
 
@@ -66,6 +66,14 @@ Whether you're managing a large collection of Xbox game backups or verifying the
 ---
 
 ## What's New
+
+### Unreleased - GOD/SVOD explorer, title panel and XBE image preview
+
+- **Xbox 360 GOD/SVOD containers open in the Explorer** - pick the content-hash header with **Browse...** or a `.data`/parent folder with **Folder...**. The XDVDFS game partition is mapped through XISOSharp 1.8/`XisoImageSource` and StfsSharp, with no extraction.
+- **Title metadata panel** - the Explorer now shows image format, title name, title ID, region, disc number/count, version, publisher, developer, genre and description. Original-Xbox values come from the XBE certificate; Xbox 360 values come from XDBF/XSRC or the GOD XContent header.
+- **XBE image preview** - render the Microsoft logo, `$$XTIMAGE` title image and `$$XSIMAGE` save image from an XBE inside ISO/CISO/CHD/GOD images, with a clean message when the asset is absent or cannot be decoded.
+- **XISOSharp 1.8.0** - the explorer uses the open-once `XisoImage` facade, and `XbeAssets` reads previews in-process (no CLI).
+- **Tests** - 1,561 tests, including synthetic GOD headers and XBE image assets.
 
 ### v3.1.2 - reliable drag-and-drop and correct temp-space detection
 
@@ -168,7 +176,9 @@ Read the full [What's New](WhatsNew.md) or browse the [Release Notes](docs/Relea
 - **Batch Organization**: Automatically organize "Passed" or "Failed" images into dedicated subfolders
 
 ### 🔍 Image Explorer
-- **Native Browsing**: Open any Xbox ISO, CSO, ZAR, or CHD to browse files and directories without extraction
+- **Native Browsing**: Open any Xbox ISO, CSO, CHD, ZAR or GOD/SVOD container (header or `.data` folder) to browse files and directories without extraction
+- **Title Metadata Panel**: Image format, title name/ID, region, disc number/count, version, publisher, developer, genre and description from the XBE certificate, XEX XDBF/XSRC resources or the GOD XContent header
+- **XBE Image Preview**: Render the Microsoft logo, `$$XTIMAGE` title image and `$$XSIMAGE` save image from an XBE inside the image
 - **Metadata View**: View file sizes, attributes, and directory structures directly in the UI
 - **Double-Click to Open**: Open files directly from the image with their default associated applications
 - **Drag & Drop Extraction**: Drag files out of the explorer to extract them to any folder (your file manager, Desktop, etc.)
@@ -223,7 +233,7 @@ No installation required – the application is fully portable.
 
 ### Exploring Image Contents
 1. Switch to the **"Explorer"** tab
-2. Click **"Browse..."** and select an Xbox `.iso`, `.cso`, `.zar`, or `.chd` file
+2. Click **"Browse..."** and select an Xbox `.iso`, `.cso`, `.zar`, `.chd` or GOD/SVOD header file, or **"Folder..."** for a GOD `.data`/parent folder
 3. Browse the file tree to view contents without extraction
 4. **Open Files**: Double-click any file to open it with its default application
 5. **Extract Files**: Drag and drop files from the explorer to your file manager, Desktop, or any folder to extract them
@@ -267,7 +277,7 @@ XISOSharp Output:
 | **Conversion** | `.iso` (Redump or optimized XISO), `.zip`, `.7z`, `.rar` |
 | **Output**     | `.iso` (XISO), `.zar` (ZAR), `.cso` (CSO), `.chd` (CHD) |
 | **Testing**    | `.iso`, `.cso` (CISO, incl. split `.1.cso` part sets), `.zar` (ZAR), `.chd` (Xbox DVD CHDs) |
-| **Explorer**   | `.iso`, `.cso` (CISO), `.zar` (ZAR), `.chd` (Xbox DVD CHDs) |
+| **Explorer**   | `.iso`, `.cso` (CISO), `.zar` (ZAR), `.chd` (Xbox DVD CHDs), GOD/SVOD headers and `.data` folders |
 
 ---
 
@@ -321,6 +331,7 @@ For a deep dive into the XDVDFS format, binary file structures, and the conversi
 - **[Avalonia](https://avaloniaui.net/)** - Cross-platform .NET UI framework the application is built on
 - **[XISOSharp](https://github.com/purelogiccode/XISOSharp)** - XISO/XDVDFS reading, writing, and conversion library that powers XISO/ZAR/CSO conversion, integrity testing, and exploration
 - **[ZArchiveSharp](https://github.com/purelogiccode/ZArchiveSharp)** - ZArchive/zstd compression library used for ZAR output and reading
+- **[StfsSharp](https://github.com/purelogiccode/STFSSharp)** - Xbox 360 STFS/GOD reader used for the SVOD fragment mapping and XContent title metadata
 - **[CHDSharp](https://github.com/purelogiccode/CHDSharp)** - CHD (Compressed Hunks of Data) reading, verification, and creation, used for CHD output and Xbox CHD testing/exploration
 - **[Serilog](https://serilog.net/)** - Structured logging pipeline (log viewer, rolling file log, and bug report sinks)
 - **[SharpCompress](https://github.com/adamhathcock/sharpcompress)** - High-performance archive extraction

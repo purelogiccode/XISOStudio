@@ -14,7 +14,7 @@ The main window is organized into three views, selectable from the navigation bu
 |:---|:---|
 | **Convert** | Batch-convert ISOs (and archives containing ISOs) into trimmed XISO, ZAR, CSO, or CHD files |
 | **Test Integrity** | Validate ISO, CSO, ZAR, and Xbox CHD images and organize results |
-| **Explorer** | Browse the contents of an Xbox ISO, CSO, ZAR, or CHD without extracting it |
+| **Explorer** | Browse the contents of an Xbox ISO, CSO, ZAR, CHD or GOD/SVOD container without extracting it, with title metadata and XBE image previews |
 
 Below the three views, a shared **status bar** shows a live log, progress bar, cancel button, statistics (total / success / fail / skipped / processing time), and per-drive read/write speed indicators.
 
@@ -112,7 +112,7 @@ Use this view to validate images without converting them. Supported formats:
 
 ## The Explorer Tab
 
-The built-in Image Explorer lets you inspect the contents of an Xbox `.iso`, `.cso`, `.zar`, or `.chd` without extraction. See the dedicated [XISO Explorer](XISO-Explorer.md) page for the full walkthrough.
+The built-in Image Explorer lets you inspect the contents of an Xbox `.iso`, `.cso`, `.zar`, `.chd` or GOD/SVOD container without extraction. The right-hand panel shows title metadata (title name/ID, region, disc, version, publisher, developer, genre, description) and renders the XBE logo, title and save images. See the dedicated [XISO Explorer](XISO-Explorer.md) page for the full walkthrough.
 
 ---
 

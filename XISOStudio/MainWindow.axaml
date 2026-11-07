@@ -19,7 +19,7 @@
                     <TextBlock Text="XISO Studio" FontSize="20" FontWeight="Bold" Foreground="{StaticResource HeaderTextBrush}" VerticalAlignment="Center" Margin="0,0,30,0" ToolTip.Tip="XISO Studio — Xbox preservation utility" />
                     <Button x:Name="BtnNavConvert" Content="Convert" Click="NavConvert_Click" Theme="{StaticResource MenuButtonStyle}" ToolTip.Tip="Switch to the ISO to XISO batch conversion view" />
                     <Button x:Name="BtnNavTest" Content="Test Integrity" Click="NavTest_Click" Theme="{StaticResource MenuButtonStyle}" ToolTip.Tip="Switch to the image integrity testing view (ISO, CSO, ZAR)" />
-                    <Button x:Name="BtnNavExplorer" Content="Explorer" Click="NavExplorer_Click" Theme="{StaticResource MenuButtonStyle}" ToolTip.Tip="Switch to the image file system explorer view (ISO, CSO, ZAR)" />
+                    <Button x:Name="BtnNavExplorer" Content="Explorer" Click="NavExplorer_Click" Theme="{StaticResource MenuButtonStyle}" ToolTip.Tip="Switch to the image explorer (ISO, CSO, CHD, ZAR, GOD/SVOD) with title metadata and XBE image preview" />
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <Button Content="Donate" Click="DonateButton_Click" Theme="{StaticResource DonateMenuButtonStyle}" ToolTip.Tip="Support the development of this application — opens the PureLogicCode donation page" />
@@ -117,9 +117,12 @@
                     <!-- Explorer View: file picker with the explorer below it -->
                     <Grid x:Name="ExplorerHeaderView" IsVisible="False" RowDefinitions="Auto,*">
                         <Grid ColumnDefinitions="150,*,Auto">
-                            <Label Content="Select Image File:" ToolTip.Tip="Choose an ISO, CSO, ZAR, or CHD file to browse its internal file system" />
-                            <TextBox x:Name="ExplorerFilePathTextBox" Grid.Column="1" IsReadOnly="True" Margin="5,0" ToolTip.Tip="Select an Xbox image to explore its contents" />
-                            <Button Content="Browse..." Grid.Column="2" Click="BrowseExplorerFile_ClickAsync" Theme="{StaticResource ActionButtonStyle}" ToolTip.Tip="Browse for an Xbox image" />
+                            <Label Content="Select Image File:" ToolTip.Tip="Choose an ISO, CSO, CHD, ZAR or GOD/SVOD header to browse its internal file system" />
+                            <TextBox x:Name="ExplorerFilePathTextBox" Grid.Column="1" IsReadOnly="True" Margin="5,0" ToolTip.Tip="Select an Xbox image or GOD/SVOD container to explore its contents" />
+                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <Button Content="Browse..." Click="BrowseExplorerFile_ClickAsync" Theme="{StaticResource ActionButtonStyle}" ToolTip.Tip="Browse for an Xbox image or GOD/SVOD header file" />
+                                <Button Content="Folder..." Margin="5,0,0,0" Click="BrowseExplorerFolder_ClickAsync" Theme="{StaticResource ActionButtonStyle}" ToolTip.Tip="Browse for a GOD/SVOD .data folder or a folder containing one GOD header" />
+                            </StackPanel>
                         </Grid>
 
                         <Border Grid.Row="1" Margin="0,10,0,0" BorderBrush="{StaticResource TerminalBorderBrush}" BorderThickness="2" CornerRadius="4" Background="{StaticResource TerminalBackgroundBrush}" Padding="10">
@@ -184,6 +187,66 @@
                             <DropShadowEffect OffsetX="0" OffsetY="0" Color="#39FF14" BlurRadius="2" Opacity="0.4"/>
                         </TextBox.Effect>
                     </TextBox>
+                </Border>
+
+                <!-- Explorer details: title metadata and XBE image preview -->
+                <Border x:Name="ExplorerDetailsBorder" Grid.Column="2" Margin="10,0,0,0" IsVisible="False"
+                        BorderBrush="{StaticResource TerminalBorderBrush}" BorderThickness="2" CornerRadius="4"
+                        Background="{StaticResource TerminalBackgroundBrush}" Padding="12">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Image details" FontWeight="Bold" Foreground="{StaticResource TerminalForegroundBrush}" />
+                            <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                                <TextBlock Grid.Row="0" Text="Format:" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="ImageFormatValueTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Size:" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="ImageSizeValueTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Kind:" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="ImageKindValueTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Executable:" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="ImageExecutableValueTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Path:" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="4" Grid.Column="1" x:Name="ImagePathValueTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" TextWrapping="Wrap" />
+                            </Grid>
+
+                            <TextBlock Text="Title metadata" FontWeight="Bold" Foreground="{StaticResource TerminalForegroundBrush}" Margin="0,6,0,0" />
+                            <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                                <TextBlock Grid.Row="0" Text="Title:" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="TitleNameValueTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Title ID:" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="TitleIdValueTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Region:" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="RegionValueTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Disc:" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="DiscValueTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Version:" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="4" Grid.Column="1" x:Name="VersionValueTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Publisher:" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="5" Grid.Column="1" x:Name="PublisherValueTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Developer:" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="6" Grid.Column="1" x:Name="DeveloperValueTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="7" Grid.Column="0" Text="Genre:" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="7" Grid.Column="1" x:Name="GenreValueTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" TextWrapping="Wrap" />
+                                <TextBlock Grid.Row="8" Grid.Column="0" Text="Description:" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                <TextBlock Grid.Row="8" Grid.Column="1" x:Name="DescriptionValueTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" TextWrapping="Wrap" />
+                            </Grid>
+
+                            <TextBlock Text="XBE image preview" FontWeight="Bold" Foreground="{StaticResource TerminalForegroundBrush}" Margin="0,6,0,0" />
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                <TextBox x:Name="XbePreviewPathTextBox" Text="/default.xbe" ToolTip.Tip="Image-internal path of the XBE executable whose logo/title/save image should be previewed" />
+                                <ComboBox x:Name="XbePreviewKindComboBox" Grid.Column="1" SelectedIndex="0" MinWidth="90" ToolTip.Tip="Choose the XBE asset to preview: logo, title image or save image">
+                                    <ComboBoxItem Content="Logo" />
+                                    <ComboBoxItem Content="Title" />
+                                    <ComboBoxItem Content="Save" />
+                                </ComboBox>
+                            </Grid>
+                            <Button x:Name="LoadXbePreviewButton" Content="Load preview" Click="LoadXbePreviewButton_ClickAsync" Theme="{StaticResource ActionButtonStyle}" HorizontalAlignment="Left" ToolTip.Tip="Read and render the selected XBE image asset" />
+                            <Border MinHeight="80" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="4" Background="{StaticResource CardBackgroundBrush}">
+                                <Image x:Name="XbePreviewImage" Stretch="Uniform" MaxHeight="220" />
+                            </Border>
+                            <TextBlock x:Name="XbePreviewStatusTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </ScrollViewer>
                 </Border>
             </Grid>
 

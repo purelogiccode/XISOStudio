@@ -4,9 +4,11 @@ using System.Diagnostics.CodeAnalysis;
 using Avalonia;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Serilog;
+using XISOSharp.Models;
 using XISOStudio.Interfaces;
 using XISOStudio.Models;
 using XISOStudio.Services;
@@ -34,6 +36,12 @@ public partial class MainWindow
     /// <summary>Minimum pointer movement in pixels required to start a drag.</summary>
     private const double MinimumDragDistance = 4;
 
+    /// <summary>Decoded XBE preview currently shown, or <c>null</c>.</summary>
+    private Bitmap? _xbePreviewBitmap;
+
+    /// <summary>Stream backing <see cref="_xbePreviewBitmap"/>; kept alive while the bitmap is displayed.</summary>
+    private MemoryStream? _xbePreviewStream;
+
     /// <summary>Prompts for an Xbox image and opens it in the explorer.</summary>
     /// <param name="sender">The button that raised the event.</param>
     /// <param name="e">The event data.</param>
@@ -53,6 +61,7 @@ public partial class MainWindow
                     new FilePickerFileType("Compressed ISO") { Patterns = OptionsArray0 },
                     new FilePickerFileType("ZAR archive") { Patterns = OptionsArray1 },
                     new FilePickerFileType("CHD image") { Patterns = OptionsArray2 },
+                    new FilePickerFileType("GOD/SVOD header or other") { Patterns = OptionsArray3 },
                     new FilePickerFileType("All files") { Patterns = OptionsArray3 }
                 ]
             });
@@ -71,6 +80,33 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>Prompts for a GOD/SVOD <c>.data</c> folder or a folder holding one GOD header.</summary>
+    /// <param name="sender">The button that raised the event.</param>
+    /// <param name="e">The event data.</param>
+    private async void BrowseExplorerFolder_ClickAsync(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Select a GOD/SVOD .data folder or its parent folder",
+                AllowMultiple = false
+            });
+
+            if (folders.Count == 0) return;
+
+            var selectedPath = folders[0].TryGetLocalPath();
+            if (string.IsNullOrEmpty(selectedPath)) return;
+
+            ExplorerFilePathTextBox.Text = selectedPath;
+            await InitializeExplorerAsync(selectedPath);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error in method BrowseExplorerFolder_ClickAsync");
+        }
+    }
+
     /// <summary>Opens the image and loads its root directory, retiring any previous explorer.</summary>
     /// <param name="imagePath">Path of the image or archive to open.</param>
     private async Task InitializeExplorerAsync(string imagePath)
@@ -86,6 +122,7 @@ public partial class MainWindow
 
         // Dispose the previous explorer only after any background copy-out using it finishes.
         RetireExplorer(previous);
+        ResetExplorerDetails();
 
         try
         {
@@ -96,6 +133,7 @@ public partial class MainWindow
             }
 
             await LoadDirectoryAsync("/");
+            await LoadExplorerMetadataAsync();
         }
         catch (Exception ex) when (ImageErrorClassifier.IsMissingApplicationComponentError(ex))
         {
@@ -130,7 +168,8 @@ public partial class MainWindow
             _logger.Information(ex, "The selected file is not a supported Xbox image: {Message}", ex.Message);
             await ShowErrorSafeAsync(
                 "The selected file is not a valid Xbox or Xbox 360 image, or it cannot be read. " +
-                $"Please select an Xbox ISO, CSO, ZAR, or CHD file.\n\nDetails: {ex.Message}");
+                "Please select an Xbox ISO, CSO, CHD, ZAR or GOD/SVOD container (header or .data folder). " +
+                $"Plain STFS/XBLA packages are not disc images and are not supported here.\n\nDetails: {ex.Message}");
 
             // The grid would otherwise keep showing the previous (now disposed) image.
             ExplorerDataGrid.ItemsSource = null;
@@ -285,12 +324,12 @@ public partial class MainWindow
         }
 
         var uiItems = entries.Select(static e => new XisoExplorerItem
-            {
-                Name = e.Name,
-                IsDirectory = e.IsDirectory,
-                SizeFormatted = e.IsDirectory ? "" : Formatter.FormatBytes(e.Size),
-                Entry = e
-            }).OrderByDescending(static i => i.IsDirectory)
+        {
+            Name = e.Name,
+            IsDirectory = e.IsDirectory,
+            SizeFormatted = e.IsDirectory ? "" : Formatter.FormatBytes(e.Size),
+            Entry = e
+        }).OrderByDescending(static i => i.IsDirectory)
             .ThenBy(static i => i.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -304,6 +343,195 @@ public partial class MainWindow
     {
         ExplorerUpButton.IsEnabled = !string.Equals(_currentInternalPath, "/", StringComparison.Ordinal);
         ExplorerPathTextBlock.Text = _currentInternalPath;
+    }
+
+    /// <summary>
+    ///     Reads image-wide metadata for the details panel and seeds the XBE
+    ///     preview path from the root executable.
+    /// </summary>
+    private async Task LoadExplorerMetadataAsync()
+    {
+        CancellationToken token;
+        try
+        {
+            token = _explorerCts.Token;
+        }
+        catch (ObjectDisposedException ex)
+        {
+            _logger.Debug(ex, "Skipping metadata load because the window is shutting down");
+            return;
+        }
+
+        ImageMetadata? metadata = null;
+        try
+        {
+            if (!await UseExplorerAsync(explorer => metadata = explorer.GetMetadata(), token))
+            {
+                return;
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.Debug(ex, "Loading image metadata was canceled");
+            return;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to read image metadata");
+            metadata = ImageMetadata.Unavailable("", ExplorerFilePathTextBox.Text ?? "", 0,
+                $"Metadata could not be read: {ex.Message}");
+        }
+
+        if (metadata is null)
+        {
+            return;
+        }
+
+        ApplyMetadata(metadata);
+    }
+
+    /// <summary>Binds <see cref="ImageMetadata"/> to the explorer details panel.</summary>
+    /// <param name="metadata">Metadata to display.</param>
+    private void ApplyMetadata(ImageMetadata metadata)
+    {
+        ImageFormatValueTextBlock.Text = string.IsNullOrEmpty(metadata.Format) ? "Unknown" : metadata.Format;
+        ImageSizeValueTextBlock.Text = metadata.Length > 0 ? Formatter.FormatBytes(metadata.Length) : "Unknown";
+        ImageKindValueTextBlock.Text = string.IsNullOrEmpty(metadata.Kind) ? "Unknown" : metadata.Kind;
+        ImageExecutableValueTextBlock.Text = string.IsNullOrEmpty(metadata.ExecutablePath) ? "—" : metadata.ExecutablePath;
+        ImagePathValueTextBlock.Text = metadata.Path;
+
+        TitleNameValueTextBlock.Text = string.IsNullOrEmpty(metadata.TitleName) ? "—" : metadata.TitleName;
+        TitleIdValueTextBlock.Text = string.IsNullOrEmpty(metadata.TitleIdHex) ? "—" : metadata.TitleIdHex;
+        RegionValueTextBlock.Text = string.IsNullOrEmpty(metadata.Region) ? "—" : metadata.Region;
+        DiscValueTextBlock.Text = metadata.DiscNumber == 0
+            ? "—"
+            : metadata.DiscCount > 0 ? $"{metadata.DiscNumber} of {metadata.DiscCount}" : metadata.DiscNumber.ToString();
+        VersionValueTextBlock.Text = metadata.Version == 0 ? "—" : $"0x{metadata.Version:X8}";
+        PublisherValueTextBlock.Text = string.IsNullOrEmpty(metadata.Publisher) ? "—" : metadata.Publisher;
+        DeveloperValueTextBlock.Text = string.IsNullOrEmpty(metadata.Developer) ? "—" : metadata.Developer;
+        GenreValueTextBlock.Text = string.IsNullOrEmpty(metadata.Genre) ? "—" : metadata.Genre;
+        DescriptionValueTextBlock.Text = string.IsNullOrEmpty(metadata.Description) ? "—" : metadata.Description;
+
+        XbePreviewPathTextBox.Text = string.IsNullOrWhiteSpace(metadata.ExecutablePath)
+            ? "/default.xbe"
+            : metadata.ExecutablePath;
+        XbePreviewStatusTextBlock.Text = metadata.UnavailableReason ?? "";
+    }
+
+    /// <summary>Clears the details panel and disposes the current preview.</summary>
+    private void ResetExplorerDetails()
+    {
+        DisposeXbePreview();
+        ImageFormatValueTextBlock.Text = "";
+        ImageSizeValueTextBlock.Text = "";
+        ImageKindValueTextBlock.Text = "";
+        ImageExecutableValueTextBlock.Text = "";
+        ImagePathValueTextBlock.Text = "";
+        TitleNameValueTextBlock.Text = "";
+        TitleIdValueTextBlock.Text = "";
+        RegionValueTextBlock.Text = "";
+        DiscValueTextBlock.Text = "";
+        VersionValueTextBlock.Text = "";
+        PublisherValueTextBlock.Text = "";
+        DeveloperValueTextBlock.Text = "";
+        GenreValueTextBlock.Text = "";
+        DescriptionValueTextBlock.Text = "";
+        XbePreviewStatusTextBlock.Text = "";
+        XbePreviewPathTextBox.Text = "/default.xbe";
+    }
+
+    /// <summary>Reads and renders the selected XBE asset for the open image.</summary>
+    /// <param name="sender">The button that raised the event.</param>
+    /// <param name="e">The event data.</param>
+    private async void LoadXbePreviewButton_ClickAsync(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var internalPath = XbePreviewPathTextBox.Text;
+            if (string.IsNullOrWhiteSpace(internalPath))
+            {
+                XbePreviewStatusTextBlock.Text = "Enter the image-internal path of an XBE file (for example /default.xbe).";
+                return;
+            }
+
+            var kind = XbePreviewKindComboBox.SelectedIndex switch
+            {
+                1 => XbeImageKind.Title,
+                2 => XbeImageKind.Save,
+                _ => XbeImageKind.Logo
+            };
+            var kindName = kind.ToString();
+
+            CancellationToken token;
+            try
+            {
+                token = _explorerCts.Token;
+            }
+            catch (ObjectDisposedException ex)
+            {
+                _logger.Debug(ex, "Skipping XBE preview because the window is shutting down");
+                return;
+            }
+
+            XbeImage? image = null;
+            if (!await UseExplorerAsync(explorer => image = explorer.GetXbeImage(internalPath, kind), token))
+            {
+                XbePreviewStatusTextBlock.Text = "Open an image before loading a preview.";
+                return;
+            }
+
+            if (image is null)
+            {
+                DisposeXbePreview();
+                XbePreviewStatusTextBlock.Text =
+                    $"{kindName} image not found in '{internalPath}'. Original-Xbox XBEs usually provide logo, title and save images; Xbox 360 XEX files do not.";
+                return;
+            }
+
+            if (image.Png is not { Length: > 0 })
+            {
+                DisposeXbePreview();
+                XbePreviewStatusTextBlock.Text = image.Width > 0
+                    ? $"{kindName} image is {image.Width}×{image.Height} ({image.PixelFormat}) but could not be decoded to PNG."
+                    : $"{kindName} image ({image.PixelFormat}) could not be decoded.";
+                return;
+            }
+
+            var stream = new MemoryStream(image.Png, writable: false);
+            var bitmap = new Bitmap(stream);
+            DisposeXbePreview();
+            _xbePreviewStream = stream;
+            _xbePreviewBitmap = bitmap;
+            XbePreviewImage.Source = bitmap;
+            XbePreviewStatusTextBlock.Text = image.Width > 0
+                ? $"{kindName}: {image.SectionName} — {image.Width}×{image.Height} ({image.PixelFormat})"
+                : $"{kindName}: {image.SectionName} ({image.PixelFormat})";
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.Debug(ex, "Loading the XBE preview was canceled");
+        }
+        catch (Exception ex) when (ImageErrorClassifier.IsUserInputImageError(ex)
+                                   || ImageErrorClassifier.IsEnvironmentalIoError(ex))
+        {
+            _logger.Information(ex, "Could not load the XBE preview: {Message}", ex.Message);
+            XbePreviewStatusTextBlock.Text = $"Preview unavailable: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to load the XBE preview");
+            await ShowErrorSafeAsync($"Failed to load the XBE preview: {ex.Message}");
+        }
+    }
+
+    /// <summary>Releases the current preview bitmap and its backing stream.</summary>
+    private void DisposeXbePreview()
+    {
+        XbePreviewImage.Source = null;
+        _xbePreviewBitmap?.Dispose();
+        _xbePreviewBitmap = null;
+        _xbePreviewStream?.Dispose();
+        _xbePreviewStream = null;
     }
 
     /// <summary>Opens the double-clicked directory or extracts and opens the selected file.</summary>
@@ -442,7 +670,7 @@ public partial class MainWindow
             if (OperatingSystem.IsWindows())
             {
                 Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{filePath}\"")
-                    { UseShellExecute = true });
+                { UseShellExecute = true });
                 return;
             }
 

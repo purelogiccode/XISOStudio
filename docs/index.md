@@ -8,7 +8,7 @@
 
 ---
 
-Welcome to the official documentation for **XISO Studio** — a high-performance, cross-platform (Avalonia) utility built for the Xbox preservation and emulation community. Convert, verify, and explore Xbox and Xbox 360 images (ISO, CSO, ZAR, and CHD), powered by the XISOSharp and CHDSharp libraries.
+Welcome to the official documentation for **XISO Studio** — a high-performance, cross-platform (Avalonia) utility built for the Xbox preservation and emulation community. Convert, verify, and explore Xbox and Xbox 360 images (ISO, CSO, ZAR, CHD and GOD/SVOD), powered by the XISOSharp, StfsSharp and CHDSharp libraries.
 
 - **Repository:** <https://github.com/purelogiccode/XISOStudio>
 - **Website:** <https://www.purelogiccode.com>
@@ -26,7 +26,7 @@ The application combines:
 
 1. The **[XISOSharp](https://github.com/purelogiccode/XISOSharp)** conversion engine, which repacks the XDVDFS game partition into an optimized, tightly packed XISO, and **[CHDSharp](https://github.com/purelogiccode/CHDSharp)**, which compresses that partition into a CHD image.
 2. An **integrity tester** that deeply validates the XDVDFS filesystem structure (ISO/CSO, and the Xbox filesystem inside CHD images) or the ZAR archive tree, with an optional deep scan for physical media or block errors.
-3. A built-in **Image Explorer** that browses the contents of an Xbox ISO, CSO, ZAR, or CHD without extracting it.
+3. A built-in **Image Explorer** that browses the contents of an Xbox ISO, CSO, ZAR, CHD or GOD/SVOD container without extracting it, with title metadata and XBE image previews.
 
 Whether you are managing a large collection of game backups, preparing files for an Xbox hard drive, or verifying the integrity of your dumps, the application provides a user-friendly interface with powerful batch processing capabilities.
 
@@ -38,7 +38,7 @@ Whether you are managing a large collection of game backups, preparing files for
 |---|---|
 | **Batch Conversion** | XISOSharp and CHDSharp conversion engines, XISO/ZAR/CSO/CHD output formats, ISO input (Redump full-disc images or optimized XISO files), archive input (`.zip`, `.7z`, `.rar`), optional `$SystemUpdate` removal, replace-originals mode, post-conversion verification |
 | **Integrity Testing** | Structural XDVDFS validation for ISO/CSO and the Xbox filesystem inside CHD images, ZAR archive validation, optional deep scan, automatic move of passed/failed files into organized subfolders |
-| **Image Explorer** | Native browsing inside ISO/CSO/ZAR/CHD images, file metadata, double-click to open, drag-and-drop extraction |
+| **Image Explorer** | Native browsing inside ISO/CSO/ZAR/CHD/GOD-SVOD images, title metadata panel, XBE logo/title/save preview, file metadata, double-click to open, drag-and-drop extraction |
 | **Monitoring** | Real-time success/fail/skip counters, per-drive read/write speed indicators (Windows), elapsed-time tracking, memory usage |
 | **Reliability** | Atomic replace-originals workflow (archives are deleted only when every entry was converted), per-file error isolation, age-checked temp-folder cleanup, fallback temp drives, network path (UNC) support with retry logic, cloud-aware (OneDrive) retries, encrypted-archive detection, lease-guarded explorer and close handling |
 | **Support** | In-app bug reporting and automatic update checks |
@@ -63,7 +63,7 @@ Whether you are managing a large collection of game backups, preparing files for
 | [Installation](Installation.md) | System requirements, download, first run, upgrading |
 | [Usage Guide](Usage-Guide.md) | Complete walkthrough of every tab, option, and indicator |
 | [Conversion Methods](Conversion-Methods.md) | How the XISOSharp conversion engine works |
-| [XISO Explorer](XISO-Explorer.md) | Browsing, opening, and extracting files from inside an ISO, CSO, ZAR, or CHD |
+| [XISO Explorer](XISO-Explorer.md) | Browsing, opening, and extracting files from inside an ISO, CSO, ZAR, CHD or GOD/SVOD container, plus title metadata and XBE previews |
 | [Troubleshooting & FAQ](Troubleshooting-and-FAQ.md) | Common errors, known issues, frequently asked questions |
 | [Architecture](Architecture.md) | Codebase design, services, dependency injection, data flow |
 | [XDVDFS Technical Docs](XDVDFS-Technical-Documentation.md) | Binary format internals and the XISO conversion algorithm |

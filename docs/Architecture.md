@@ -33,8 +33,8 @@ CSharp_XISOStudio.sln
 │       ├── XisoSharpService.cs          XISO/ZAR/CSO conversion via the XISOSharp library
 │       ├── ChdService.cs                CHD conversion via the CHDSharp library
 │       ├── XisoIntegrityService.cs      Structural audit + deep scan via XISOSharp / ZArchiveSharp / CHDSharp
-│       ├── ImageExplorerFactory.cs      Opens the right IImageExplorer (XISO/CISO, ZAR or CHD)
-│       ├── XisoImageExplorer.cs         IImageExplorer over ISO/CSO via XisoExplorer
+│       ├── ImageExplorerFactory.cs      Opens the right IImageExplorer (XISO/CISO/CCI/GOD, ZAR or CHD)
+│       ├── XisoImageExplorer.cs         IImageExplorer over ISO/CSO/CCI/GOD via XisoImage + metadata/XBE assets
 │       ├── ZarImageExplorer.cs          IImageExplorer over ZAR via ZArchiveReader (zip-slip safe)
 │       ├── ChdImageExplorer.cs          IImageExplorer over CHD via CHDSharp + XISOSharp (on-demand decompression)
 │       ├── ImagePaths.cs                Shared internal-path normalization helpers
@@ -66,7 +66,7 @@ The bundled 7-Zip CLI fallback (`7za.exe`/`7za_arm64.exe` on Windows, `7zz_linux
 | `IXisoSharpService` | Singleton | XISO/ZAR/CSO conversion via the XISOSharp library |
 | `IChdService` | Singleton | CHD conversion via the CHDSharp library (rewrites non-optimized inputs through `IXisoSharpService`, then encodes and verifies) |
 | `IXisoIntegrityService` | Singleton | Structural audit + deep scan via XISOSharp (ISO/CSO), ZArchiveSharp (ZAR) and CHDSharp (CHD container + Xbox filesystem) |
-| `IImageExplorer` | Per open image | Explorer over ISO/CSO (`XisoExplorer`), ZAR (`ZArchiveReader`) or CHD (`ChdImageStream` + XISOSharp), built by `ImageExplorerFactory` |
+| `IImageExplorer` | Per open image | Explorer over ISO/CSO/CCI/GOD (`XisoImage`), ZAR (`ZArchiveReader`) or CHD (`ChdImageStream` + XISOSharp), built by `ImageExplorerFactory`; exposes title metadata and XBE assets for the details panel |
 | `IFileExtractor` | Transient | Archive extraction with fallbacks and lock retries |
 | `IFileMover` | Transient | Move/copy operations with retry + backoff |
 | `IBugReportService` | Singleton | Sends exception reports to the developer endpoint |

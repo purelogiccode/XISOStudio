@@ -1,3 +1,4 @@
+using XISOSharp.Models;
 using XISOStudio.Interfaces;
 using XISOStudio.Models;
 using ZArchiveSharp;
@@ -14,6 +15,7 @@ namespace XISOStudio.Services;
 internal sealed class ZarImageExplorer : IImageExplorer
 {
     private readonly ZArchiveReader _reader;
+    private readonly string _archivePath;
     private readonly ILogger? _logger;
 
     /// <summary>
@@ -25,6 +27,7 @@ internal sealed class ZarImageExplorer : IImageExplorer
     internal ZarImageExplorer(string zarPath, ILogger? logger = null)
     {
         _logger = logger?.ForContext<ZarImageExplorer>();
+        _archivePath = zarPath;
         _reader = ZArchiveReader.TryOpen(zarPath, out var failure)
                   ?? throw new InvalidDataException($"Not a valid ZAR archive ({failure}): {zarPath}");
     }
@@ -227,6 +230,21 @@ internal sealed class ZarImageExplorer : IImageExplorer
                && (stem.StartsWith("COM", StringComparison.OrdinalIgnoreCase)
                    || stem.StartsWith("LPT", StringComparison.OrdinalIgnoreCase))
                && stem[3] is >= '1' and <= '9';
+    }
+
+    /// <inheritdoc/>
+    public ImageMetadata GetMetadata() =>
+        ImageMetadata.Unavailable(
+            "Zar",
+            _archivePath,
+            _reader.TotalUncompressedSize > long.MaxValue ? long.MaxValue : (long)_reader.TotalUncompressedSize,
+            "ZAR archives expose a file tree, not an Xbox disc image, so title metadata is unavailable.");
+
+    /// <inheritdoc/>
+    public XbeImage? GetXbeImage(string internalPath, XbeImageKind kind)
+    {
+        // XBE assets require the surrounding XDVDFS image geometry; a ZAR tree has none.
+        return null;
     }
 
     /// <inheritdoc/>

@@ -12,6 +12,7 @@
 
 | Version | Date | Summary |
 |:---|:---|:---|
+| [Unreleased](#unreleased) | — | Xbox 360 GOD/SVOD explorer input, title metadata panel, XBE logo/title/save preview, XISOSharp 1.8.0 (1,561 tests passing) |
 | [3.1.2](#312) | October 2026 | Reliability patch: Explorer drag-and-drop no longer crashes on X11, Linux temp-space detection uses the real temp filesystem with a per-user fallback, failed extractions remove partial output, and expected I/O failures stay out of bug reports (1,512 tests passing) |
 | [3.1.1](#311) | October 2026 | Reliability patch: 373 false archive reports eliminated, 7-Zip fallback for every archive format, locked and missing archives handled, documentation/wiki/Pages and bundle validation in CI (1,509 tests passing) |
 | [3.1.0](#310) | October 2026 | Reliability release: game-specific Xbox archives (XMem LZX / ZIP method 21), images held open by another program, and extracted files with no registered application no longer generate bug reports; the explorer browses images while another process keeps them open; dependency, analyzer, and CI maintenance (1,494 tests passing) |
@@ -26,6 +27,18 @@
 | [2.6.0](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.6.0) | June 2026 | 7-Zip CLI fallback, multilingual network errors, disk-space handling |
 
 ---
+
+## Unreleased
+
+*In development*
+
+> **Xbox 360 GOD/SVOD in the Explorer, with title metadata and XBE image previews.**
+
+- **GOD/SVOD input** — open the content-hash header with **Browse...** or a `.data`/parent folder with **Folder...**. The game partition is mapped through XISOSharp 1.8 `XisoImageSource` and StfsSharp; no extraction.
+- **Title panel** — format, size, title name/ID, region, disc number/count, version, publisher, developer, genre and description from the XBE certificate, XEX XDBF/XSRC or the GOD XContent header.
+- **XBE preview** — Microsoft logo, `$$XTIMAGE` title image and `$$XSIMAGE` save image, decoded to PNG in-process by `XbeAssets`.
+- **Tests** — 1,561 tests, including synthetic GOD containers and XBE image assets.
+- **Dependencies** — XISOSharp 1.8.0 (StfsSharp 1.0.0 and CCISharp 1.1.0 transitively).
 
 ## 3.1.2
 

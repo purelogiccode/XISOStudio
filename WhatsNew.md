@@ -2,6 +2,23 @@
 
 <!-- Keep this file focused on the newest release. Full history lives in docs/Release-Notes.md. -->
 
+## Unreleased
+
+**Xbox 360 GOD/SVOD, title metadata and XBE image preview.**
+
+The Explorer now opens Xbox 360 Games-on-Demand containers: use **Browse...** for the content-hash
+header or **Folder...** for its `.data` directory or parent folder. The XDVDFS game partition is
+mapped through XISOSharp 1.8 (`XisoImage`/`XisoImageSource`) and StfsSharp, with no extraction.
+
+A new details panel shows image format/size, title name, title ID, region, disc number/count,
+version, publisher, developer, genre and description. Original-Xbox values come from the XBE
+certificate; Xbox 360 values come from XDBF/XSRC resources or the GOD XContent header. The panel
+also renders the XBE Microsoft logo, `$$XTIMAGE` title image and `$$XSIMAGE` save image, with a
+clear message when an asset is absent, undecodable, or the container (for example a ZAR tree) has no
+XBE geometry.
+
+The suite is now 1,561 tests, including synthetic GOD headers and XBE image assets.
+
 ## Version 3.1.2
 
 **Release date:** October 2026

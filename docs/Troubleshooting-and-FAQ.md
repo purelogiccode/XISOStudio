@@ -63,7 +63,7 @@ The conversion needs to replace (or delete) an existing result, but another prog
 
 **Message pattern:** *"XISO Studio could not load one of its image engine components ... Please reinstall ..."*
 
-The release is a framework-dependent single-file build: the managed image engines (`XISOSharp`, `ZArchiveSharp`, and `CHDSharp`) are stored inside the executable. A truncated download, a disk error, or an antivirus tool that quarantined part of the application can prevent one of them from loading.
+The release is a framework-dependent single-file build: the managed image engines (`XISOSharp`, `StfsSharp`, `CCISharp`, `ZArchiveSharp`, and `CHDSharp`) are stored inside the executable. A truncated download, a disk error, or an antivirus tool that quarantined part of the application can prevent one of them from loading.
 
 - Download the release archive again from the official GitHub release page and extract it to a fresh, writable folder. Do not run the executable from inside the ZIP.
 - Verify the archive against the published `SHA256SUMS.txt` before running it.
@@ -235,7 +235,7 @@ All conversion is performed by the [XISOSharp](https://github.com/purelogiccode/
 Only when **Delete Originals** (Replace Originals) is enabled — and even then, originals are removed only after the converted file has been produced and verified. Archives are removed only when every entry was extracted and every extracted image was converted; if an entry was skipped or an image was not converted, the archive is kept.
 
 **Are Xbox 360 images supported?**
-Xbox and Xbox 360 images are supported; conversion repacks the game partition of Redump-style dumps into an optimized XISO.
+Xbox and Xbox 360 disc images are supported; conversion repacks the game partition of Redump-style dumps into an optimized XISO. The Explorer also opens Xbox 360 GOD/SVOD containers (header, `.data` folder or parent folder) and shows the XContent title metadata. Plain STFS/XBLA packages are a file table rather than a disc image and are not opened.
 
 **Where are temporary files stored?**
 In the system temp folder, in dedicated subfolders. They are cleaned automatically after each file and at startup (orphaned leftovers from crashes are removed too). The free-space check uses the filesystem that actually hosts the temp folder, and if it lacks space, a writable per-user data folder is tried before other local drives (since **3.1.2**). Startup cleanup only removes app-created work folders (GUID-named children of `XISOStudio_*` folders) that are older than six hours, so unrelated folders and another instance's active work folders are never deleted.

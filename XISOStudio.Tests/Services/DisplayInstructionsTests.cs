@@ -145,7 +145,8 @@ public class DisplayInstructionsTests
 
         DisplayInstructions.DisplayInitialInstructions();
 
-        Assert.True(logger.HasMessage("3. Explorer: Explore the content of .iso, .cso, .zar, and .chd files."));
+        Assert.True(logger.HasMessage(
+            "3. Explorer: Explore the content of .iso, .cso, .zar, .chd and GOD/SVOD containers, with title metadata and XBE image previews."));
     }
 
     [Fact]

@@ -402,6 +402,7 @@ public partial class MainWindow : Window
 
             // Deferred: a background copy-out may still be reading from the explorer.
             RetireExplorer(explorer);
+            DisposeXbePreview();
 
             _processingTimer.Stop();
             _memoryTimer.Stop();

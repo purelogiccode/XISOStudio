@@ -1,3 +1,4 @@
+using XISOSharp;
 using XISOStudio.Interfaces;
 using Serilog;
 
@@ -6,7 +7,7 @@ namespace XISOStudio.Services;
 /// <summary>
 /// Opens an <see cref="IImageExplorer"/> for a supported image path: ZAR archives
 /// are read with ZArchiveSharp, CHD images with CHDSharp (decompressed on demand),
-/// and everything else (plain ISO, CISO) with XISOSharp.
+/// and everything else (plain ISO, CISO, CCI, GOD/SVOD) with XISOSharp.
 /// </summary>
 public static class ImageExplorerFactory
 {
@@ -20,15 +21,16 @@ public static class ImageExplorerFactory
     {
         try
         {
-            var extension = Path.GetExtension(imagePath);
+            var resolvedPath = ResolveContainerPath(imagePath);
+            var extension = Path.GetExtension(resolvedPath);
 
             if (extension.Equals(".zar", StringComparison.OrdinalIgnoreCase))
-                return new ZarImageExplorer(imagePath, logger);
+                return new ZarImageExplorer(resolvedPath, logger);
 
             if (extension.Equals(".chd", StringComparison.OrdinalIgnoreCase))
-                return new ChdImageExplorer(imagePath, logger);
+                return new ChdImageExplorer(resolvedPath, logger);
 
-            return new XisoImageExplorer(imagePath, logger);
+            return new XisoImageExplorer(resolvedPath, logger);
         }
         catch (Exception ex)
         {
@@ -37,5 +39,28 @@ public static class ImageExplorerFactory
             logger?.Information(ex, "Failed to open an image explorer: {Message}", ex.Message);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Resolves a GOD/SVOD <c>.data</c> directory or a parent folder holding exactly
+    /// one GOD header to the canonical header path. Other paths are returned unchanged.
+    /// </summary>
+    private static string ResolveContainerPath(string imagePath)
+    {
+        if (File.Exists(imagePath) || !Directory.Exists(imagePath))
+        {
+            return imagePath;
+        }
+
+        if (GodHeader.TryReadVolume(imagePath, out var volume))
+        {
+            return volume.HeaderPath;
+        }
+
+        var headers = Directory.EnumerateFiles(imagePath, "*", SearchOption.TopDirectoryOnly)
+            .Where(static file => GodHeader.IsGodContainer(file))
+            .Take(2)
+            .ToList();
+        return headers.Count == 1 ? headers[0] : imagePath;
     }
 }

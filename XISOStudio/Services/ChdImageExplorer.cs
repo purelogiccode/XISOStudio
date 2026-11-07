@@ -3,6 +3,7 @@ using CHDSharp.Models;
 using XISOStudio.Interfaces;
 using XISOStudio.Models;
 using XISOSharp;
+using XISOSharp.Models;
 using Serilog;
 
 namespace XISOStudio.Services;
@@ -102,6 +103,66 @@ internal sealed class ChdImageExplorer : IImageExplorer
             }
 
             throw;
+        }
+    }
+
+    /// <inheritdoc/>
+    public ImageMetadata GetMetadata()
+    {
+        try
+        {
+            TitleInfo? title = XisoReader.GetTitleInfo(_stream, _imageName);
+            if (title is null)
+            {
+                return ImageMetadata.Unavailable("Chd", _imageName, _stream.Length,
+                    "No root default.xbe/default.xex was found in the decompressed image.");
+            }
+
+            XbeInfo? xbe = title.Xbe;
+            XexTitleInfo? xex = title.Xex;
+            return new ImageMetadata
+            {
+                Format = "Chd",
+                Path = _imageName,
+                Length = _stream.Length,
+                TitleName = title.TitleName,
+                TitleIdHex = title.TitleIdHex,
+                Region = title.GameRegionName,
+                DiscNumber = title.DiskNumber,
+                Version = title.Version,
+                Publisher = xex?.Publisher ?? "",
+                Developer = xex?.Developer ?? "",
+                Genre = xex?.Genre ?? "",
+                Description = xex?.Description ?? "",
+                ExecutablePath = title.XbePath,
+                Kind = title.Kind.ToString(),
+                HasLogo = xbe?.HasLogoBitmap ?? false,
+                HasTitleImage = xbe?.HasTitleImage ?? false,
+                HasSaveImage = xbe?.HasSaveImage ?? false
+            };
+        }
+        catch (Exception ex) when (ImageErrorClassifier.IsUserInputImageError(ex)
+                                   || ImageErrorClassifier.IsEnvironmentalIoError(ex))
+        {
+            _logger?.Information(ex, "Could not read title metadata from the CHD image: {Reason}", ex.Message);
+            return ImageMetadata.Unavailable("Chd", _imageName, _stream.Length,
+                $"Metadata could not be read: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public XbeImage? GetXbeImage(string internalPath, XbeImageKind kind)
+    {
+        try
+        {
+            return XbeAssets.GetImage(_stream, _imageName, ImagePaths.Normalize(internalPath), kind);
+        }
+        catch (Exception ex) when (ImageErrorClassifier.IsUserInputImageError(ex)
+                                   || ImageErrorClassifier.IsEnvironmentalIoError(ex))
+        {
+            _logger?.Information(ex, "Could not read the {Kind} XBE image from '{InternalPath}': {Reason}",
+                kind, internalPath, ex.Message);
+            return null;
         }
     }
 

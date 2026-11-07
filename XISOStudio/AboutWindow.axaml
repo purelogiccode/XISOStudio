@@ -75,7 +75,7 @@
                                Margin="0,0,0,12"
                                ToolTip.Tip="XISO Studio converts Xbox/Xbox 360 ISOs into trimmed XISO format, saving space while preserving content" />
                     <TextBlock
-                        Text="Features include batch conversion powered by the XISOSharp library, integrity testing with deep scanning for ISO, CSO, ZAR, and CHD images, and an image explorer with drag-and-drop extraction."
+                        Text="Features include batch conversion powered by the XISOSharp library, integrity testing with deep scanning for ISO, CSO, ZAR, and CHD images, and an image explorer with GOD/SVOD support, title metadata, XBE image previews, and drag-and-drop extraction."
                         Foreground="{StaticResource TextSecondaryBrush}"
                         TextWrapping="Wrap"
                         LineHeight="20"
@@ -113,6 +113,11 @@
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8" ToolTip.Tip="Visit ZArchiveSharp on GitHub — ZArchive/zstd compression library">
                             <Button Content="ZArchiveSharp" Theme="{StaticResource LinkButtonStyle}" Tag="https://github.com/purelogiccode/ZArchiveSharp" Click="Hyperlink_Click" ToolTip.Tip="Open the ZArchiveSharp GitHub repository" />
                             <TextBlock Text=" - ZArchive/zstd compression library" Foreground="{StaticResource TextMutedBrush}" ToolTip.Tip="ZArchive/zstd compression library used by XISO Studio" />
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8" ToolTip.Tip="Visit StfsSharp on GitHub — Xbox 360 STFS/GOD reader">
+                            <Button Content="StfsSharp" Theme="{StaticResource LinkButtonStyle}" Tag="https://github.com/purelogiccode/STFSSharp" Click="Hyperlink_Click" ToolTip.Tip="Open the StfsSharp GitHub repository" />
+                            <TextBlock Text=" - Xbox 360 STFS/GOD reading" Foreground="{StaticResource TextMutedBrush}" ToolTip.Tip="Xbox 360 STFS/GOD reader used by XISO Studio" />
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8" ToolTip.Tip="Visit CHDSharp on GitHub — CHD (Compressed Hunks of Data) reading and writing library">

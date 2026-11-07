@@ -503,39 +503,35 @@ public partial class MainWindow
         TestView.IsVisible = false;
         ExplorerHeaderView.IsVisible = true;
 
-        HideLogPanel();
+        ShowExplorerDetailsPanel();
         StatsPanel.IsVisible = false;
 
         UpdateNavigationButtonStyles(BtnNavExplorer);
     }
 
-    /// <summary>Log column width saved while the explorer hides the log panel.</summary>
+    /// <summary>Log/details column width saved while the explorer replaced the log.</summary>
     private GridLength _savedLogColumnWidth = new(1, GridUnitType.Star);
 
-    /// <summary>Splitter column width saved while the explorer hides the log panel.</summary>
+    /// <summary>Splitter column width saved while the explorer replaced the log.</summary>
     private GridLength _savedSplitterColumnWidth = new(10);
 
     /// <summary>The splitter column of the main content grid (see MainWindow.axaml).</summary>
     private ColumnDefinition SplitterColumn => ContentGrid.ColumnDefinitions[1];
 
-    /// <summary>The log column of the main content grid (see MainWindow.axaml).</summary>
+    /// <summary>The log/details column of the main content grid (see MainWindow.axaml).</summary>
     private ColumnDefinition LogColumn => ContentGrid.ColumnDefinitions[2];
 
     /// <summary>
-    ///     Gives the explorer the full window width by collapsing the log column.
+    ///     Replaces the log with the explorer details panel (title metadata and
+    ///     XBE image preview) while keeping the right column visible.
     /// </summary>
-    private void HideLogPanel()
+    private void ShowExplorerDetailsPanel()
     {
-        if (LogColumn.Width.Value > 0)
-        {
-            _savedLogColumnWidth = LogColumn.Width;
-            _savedSplitterColumnWidth = SplitterColumn.Width;
-        }
-
-        LogColumn.MinWidth = 0;
-        LogColumn.Width = new GridLength(0);
-        SplitterColumn.Width = new GridLength(0);
+        LogColumn.MinWidth = 300;
+        LogColumn.Width = _savedLogColumnWidth.Value > 0 ? _savedLogColumnWidth : new GridLength(1, GridUnitType.Star);
+        SplitterColumn.Width = _savedSplitterColumnWidth;
         LogBorder.IsVisible = false;
+        ExplorerDetailsBorder.IsVisible = true;
     }
 
     /// <summary>
@@ -543,6 +539,7 @@ public partial class MainWindow
     /// </summary>
     private void ShowLogPanel()
     {
+        ExplorerDetailsBorder.IsVisible = false;
         LogColumn.MinWidth = 300;
         LogColumn.Width = _savedLogColumnWidth;
         SplitterColumn.Width = _savedSplitterColumnWidth;

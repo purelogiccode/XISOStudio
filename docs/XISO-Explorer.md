@@ -8,20 +8,21 @@
 
 ---
 
-The **Explorer** tab provides a native file browser for Xbox and Xbox 360 images and archives. It reads the XDVDFS filesystem directly from ISO/CSO images through the [XISOSharp](https://github.com/purelogiccode/XISOSharp) library, the CHD image through [CHDSharp](https://github.com/purelogiccode/CHDSharp) (decompressed on demand), and the ZAR archive tree through ZArchiveSharp, so you can inspect images without extracting anything. The file picker sits at the top with the explorer list directly below it, and the explorer uses the full window width (the log panel is hidden on this tab).
+The **Explorer** tab provides a native file browser for Xbox and Xbox 360 images and archives. It reads the XDVDFS filesystem directly from ISO/CISO/CCI and GOD/SVOD images through the [XISOSharp](https://github.com/purelogiccode/XISOSharp) 1.8 `XisoImage`/`XisoImageSource` facade (StfsSharp-backed for GOD), the CHD image through [CHDSharp](https://github.com/purelogiccode/CHDSharp) (decompressed on demand), and the ZAR archive tree through ZArchiveSharp, so you can inspect images without extracting anything. The file picker sits at the top with the explorer list below it, and the right-hand details panel shows title metadata and XBE image previews.
 
 ## Opening an Image
 
 1. Switch to the **Explorer** tab.
-2. Click **Browse...** and select a `.iso`, `.cso`, `.zar`, or `.chd` file.
-3. The root of the image appears in the file list.
+2. Click **Browse...** and select a `.iso`, `.cso`, `.zar`, `.chd` or GOD/SVOD header file, or **Folder...** for a GOD/SVOD `.data` directory or its parent folder.
+3. The root of the image appears in the file list and the details panel fills in.
 
 Supported inputs:
 
 - **`.iso`** — standard XISO and Redump ISOs; the explorer automatically locates the game partition.
 - **`.cso`** — CISO containers (single file or a split `.1.cso` part set); the game partition is read through the decompressed view.
-- **`.zar`** — ZAR archives (ZArchive/zstd); the game tree is read directly from the compressed container.
+- **`.zar`** — ZAR archives (ZArchive/zstd); the game tree is read directly from the compressed container. A ZAR tree has no disc geometry, so the title panel reports metadata as unavailable and the preview is disabled.
 - **`.chd`** — CHD v5 images; the Xbox filesystem is read from the on-demand decompressed view. Parsing is limited to Xbox DVD images — CD/GD-ROM/hard-disk CHDs are rejected with a clear error.
+- **GOD/SVOD** — Xbox 360 Games-on-Demand containers (a content-hash header beside a `<header>.data` directory). The fragment mapping is handled by `XisoImageSource`/StfsSharp, and the XDVDFS game partition is browsed without extraction. Plain STFS/XBLA packages are not disc images and are rejected.
 
 ## Browsing
 
@@ -38,6 +39,25 @@ The list displays three columns:
 | **Name** | File or folder name |
 | **Size** | Size in bytes (human-readable) |
 | **Type** | File or directory |
+
+## Title Metadata Panel
+
+The details panel on the right shows:
+
+- **Image details** — detected format (`Iso`, `Ciso`, `Cci`, `God`, `Chd`, `Zar`), logical/decompressed size, executable path, and kind.
+- **Title metadata** — title name, title ID, region, disc number/count, version, publisher, developer, genre and description.
+
+Original-Xbox values come from the XBE certificate. Xbox 360 values come from the XEX XDBF/XSRC resources and, for GOD containers, the XContent header (title name, title ID and disc number/count). If an image has no root `default.xbe`/`default.xex` (for example a ZAR tree or a data disc), the panel explains why fields are unavailable instead of failing.
+
+## XBE Image Preview
+
+Enter the image-internal path of an XBE (defaults to the root executable), choose **Logo**, **Title** or **Save**, and click **Load preview**:
+
+- **Logo** — the Microsoft logo bitmap referenced by the XBE header.
+- **Title** — the `$$XTIMAGE` section.
+- **Save** — the `$$XSIMAGE` section.
+
+The preview decodes to PNG in-process through `XbeAssets`; no CLI or external tool is used. XEX executables and ZAR trees do not carry XBE image sections, and a missing or undecodable asset produces a clean status message.
 
 ## Opening Files
 
