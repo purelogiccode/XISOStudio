@@ -431,6 +431,7 @@ public partial class MainWindow
         // Disable/Enable the navigation buttons in the header
         BtnNavConvert.IsEnabled = enabled;
         BtnNavTest.IsEnabled = enabled;
+        BtnNavDecompress.IsEnabled = enabled;
         BtnNavExplorer.IsEnabled = enabled;
 
         // Disable/Enable the entire settings area
@@ -471,6 +472,7 @@ public partial class MainWindow
     {
         ConvertView.IsVisible = true;
         TestView.IsVisible = false;
+        DecompressView.IsVisible = false;
         ExplorerHeaderView.IsVisible = false;
 
         ShowLogPanel();
@@ -486,12 +488,29 @@ public partial class MainWindow
     {
         ConvertView.IsVisible = false;
         TestView.IsVisible = true;
+        DecompressView.IsVisible = false;
         ExplorerHeaderView.IsVisible = false;
 
         ShowLogPanel();
         StatsPanel.IsVisible = true;
 
         UpdateNavigationButtonStyles(BtnNavTest);
+    }
+
+    /// <summary>Switches to the decompression view.</summary>
+    /// <param name="sender">The button that raised the event.</param>
+    /// <param name="e">The event data.</param>
+    private void NavDecompress_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        ConvertView.IsVisible = false;
+        TestView.IsVisible = false;
+        DecompressView.IsVisible = true;
+        ExplorerHeaderView.IsVisible = false;
+
+        ShowLogPanel();
+        StatsPanel.IsVisible = true;
+
+        UpdateNavigationButtonStyles(BtnNavDecompress);
     }
 
     /// <summary>Switches to the explorer view and hides the log panel.</summary>
@@ -501,6 +520,7 @@ public partial class MainWindow
     {
         ConvertView.IsVisible = false;
         TestView.IsVisible = false;
+        DecompressView.IsVisible = false;
         ExplorerHeaderView.IsVisible = true;
 
         ShowExplorerDetailsPanel();
@@ -555,6 +575,7 @@ public partial class MainWindow
             // Reset all navigation buttons to default style
             BtnNavConvert.Theme = (ControlTheme?)this.FindResource("MenuButtonStyle");
             BtnNavTest.Theme = (ControlTheme?)this.FindResource("MenuButtonStyle");
+            BtnNavDecompress.Theme = (ControlTheme?)this.FindResource("MenuButtonStyle");
             BtnNavExplorer.Theme = (ControlTheme?)this.FindResource("MenuButtonStyle");
 
             // Apply selected style to the active button

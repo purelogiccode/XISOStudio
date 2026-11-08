@@ -39,6 +39,19 @@ public interface IImageExplorer : IDisposable
     ImageMetadata GetMetadata();
 
     /// <summary>
+    /// Extracts the whole container into <paramref name="destinationDirectory"/>.
+    /// Unsafe entry names are sanitized, existing same-size files can be skipped for resume,
+    /// and per-file failures do not abort the run.
+    /// </summary>
+    /// <param name="destinationDirectory">Folder that receives the extracted tree.</param>
+    /// <param name="skipExisting">When <c>true</c>, files already present with the same size are left untouched.</param>
+    /// <param name="progress">Optional structured progress sink.</param>
+    /// <param name="token">Token that cancels the extraction.</param>
+    /// <returns>0 when the tree was extracted; otherwise a non-zero library result code.</returns>
+    int ExtractAll(string destinationDirectory, bool skipExisting, IProgress<ProgressInfo>? progress,
+        CancellationToken token);
+
+    /// <summary>
     /// Reads one XBE image asset (logo, title image or save image) from a file in
     /// the container.
     /// </summary>

@@ -37,6 +37,7 @@ public class DisplayInstructionsTests
         Assert.True(logger.HasMessage("This application provides"));
         Assert.True(logger.HasMessage("Convert"));
         Assert.True(logger.HasMessage("Test Integrity"));
+        Assert.True(logger.HasMessage("Decompress"));
         Assert.True(logger.HasMessage("Explorer"));
         Assert.True(logger.HasMessage("CHD"));
     }
@@ -76,14 +77,14 @@ public class DisplayInstructionsTests
     }
 
     [Fact]
-    public void DisplayInitialInstructionsLogsExactlyFourteenInformationEvents()
+    public void DisplayInitialInstructionsLogsExactlyFifteenInformationEvents()
     {
         var logger = new TestLogger();
         DisplayInstructions.Initialize(logger.Logger);
 
         DisplayInstructions.DisplayInitialInstructions();
 
-        Assert.Equal(14, logger.Events.Count);
+        Assert.Equal(15, logger.Events.Count);
     }
 
     [Fact]
@@ -120,7 +121,7 @@ public class DisplayInstructionsTests
 
         Assert.True(
             logger.HasMessage(
-                "1. Convert: Converts standard Xbox ISO files to optimized XISO, ZAR, CSO, or CHD format."));
+                "1. Convert: Converts standard Xbox ISO files to optimized XISO, ZAR, CSO, CCI, or CHD format."));
         Assert.True(logger.HasMessage("Supports archives (.zip, .7z, .rar)."));
     }
 
@@ -133,8 +134,10 @@ public class DisplayInstructionsTests
         DisplayInstructions.DisplayInitialInstructions();
 
         Assert.True(logger.HasMessage(
-            "2. Test Integrity: Verifies ISO/CSO/CCI (XDVDFS), ZAR, and Xbox CHD structure and readability."));
+            "2. Test Integrity: Verifies ISO/XISO/IMG/CSO/CCI (XDVDFS), ZAR, Xbox CHD and STFS/XBLA package structure and readability, with repair and salvage."));
         Assert.True(logger.HasMessage("does NOT perform data checksum (MD5/SHA) verification."));
+        Assert.True(logger.HasMessage(
+            "3. Decompress: Converts CSO, CCI, ZAR, CHD and GOD/SVOD images back into plain ISO files."));
     }
 
     [Fact]
@@ -146,7 +149,7 @@ public class DisplayInstructionsTests
         DisplayInstructions.DisplayInitialInstructions();
 
         Assert.True(logger.HasMessage(
-            "3. Explorer: Explore the content of .iso, .cso, .cci, .zar, .chd and GOD/SVOD containers, with title metadata and XBE image previews."));
+            "4. Explorer: Explore the content of .iso, .xiso, .img, .cso, .cci, .zar, .chd and GOD/SVOD containers, with metadata, checksums, extraction and split/join tools."));
     }
 
     [Fact]
@@ -192,7 +195,7 @@ public class DisplayInstructionsTests
         DisplayInstructions.DisplayInitialInstructions();
 
         Assert.True(logger.HasMessage(
-            "XISOSharp and CHDSharp conversion engines loaded. XISO/ZAR/CSO and CHD conversion are enabled."));
+            "XISOSharp and CHDSharp conversion engines loaded. XISO/ZAR/CSO/CCI and CHD conversion, and ISO decompression, are enabled."));
     }
 
     [Fact]

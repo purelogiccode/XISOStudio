@@ -1,6 +1,8 @@
+using System.Text;
 using Serilog.Events;
 using XISOStudio.Models;
 using XISOStudio.Services;
+using XISOStudio.Tests.Fixtures;
 using XISOSharp;
 using Xunit;
 using ZArchiveSharp;
@@ -64,6 +66,18 @@ public sealed class ImageExplorerTests : IDisposable
         var isoPath = CreateXiso();
         var chdPath = Path.Combine(_tempRoot, "game.chd");
         return ChdTestHelper.CreateDvdChd(isoPath, chdPath);
+    }
+
+    private string CreateStfs()
+    {
+        var packagePath = Path.Combine(_tempRoot, "584109B7");
+        SyntheticStfsPackage.Create(packagePath,
+        [
+            new SyntheticStfsFile("default.xex", [1, 2, 3]),
+            new SyntheticStfsFile("data/readme.txt", Encoding.UTF8.GetBytes("hi")),
+            new SyntheticStfsFile("data/empty.bin", [])
+        ]);
+        return packagePath;
     }
 
     private void AssertImageExplorerWorks(string imagePath)
@@ -395,6 +409,79 @@ public sealed class ImageExplorerTests : IDisposable
         return zarPath;
     }
 
+    /// <summary>
+    /// Extracts the whole image twice: the first run writes the tree, the second run with
+    /// skip-existing resumes without touching the files.
+    /// </summary>
+    /// <param name="imagePath">Image opened for extraction.</param>
+    private void AssertExtractAllWorks(string imagePath)
+    {
+        using var explorer = ImageExplorerFactory.Open(imagePath);
+        var destination = Path.Combine(_tempRoot, "extract-" + Guid.NewGuid().ToString("N"));
+
+        Assert.Equal(0, explorer.ExtractAll(destination, false, null, CancellationToken.None));
+        Assert.True(File.Exists(Path.Combine(destination, "default.xbe")));
+        Assert.True(File.Exists(Path.Combine(destination, "media", "data.bin")));
+
+        Assert.Equal(0, explorer.ExtractAll(destination, true, null, CancellationToken.None));
+    }
+
+    [Fact]
+    public void XisoImageExplorerExtractsEverything()
+    {
+        AssertExtractAllWorks(CreateXiso());
+    }
+
+    [Fact]
+    public void CisoImageExplorerExtractsEverything()
+    {
+        AssertExtractAllWorks(CreateCiso());
+    }
+
+    [Fact]
+    public void ZarImageExplorerExtractsEverything()
+    {
+        AssertExtractAllWorks(CreateZar());
+    }
+
+    [Fact]
+    public void ChdImageExplorerExtractsEverything()
+    {
+        AssertExtractAllWorks(CreateChd());
+    }
+
+    [Fact]
+    public void StfsImageExplorerListsAndCopiesFiles()
+    {
+        using var explorer = ImageExplorerFactory.Open(CreateStfs());
+
+        var root = explorer.ListChildren("/");
+        Assert.Contains(root, static e => e is { Name: "default.xex", IsDirectory: false });
+        Assert.Contains(root, static e => e is { Name: "data", IsDirectory: true });
+
+        var data = explorer.ListChildren("/data");
+        Assert.Contains(data, static e => e is { Name: "readme.txt", IsDirectory: false, Size: 2 });
+        Assert.Contains(data, static e => e is { Name: "empty.bin", IsDirectory: false, Size: 0 });
+
+        var destination = Path.Combine(_tempRoot, "stfs-readme.txt");
+        explorer.CopyOut("/data/readme.txt", destination);
+        Assert.Equal("hi", File.ReadAllText(destination));
+    }
+
+    [Fact]
+    public void StfsImageExplorerExtractsEverything()
+    {
+        using var explorer = ImageExplorerFactory.Open(CreateStfs());
+        var destination = Path.Combine(_tempRoot, "stfs-extract");
+
+        Assert.Equal(0, explorer.ExtractAll(destination, false, null, CancellationToken.None));
+        Assert.Equal([1, 2, 3], File.ReadAllBytes(Path.Combine(destination, "default.xex")));
+        Assert.Equal("hi", File.ReadAllText(Path.Combine(destination, "data", "readme.txt")));
+        Assert.True(File.Exists(Path.Combine(destination, "data", "empty.bin")));
+
+        Assert.Equal(0, explorer.ExtractAll(destination, true, null, CancellationToken.None));
+    }
+
     [Fact]
     public void XisoImageExplorerRootListingIncludesCanonicalPaths()
     {
@@ -597,6 +684,36 @@ public sealed class ImageExplorerTests : IDisposable
         explorer.CopyOut("/dir", dest);
         Assert.True(Directory.Exists(dest));
         Assert.Empty(Directory.GetFiles(dest, "*", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public void ZarImageExplorerListsEntriesWithExtendedNames()
+    {
+        var longName = new string('a', 130) + ".bin";
+        var zarPath = CreateCraftedZar(longName);
+
+        using var explorer = ImageExplorerFactory.Open(zarPath);
+
+        // The 0.1.2-compatible default decodes stored names of 0x80+ characters to "" and
+        // silently hides them; the explorer opts into the corrected name decoding.
+        Assert.Contains(explorer.ListChildren("/"),
+            entry => string.Equals(entry.Name, longName, StringComparison.Ordinal));
+
+        var dest = Path.Combine(_tempRoot, "extended-out.bin");
+        explorer.CopyOut("/" + longName, dest);
+        Assert.Equal("unsafe", File.ReadAllText(dest));
+    }
+
+    [Fact]
+    public void ZarImageExplorerOpensWhileArchiveIsHeldOpenForWriting()
+    {
+        var zarPath = CreateCraftedZar("file.bin");
+        using var holder = new FileStream(zarPath, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+
+        using var explorer = ImageExplorerFactory.Open(zarPath);
+
+        Assert.Contains(explorer.ListChildren("/"),
+            static e => string.Equals(e.Name, "file.bin", StringComparison.Ordinal));
     }
 
     [Theory]

@@ -165,6 +165,38 @@ The explorer shows the same message when you open a file that is not an Xbox ima
 - Since **3.0.3**, these expected rejections are logged at Information and are **not** uploaded as
   bug reports; the message explains what to select instead.
 
+### The test fails: should I repair or salvage the image?
+
+Both recovery actions are on the **Test Integrity** tab, below the start button. The right choice
+depends on what failed:
+
+- **Repair selected** fixes the audit's safely patchable issues in place: reserved attribute bits, a
+  missing optimized tag, and separators inside file names. Every change is length-preserving, the
+  image size never changes, and a `<name>.old` backup is always written first. Truncated or
+  structurally broken images are reported but never modified. Only plain `.iso`/`.xiso` images can be
+  repaired — decompress CISO/CCI first.
+- **Salvage selected** rebuilds the image: every entry reachable without tripping a structural gate is
+  copied into a fresh `<name>.salvaged.iso`, and every skipped entry is listed with its reason. The
+  source is only read, never written, and CISO/CCI input is accepted.
+
+If salvage reports that the rebuilt image still fails the audit, the damage is in the directory
+structure itself, not the file data. Keep the report and, if the image came from a download, fetch a
+fresh copy.
+
+### I converted to ZAR/CSO/CCI/CHD and now need a plain ISO again
+
+Use the **Decompress** tab. It turns CSO, CCI, ZAR, Xbox DVD CHD and GOD/SVOD images back into a
+plain ISO:
+
+- CSO and CCI are decoded directly.
+- ZAR is a file tree, so it is repacked; the xdvdfs tree hash is preserved even though the sector
+  layout may differ.
+- CHD and GOD/SVOD images are read through their decompressed logical view.
+
+Enable **Check integrity of the output file** to audit each result, and **Delete original files**
+to remove the source (including every part of a split set) only after a successful decompression.
+Plain `.iso`/`.xiso`/`.img` inputs are listed but skipped as already uncompressed.
+
 ### Font / rendering error at startup
 
 **Message pattern:** a startup error mentioning fonts or rendering.
@@ -235,7 +267,7 @@ All conversion is performed by the [XISOSharp](https://github.com/purelogiccode/
 Only when **Delete Originals** (Replace Originals) is enabled — and even then, originals are removed only after the converted file has been produced and verified. Archives are removed only when every entry was extracted and every extracted image was converted; if an entry was skipped or an image was not converted, the archive is kept.
 
 **Are Xbox 360 images supported?**
-Xbox and Xbox 360 disc images are supported; conversion repacks the game partition of Redump-style dumps into an optimized XISO. The Explorer also opens Xbox 360 GOD/SVOD containers (header, `.data` folder or parent folder) and shows the XContent title metadata. Plain STFS/XBLA packages are a file table rather than a disc image and are not opened.
+Xbox and Xbox 360 disc images are supported; conversion repacks the game partition of Redump-style dumps into an optimized XISO. The Explorer also opens Xbox 360 GOD/SVOD containers (header, `.data` folder or parent folder) and single-file XBLA/XBLIG STFS packages, showing title metadata and XDBF artwork. STFS packages are a file table rather than a disc image, so they can be browsed, extracted, hashed and hash-tree validated, but not converted to XISO/ZAR/CSO/CHD.
 
 **Where are temporary files stored?**
 In the system temp folder, in dedicated subfolders. They are cleaned automatically after each file and at startup (orphaned leftovers from crashes are removed too). The free-space check uses the filesystem that actually hosts the temp folder, and if it lacks space, a writable per-user data folder is tried before other local drives (since **3.1.2**). Startup cleanup only removes app-created work folders (GUID-named children of `XISOStudio_*` folders) that are older than six hours, so unrelated folders and another instance's active work folders are never deleted.

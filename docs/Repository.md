@@ -48,12 +48,18 @@ This page describes the repository itself: where things live, how releases are m
 │   ├── Interfaces/                        Service contracts
 │   ├── Models/                            DTOs and enums
 │   ├── Services/                          All business logic
-│   │   ├── XisoSharpService.cs            XISO/ZAR/CSO conversion via the XISOSharp library
+│   │   ├── XisoSharpService.cs            XISO/ZAR/CSO/CCI conversion via the XISOSharp library
 │   │   ├── ChdService.cs                  CHD conversion via the CHDSharp library
+│   │   ├── ImageConversionService.cs      CSO/CCI/ZAR/CHD/GOD decompression back to ISO
+│   │   ├── ConversionValidationService.cs Source-vs-output tree/size/SHA-256 comparison
+│   │   ├── ImageHashService.cs            Whole-image and xdvdfs tree checksums
+│   │   ├── XisoRecoveryService.cs         In-place repair and salvage-to-ISO
+│   │   ├── XisoSplitService.cs            FATX split/join for plain ISO images
 │   │   ├── XisoIntegrityService.cs        Integrity validation via XISOSharp / CCISharp / ZArchiveSharp / CHDSharp
-│   │   ├── ImageExplorerFactory.cs        Explorer over ISO/CISO/CCI/GOD, ZAR or CHD (resolves GOD header/.data/parent paths)
+│   │   ├── ImageExplorerFactory.cs        Explorer over ISO/XISO/IMG/CISO/CCI/GOD, ZAR or CHD (resolves GOD header/.data/parent paths)
 │   │   ├── ChdImageExplorer.cs            Explorer over CHD via CHDSharp + XISOSharp
-│   │   └── XisoImageExplorer.cs           Explorer over ISO/CISO/CCI/GOD via XisoImage + title/XBE metadata
+│   │   ├── StfsImageExplorer.cs           Explorer over XBLA/XBLIG STFS packages via StfsSharp
+│   │   └── XisoImageExplorer.cs           Explorer over ISO/XISO/IMG/CISO/CCI/GOD via XisoImage + title/XBE metadata
 │   ├── 7za*.exe, 7zz_linux_*, 7zz_osx    Bundled 7-Zip CLI fallback (one binary per platform/architecture)
 │   └── XISOStudio.csproj
 ├── XISOStudio.Tests/           xUnit + Moq test project
@@ -146,7 +152,7 @@ This project is licensed under the **GNU General Public License v3.0** — see [
 ## Acknowledgements
 
 - **[Avalonia](https://avaloniaui.net/)** — cross-platform UI framework powering the Windows/Linux/macOS interface
-- **[XISOSharp](https://github.com/purelogiccode/XISOSharp)** — XISO/XDVDFS library powering XISO/ZAR/CSO conversion, integrity testing, and exploration
+- **[XISOSharp](https://github.com/purelogiccode/XISOSharp)** — XISO/XDVDFS library powering XISO/ZAR/CSO/CCI conversion, decompression, recovery, validation, hashing, integrity testing, and exploration
 - **[CCISharp](https://github.com/purelogiccode/CCISharp)** — CCI/CCIM reader used for CCI validation and integrity testing
 - **[ZArchiveSharp](https://github.com/purelogiccode/ZArchiveSharp)** — ZArchive/zstd library powering ZAR output and reading
 - **[StfsSharp](https://github.com/purelogiccode/STFSSharp)** — Xbox 360 STFS/GOD reader used directly for SVOD fragment mapping and XContent title metadata

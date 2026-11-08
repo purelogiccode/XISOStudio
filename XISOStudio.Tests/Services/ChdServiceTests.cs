@@ -59,7 +59,8 @@ public sealed class ChdServiceTests : IDisposable
     {
         var diskMonitor = new Mock<IDiskMonitorService>();
         diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(long.MaxValue);
-        var xisoSharpService = new XisoSharpService(_logger.Logger, diskMonitor.Object);
+        var xisoSharpService = new XisoSharpService(_logger.Logger, diskMonitor.Object,
+            new ConversionValidationService(_logger.Logger));
         return new ChdService(_logger.Logger, xisoSharpService);
     }
 

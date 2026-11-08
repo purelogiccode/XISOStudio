@@ -62,6 +62,15 @@ public partial class MainWindow : Window
     /// <summary>Captures the active window for the F8 screenshot shortcut.</summary>
     private readonly IScreenshotService _screenshotService = null!;
 
+    /// <summary>Computes the image checksums shown in the explorer details panel.</summary>
+    private readonly IImageHashService _imageHashService = null!;
+
+    /// <summary>Repairs and salvages damaged images from the test view.</summary>
+    private readonly IXisoRecoveryService _xisoRecoveryService = null!;
+
+    /// <summary>Splits and joins plain ISO images from the explorer view.</summary>
+    private readonly IXisoSplitService _xisoSplitService = null!;
+
     // Summary Stats
     /// <summary>Measures the elapsed time of the current operation.</summary>
     private readonly Stopwatch _operationStopwatch = new();
@@ -140,9 +149,14 @@ public partial class MainWindow : Window
     /// <param name="screenshotService">Service that captures the active window (F8).</param>
     /// <param name="orchestratorService">Batch conversion and integrity-test orchestrator.</param>
     /// <param name="diskMonitorService">Live disk read/write speed monitor.</param>
+    /// <param name="imageHashService">Computes image checksums for the explorer details panel.</param>
+    /// <param name="xisoRecoveryService">Repairs and salvages damaged images from the test view.</param>
+    /// <param name="xisoSplitService">Splits and joins plain ISO images from the explorer view.</param>
     public MainWindow(IUpdateChecker updateChecker, ILogger logger,
         IMessageBoxService messageBoxService, IUrlOpener urlOpener, IScreenshotService screenshotService,
-        IOrchestratorService orchestratorService, IDiskMonitorService diskMonitorService)
+        IOrchestratorService orchestratorService, IDiskMonitorService diskMonitorService,
+        IImageHashService imageHashService, IXisoRecoveryService xisoRecoveryService,
+        IXisoSplitService xisoSplitService)
         : this()
     {
         _updateChecker = updateChecker;
@@ -152,6 +166,9 @@ public partial class MainWindow : Window
         _screenshotService = screenshotService;
         _orchestratorService = orchestratorService;
         _diskMonitorService = diskMonitorService;
+        _imageHashService = imageHashService;
+        _xisoRecoveryService = xisoRecoveryService;
+        _xisoSplitService = xisoSplitService;
 
         InitializeFileLists();
 

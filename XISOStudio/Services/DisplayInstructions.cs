@@ -29,23 +29,25 @@ public static class DisplayInstructions
         {
             logger.Information("Welcome to 'XISO Studio'.");
             logger.Information("");
-            logger.Information("This application provides three main functions, available in the tabs above:");
+            logger.Information("This application provides four main functions, available in the tabs above:");
             logger.Information(
-                "1. Convert: Converts standard Xbox ISO files to optimized XISO, ZAR, CSO, or CHD format. Supports archives (.zip, .7z, .rar).");
+                "1. Convert: Converts standard Xbox ISO files to optimized XISO, ZAR, CSO, CCI, or CHD format. Supports archives (.zip, .7z, .rar).");
             logger.Information(
-                "2. Test Integrity: Verifies ISO/CSO/CCI (XDVDFS), ZAR, and Xbox CHD structure and readability.");
+                "2. Test Integrity: Verifies ISO/XISO/IMG/CSO/CCI (XDVDFS), ZAR, Xbox CHD and STFS/XBLA package structure and readability, with repair and salvage.");
             logger.Information(
-                "   NOTE: This test checks if the image is structurally valid and readable. It does NOT perform data checksum (MD5/SHA) verification.");
+                "   NOTE: The structural test does NOT perform data checksum (MD5/SHA) verification.");
             logger.Information(
-                "3. Explorer: Explore the content of .iso, .cso, .cci, .zar, .chd and GOD/SVOD containers, with title metadata and XBE image previews.");
+                "3. Decompress: Converts CSO, CCI, ZAR, CHD and GOD/SVOD images back into plain ISO files.");
+            logger.Information(
+                "4. Explorer: Explore the content of .iso, .xiso, .img, .cso, .cci, .zar, .chd and GOD/SVOD containers, with metadata, checksums, extraction and split/join tools.");
             logger.Information("");
             logger.Information("IMPORTANT: This tool ONLY works with Xbox and Xbox 360 ISO files.");
             logger.Information("It cannot convert or test ISOs from PlayStation, PlayStation 2, or other consoles.");
             logger.Information("");
 
-            // XISO/ZAR/CSO conversion is performed in-process by XISOSharp; CHD by CHDSharp
+            // XISO/ZAR/CSO/CCI conversion is performed in-process by XISOSharp; CHD by CHDSharp
             logger.Information(
-                "INFO: XISOSharp and CHDSharp conversion engines loaded. XISO/ZAR/CSO and CHD conversion are enabled.");
+                "INFO: XISOSharp and CHDSharp conversion engines loaded. XISO/ZAR/CSO/CCI and CHD conversion, and ISO decompression, are enabled.");
 
             logger.Information("");
 

@@ -24,9 +24,10 @@ Welcome to the official documentation for **XISO Studio** — a high-performance
 
 The application combines:
 
-1. The **[XISOSharp](https://github.com/purelogiccode/XISOSharp)** conversion engine, which repacks the XDVDFS game partition into an optimized, tightly packed XISO, and **[CHDSharp](https://github.com/purelogiccode/CHDSharp)**, which compresses that partition into a CHD image.
-2. An **integrity tester** that deeply validates the XDVDFS filesystem structure (ISO/CSO/CCI, and the Xbox filesystem inside CHD images) or the ZAR archive tree, with an optional deep scan for physical media or block errors.
-3. A built-in **Image Explorer** that browses the contents of an Xbox ISO, CSO, CCI, ZAR, CHD or GOD/SVOD container without extracting it, with title metadata and XBE image previews.
+1. The **[XISOSharp](https://github.com/purelogiccode/XISOSharp)** conversion engine, which repacks the XDVDFS game partition into an optimized, tightly packed XISO (and its ZAR, CSO and CCI containers), and **[CHDSharp](https://github.com/purelogiccode/CHDSharp)**, which compresses that partition into a CHD image.
+2. A **Decompress** view that turns any of those containers — plus GOD/SVOD — back into a plain ISO.
+3. An **integrity tester** that deeply validates the XDVDFS filesystem structure (ISO/CSO/CCI, and the Xbox filesystem inside CHD images), the ZAR archive tree or an XBLA/XBLIG STFS package's SHA-1 hash tree, with an optional deep scan for physical media or block errors, and in-place repair or salvage of failed images.
+4. A built-in **Image Explorer** that browses the contents of an Xbox ISO, XISO, IMG, CSO, CCI, ZAR, CHD or GOD/SVOD container, or an XBLA/XBLIG STFS package, without extracting it, with title metadata, container details, checksums, XBE/XDBF artwork, whole-image extraction and split/join tools.
 
 Whether you are managing a large collection of game backups, preparing files for an Xbox hard drive, or verifying the integrity of your dumps, the application provides a user-friendly interface with powerful batch processing capabilities.
 
@@ -36,9 +37,10 @@ Whether you are managing a large collection of game backups, preparing files for
 
 | Area | Capabilities |
 |---|---|
-| **Batch Conversion** | XISOSharp and CHDSharp conversion engines, XISO/ZAR/CSO/CHD output formats, ISO input (Redump full-disc images or optimized XISO files), archive input (`.zip`, `.7z`, `.rar`), optional `$SystemUpdate` removal, replace-originals mode, post-conversion verification |
-| **Integrity Testing** | Structural XDVDFS validation for ISO/CSO/CCI and the Xbox filesystem inside CHD images, ZAR archive validation, optional deep scan, automatic move of passed/failed files into organized subfolders |
-| **Image Explorer** | Native browsing inside ISO/CSO/CCI/ZAR/CHD/GOD-SVOD images, title metadata panel, XBE logo/title/save preview, file metadata, double-click to open, drag-and-drop extraction |
+| **Batch Conversion** | XISOSharp and CHDSharp conversion engines, XISO/ZAR/CSO/CCI/CHD output formats, ISO/XISO/IMG input (Redump full-disc images or optimized XISO files), archive input (`.zip`, `.7z`, `.rar`), optional `$SystemUpdate` removal, replace-originals mode, source-vs-output validation with per-file SHA-256 |
+| **Decompression** | CSO, CCI, ZAR, Xbox DVD CHD and GOD/SVOD back to plain ISO, with optional output audit and safe removal of the source (split sets deleted as a whole) |
+| **Integrity Testing** | Structural XDVDFS validation for ISO/XISO/IMG/CSO/CCI and the Xbox filesystem inside CHD images, ZAR archive validation, STFS/XBLA package SHA-1 hash-tree validation, optional deep scan, in-place repair (with `.old` backup) and salvage to a fresh ISO, automatic move of passed/failed files into organized subfolders |
+| **Image Explorer** | Native browsing inside ISO/XISO/IMG/CSO/CCI/ZAR/CHD/GOD-SVOD images and XBLA/XBLIG STFS packages, title metadata and container details, image/XDBF artwork, CRC-32/MD5/SHA-1/SHA-256/SHA3-256 and xdvdfs tree hashes, whole-image extraction with resume, FATX split/join, file metadata, double-click to open, drag-and-drop extraction |
 | **Monitoring** | Real-time success/fail/skip counters, per-drive read/write speed indicators (Windows), elapsed-time tracking, memory usage |
 | **Reliability** | Atomic replace-originals workflow (archives are deleted only when every entry was converted), per-file error isolation, age-checked temp-folder cleanup, fallback temp drives, network path (UNC) support with retry logic, cloud-aware (OneDrive) retries, encrypted-archive detection, lease-guarded explorer and close handling |
 | **Support** | In-app bug reporting and automatic update checks |
@@ -61,9 +63,9 @@ Whether you are managing a large collection of game backups, preparing files for
 | Page | Contents |
 |---|---|
 | [Installation](Installation.md) | System requirements, download, first run, upgrading |
-| [Usage Guide](Usage-Guide.md) | Complete walkthrough of every tab, option, and indicator |
-| [Conversion Methods](Conversion-Methods.md) | How the XISOSharp conversion engine works |
-| [XISO Explorer](XISO-Explorer.md) | Browsing, opening, and extracting files from inside an ISO, CSO, CCI, ZAR, CHD or GOD/SVOD container, plus title metadata and XBE previews |
+| [Usage Guide](Usage-Guide.md) | Complete walkthrough of every tab (Convert, Test Integrity, Decompress, Explorer), option and indicator |
+| [Conversion Methods](Conversion-Methods.md) | How the XISOSharp conversion engine works, the output formats, and decompression |
+| [XISO Explorer](XISO-Explorer.md) | Browsing, opening, extracting, hashing, splitting and joining inside an ISO, XISO, IMG, CSO, CCI, ZAR, CHD or GOD/SVOD container, plus title metadata and artwork |
 | [Troubleshooting & FAQ](Troubleshooting-and-FAQ.md) | Common errors, known issues, frequently asked questions |
 | [Architecture](Architecture.md) | Codebase design, services, dependency injection, data flow |
 | [XDVDFS Technical Docs](XDVDFS-Technical-Documentation.md) | Binary format internals and the XISO conversion algorithm |
@@ -87,10 +89,10 @@ Whether you are managing a large collection of game backups, preparing files for
 ## Acknowledgements
 
 - **[Avalonia](https://avaloniaui.net/)** — cross-platform .NET UI framework the application is built on
-- **[XISOSharp](https://github.com/purelogiccode/XISOSharp)** — XISO/XDVDFS reading, writing, and conversion library that powers XISO/ZAR/CSO conversion, integrity testing, and exploration
+- **[XISOSharp](https://github.com/purelogiccode/XISOSharp)** — XISO/XDVDFS reading, writing, and conversion library that powers XISO/ZAR/CSO/CCI conversion, decompression, recovery, validation, hashing, integrity testing, and exploration
 - **[CCISharp](https://github.com/purelogiccode/CCISharp)** — CCI/CCIM container reader used for CCI validation and integrity testing
 - **[ZArchiveSharp](https://github.com/purelogiccode/ZArchiveSharp)** — ZArchive/zstd compression library used for ZAR output and reading
-- **[StfsSharp](https://github.com/purelogiccode/STFSSharp)** — Xbox 360 STFS/GOD reader used directly for SVOD fragment mapping and XContent title metadata
+- **[StfsSharp](https://github.com/purelogiccode/STFSSharp)** — Xbox 360 STFS/GOD reader used for SVOD fragment mapping, XContent title metadata, STFS package exploration/extraction and SHA-1 hash-tree validation
 - **[CHDSharp](https://github.com/purelogiccode/CHDSharp)** — CHD (Compressed Hunks of Data) reading, verification, and creation for CHD output and Xbox CHD testing/exploration
 - **[SharpCompress](https://github.com/adamhathcock/sharpcompress)** — high-performance archive extraction
 

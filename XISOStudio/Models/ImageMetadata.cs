@@ -61,6 +61,18 @@ public sealed record ImageMetadata
     /// <summary>Whether an XBE <c>$$XSIMAGE</c> save image is present.</summary>
     public bool HasSaveImage { get; init; }
 
+    /// <summary>
+    ///     Raw Xbox 360 XDBF thumbnail bytes (usually PNG or JPEG) read from a root
+    ///     <c>default.xex</c>, or <c>null</c> when the executable carries none.
+    /// </summary>
+    public byte[]? TitleThumbnail { get; init; }
+
+    /// <summary>
+    ///     Container-specific details (disc layout, codecs, hashes, archive statistics) shown
+    ///     under the title metadata. Empty when the container exposes none.
+    /// </summary>
+    public IReadOnlyList<ImageMetadataDetail> Details { get; init; } = [];
+
     /// <summary>Reason title metadata or preview images are unavailable, or <c>null</c>.</summary>
     public string? UnavailableReason { get; private init; }
 
@@ -69,12 +81,15 @@ public sealed record ImageMetadata
     /// <param name="path">Image path.</param>
     /// <param name="length">Logical length in bytes.</param>
     /// <param name="reason">Reason title metadata is unavailable.</param>
-    public static ImageMetadata Unavailable(string format, string path, long length, string reason) =>
+    /// <param name="details">Optional container-specific details.</param>
+    public static ImageMetadata Unavailable(string format, string path, long length, string reason,
+        IReadOnlyList<ImageMetadataDetail>? details = null) =>
         new()
         {
             Format = format,
             Path = path,
             Length = length,
-            UnavailableReason = reason
+            UnavailableReason = reason,
+            Details = details ?? []
         };
 }

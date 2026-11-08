@@ -2,12 +2,15 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Serilog;
+using XISOSharp;
 using XISOSharp.Models;
 using XISOStudio.Interfaces;
 using XISOStudio.Models;
@@ -38,6 +41,9 @@ public partial class MainWindow
 
     /// <summary>Decoded XBE preview currently shown, or <c>null</c>.</summary>
     private Bitmap? _xbePreviewBitmap;
+
+    /// <summary>Hashes computed for the open image, or an empty list.</summary>
+    private IReadOnlyList<ImageMetadataDetail> _currentHashes = [];
 
     /// <summary>Stream backing <see cref="_xbePreviewBitmap"/>; kept alive while the bitmap is displayed.</summary>
     private MemoryStream? _xbePreviewStream;
@@ -169,8 +175,8 @@ public partial class MainWindow
             _logger.Information(ex, "The selected file is not a supported Xbox image: {Message}", ex.Message);
             await ShowErrorSafeAsync(
                 "The selected file is not a valid Xbox or Xbox 360 image, or it cannot be read. " +
-                "Please select an Xbox ISO, CSO, CHD, ZAR or GOD/SVOD container (header or .data folder). " +
-                $"Plain STFS/XBLA packages are not disc images and are not supported here.\n\nDetails: {ex.Message}");
+                "Please select an Xbox ISO, XISO, CSO, CCI, CHD, ZAR, GOD/SVOD container (header or .data folder), " +
+                $"or an XBLA/XBLIG STFS package.\n\nDetails: {ex.Message}");
 
             // The grid would otherwise keep showing the previous (now disposed) image.
             ExplorerDataGrid.ItemsSource = null;
@@ -413,10 +419,369 @@ public partial class MainWindow
         GenreValueTextBlock.Text = string.IsNullOrEmpty(metadata.Genre) ? "—" : metadata.Genre;
         DescriptionValueTextBlock.Text = string.IsNullOrEmpty(metadata.Description) ? "—" : metadata.Description;
 
+        ImageDetailsItemsControl.ItemsSource = metadata.Details;
+
         XbePreviewPathTextBox.Text = string.IsNullOrWhiteSpace(metadata.ExecutablePath)
             ? "/default.xbe"
             : metadata.ExecutablePath;
         XbePreviewStatusTextBlock.Text = metadata.UnavailableReason ?? "";
+
+        if (metadata.TitleThumbnail is { Length: > 0 } thumbnail)
+        {
+            ApplyTitleThumbnail(thumbnail);
+        }
+    }
+
+    /// <summary>
+    ///     Renders the raw XDBF thumbnail of an Xbox 360 title (usually PNG or JPEG) in the
+    ///     preview box, replacing any previous preview.
+    /// </summary>
+    /// <param name="thumbnail">Raw image bytes from <c>XexTitleInfo.Thumbnail</c>.</param>
+    private void ApplyTitleThumbnail(byte[] thumbnail)
+    {
+        try
+        {
+            var stream = new MemoryStream(thumbnail, writable: false);
+            var bitmap = new Bitmap(stream);
+            DisposeXbePreview();
+            _xbePreviewStream = stream;
+            _xbePreviewBitmap = bitmap;
+            XbePreviewImage.Source = bitmap;
+            XbePreviewStatusTextBlock.Text = "Xbox 360 title thumbnail";
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException or NotSupportedException
+                                       or IOException)
+        {
+            // The thumbnail is optional decoration; an undecodable payload must not hide
+            // the rest of the metadata or produce a bug report.
+            _logger.Information(ex, "Could not decode the title thumbnail: {Message}", ex.Message);
+        }
+    }
+
+    /// <summary>
+    ///     Extracts the whole open image into a folder chosen by the user, optionally skipping
+    ///     files that were already extracted.
+    /// </summary>
+    /// <param name="sender">The button that raised the event.</param>
+    /// <param name="e">The event data.</param>
+    private async void ExtractAllButton_ClickAsync(object? sender, RoutedEventArgs e)
+    {
+        CancellationToken token;
+        try
+        {
+            token = _explorerCts.Token;
+        }
+        catch (ObjectDisposedException ex)
+        {
+            _logger.Debug(ex, "Skipping extraction because the window is shutting down");
+            return;
+        }
+
+        if (_explorer is null)
+        {
+            UpdateStatus("Open an image before extracting.");
+            return;
+        }
+
+        var destination = await SelectFolderAsync("Select the folder that receives the extracted files");
+        if (string.IsNullOrEmpty(destination)) return;
+
+        var skipExisting = ExtractAllSkipExistingCheckBox.IsChecked == true;
+        ExtractAllButton.IsEnabled = false;
+        UpdateStatus("Extracting image...");
+        _logger.Information("Extracting the image contents to '{Folder}'...", destination);
+
+        var extracted = 0;
+        var progress = new Progress<ProgressInfo>(info =>
+        {
+            if (info.Type != ProgressInfoType.FileAdded) return;
+
+            extracted++;
+            if (extracted % 50 == 0) UpdateStatus($"Extracting: {extracted:N0} file(s)...");
+        });
+
+        try
+        {
+            var result = 0;
+            if (!await UseExplorerAsync(
+                    explorer => result = explorer.ExtractAll(destination, skipExisting, progress, token), token))
+            {
+                UpdateStatus("Open an image before extracting.");
+                return;
+            }
+
+            if (result != 0)
+            {
+                _logger.Information("Extraction finished with result code {ResultCode}.", result);
+                UpdateStatus("Extraction finished with errors.");
+            }
+            else
+            {
+                _logger.Information("Extracted {Count} file(s) to '{Folder}'.", extracted, destination);
+                UpdateStatus("Extraction complete.");
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.Debug(ex, "Image extraction was canceled");
+            UpdateStatus("Extraction canceled.");
+        }
+        catch (Exception ex) when (ImageErrorClassifier.IsUserInputImageError(ex)
+                                   || ImageErrorClassifier.IsEnvironmentalIoError(ex))
+        {
+            _logger.Information(ex, "Could not extract the image: {Message}", ex.Message);
+            await ShowErrorSafeAsync("The image contents could not be extracted:\n\n" + ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to extract the image");
+            await ShowErrorSafeAsync($"Failed to extract the image: {ex.Message}");
+        }
+        finally
+        {
+            ExtractAllButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>
+    ///     Splits the open plain ISO into sector-aligned parts sized for FAT32/FATX drives.
+    /// </summary>
+    /// <param name="sender">The button that raised the event.</param>
+    /// <param name="e">The event data.</param>
+    private async void SplitImageButton_ClickAsync(object? sender, RoutedEventArgs e)
+    {
+        if (_isOperationRunning) return;
+
+        var imagePath = ExplorerFilePathTextBox.Text;
+        if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath) || !SupportedFiles.IsIso(imagePath))
+        {
+            await ShowWarningSafeAsync(
+                "Open a plain .iso/.xiso image to split it. Compressed containers must be decompressed first.");
+            return;
+        }
+
+        var outputFolder = await SelectFolderAsync("Select the folder that receives the split parts");
+        if (string.IsNullOrEmpty(outputFolder)) return;
+
+        SplitImageButton.IsEnabled = false;
+        try
+        {
+            var outputBase = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(imagePath));
+            var parts = await _xisoSplitService.SplitAsync(imagePath, outputBase,
+                XisoSplitter.DefaultPartSizeBytes, _explorerCts.Token);
+            UpdateStatus($"Split into {parts.Count} part(s).");
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.Debug(ex, "Image split was canceled");
+            UpdateStatus("Split canceled.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            _logger.Information(ex, "Could not split '{ImagePath}': {Reason}", imagePath, ex.Message);
+            await ShowErrorSafeAsync("The image could not be split:\n\n" + ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to split '{ImagePath}'", imagePath);
+            await ShowErrorSafeAsync($"Failed to split the image: {ex.Message}");
+        }
+        finally
+        {
+            SplitImageButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>
+    ///     Reassembles a split set starting at a chosen <c>.1.iso</c> part and opens the result.
+    /// </summary>
+    /// <param name="sender">The button that raised the event.</param>
+    /// <param name="e">The event data.</param>
+    private async void JoinImageButton_ClickAsync(object? sender, RoutedEventArgs e)
+    {
+        if (_isOperationRunning) return;
+
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select the first part of the split image (game.1.iso)",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Split ISO first part") { Patterns = ["*.1.iso"] },
+                new FilePickerFileType("All files") { Patterns = ["*"] }
+            ]
+        });
+
+        if (files.Count == 0) return;
+
+        var firstPartPath = files[0].TryGetLocalPath();
+        if (string.IsNullOrEmpty(firstPartPath)) return;
+
+        var stem = Path.GetFileNameWithoutExtension(firstPartPath);
+        if (stem.EndsWith(".1", StringComparison.OrdinalIgnoreCase)) stem = stem[..^2];
+
+        var directory = Path.GetDirectoryName(firstPartPath);
+        if (string.IsNullOrEmpty(directory)) return;
+
+        var outputPath = Path.Combine(directory, stem + ".iso");
+        if (File.Exists(outputPath))
+        {
+            var overwrite = await _messageBoxService.ShowAsync(
+                $"'{Path.GetFileName(outputPath)}' already exists. Replace it with the joined image?",
+                "Join split image", UiMessageBoxButton.YesNo, UiMessageBoxImage.Warning);
+            if (overwrite != UiMessageBoxResult.Yes) return;
+
+            try
+            {
+                File.Delete(outputPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.Information(ex, "Could not replace the existing joined image '{OutputPath}'", outputPath);
+                await ShowErrorSafeAsync("The existing output file could not be replaced:\n\n" + ex.Message);
+                return;
+            }
+        }
+
+        JoinImageButton.IsEnabled = false;
+        try
+        {
+            var joinedPath = await _xisoSplitService.JoinAsync(firstPartPath, outputPath, _explorerCts.Token);
+            UpdateStatus($"Joined image written to '{joinedPath}'.");
+
+            ExplorerFilePathTextBox.Text = joinedPath;
+            await InitializeExplorerAsync(joinedPath);
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.Debug(ex, "Image join was canceled");
+            UpdateStatus("Join canceled.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            _logger.Information(ex, "Could not join '{FirstPart}': {Reason}", firstPartPath, ex.Message);
+            await ShowErrorSafeAsync("The split image could not be joined:\n\n" + ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to join '{FirstPart}'", firstPartPath);
+            await ShowErrorSafeAsync($"Failed to join the split image: {ex.Message}");
+        }
+        finally
+        {
+            JoinImageButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>
+    ///     Computes and displays the checksums of the open image. Hashing is explicit because
+    ///     it reads the whole (decompressed) image and can take a while.
+    /// </summary>
+    /// <param name="sender">The button that raised the event.</param>
+    /// <param name="e">The event data.</param>
+    private async void ComputeHashesButton_ClickAsync(object? sender, RoutedEventArgs e)
+    {
+        var imagePath = ExplorerFilePathTextBox.Text;
+        if (string.IsNullOrWhiteSpace(imagePath) || _explorer is null)
+        {
+            ImageHashesStatusTextBlock.Text = "Open an image before computing hashes.";
+            return;
+        }
+
+        CancellationToken token;
+        try
+        {
+            token = _explorerCts.Token;
+        }
+        catch (ObjectDisposedException ex)
+        {
+            _logger.Debug(ex, "Skipping hash computation because the window is shutting down");
+            return;
+        }
+
+        ComputeHashesButton.IsEnabled = false;
+        CopyHashesButton.IsEnabled = false;
+        ImageHashesItemsControl.ItemsSource = null;
+        ImageHashesStatusTextBlock.Text = "Computing hashes...";
+
+        try
+        {
+            var hashes = await _imageHashService.ComputeAsync(imagePath, token);
+
+            // The user may have opened another image while the hashes were being read.
+            if (!string.Equals(ExplorerFilePathTextBox.Text, imagePath, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            _currentHashes = BuildHashRows(hashes);
+            ImageHashesItemsControl.ItemsSource = _currentHashes;
+            CopyHashesButton.IsEnabled = _currentHashes.Count > 0;
+            ImageHashesStatusTextBlock.Text = hashes.Note ?? "";
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.Debug(ex, "Image hash computation was canceled");
+            ImageHashesStatusTextBlock.Text = "Hash computation canceled.";
+        }
+        catch (Exception ex) when (ImageErrorClassifier.IsUserInputImageError(ex)
+                                   || ImageErrorClassifier.IsEnvironmentalIoError(ex))
+        {
+            _logger.Information(ex, "Could not compute the image hashes: {Message}", ex.Message);
+            ImageHashesStatusTextBlock.Text = $"Hashes unavailable: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to compute the image hashes");
+            ImageHashesStatusTextBlock.Text = "Hashes could not be computed.";
+        }
+        finally
+        {
+            ComputeHashesButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>Copies every computed hash to the clipboard.</summary>
+    /// <param name="sender">The button that raised the event.</param>
+    /// <param name="e">The event data.</param>
+    private async void CopyHashesButton_ClickAsync(object? sender, RoutedEventArgs e)
+    {
+        if (_currentHashes.Count == 0) return;
+
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is null)
+        {
+            ImageHashesStatusTextBlock.Text = "The clipboard is not available.";
+            return;
+        }
+
+        var text = string.Join(Environment.NewLine,
+            _currentHashes.Select(static row => $"{row.Label}: {row.Value}"));
+        await clipboard.SetValueAsync(DataFormat.Text, text);
+        ImageHashesStatusTextBlock.Text = "Hashes copied to the clipboard.";
+    }
+
+    /// <summary>Converts the computed hashes into display rows, omitting unavailable values.</summary>
+    /// <param name="hashes">Hashes to render.</param>
+    /// <returns>The display rows.</returns>
+    private static IReadOnlyList<ImageMetadataDetail> BuildHashRows(ImageHashes hashes)
+    {
+        var rows = new List<ImageMetadataDetail>();
+        if (!string.IsNullOrEmpty(hashes.Crc32)) rows.Add(new ImageMetadataDetail("CRC-32", hashes.Crc32));
+        if (!string.IsNullOrEmpty(hashes.Md5)) rows.Add(new ImageMetadataDetail("MD5", hashes.Md5));
+        if (!string.IsNullOrEmpty(hashes.Sha1)) rows.Add(new ImageMetadataDetail("SHA-1", hashes.Sha1));
+        if (!string.IsNullOrEmpty(hashes.Sha256)) rows.Add(new ImageMetadataDetail("SHA-256", hashes.Sha256));
+        if (!string.IsNullOrEmpty(hashes.ImageSha3256))
+        {
+            rows.Add(new ImageMetadataDetail("SHA3-256", hashes.ImageSha3256));
+        }
+
+        if (!string.IsNullOrEmpty(hashes.TreeSha3256))
+        {
+            rows.Add(new ImageMetadataDetail("Tree SHA3-256", hashes.TreeSha3256));
+        }
+
+        return rows;
     }
 
     /// <summary>Clears the details panel and disposes the current preview.</summary>
@@ -437,6 +802,12 @@ public partial class MainWindow
         DeveloperValueTextBlock.Text = "";
         GenreValueTextBlock.Text = "";
         DescriptionValueTextBlock.Text = "";
+        ImageDetailsItemsControl.ItemsSource = null;
+        _currentHashes = [];
+        ImageHashesItemsControl.ItemsSource = null;
+        ImageHashesStatusTextBlock.Text = "";
+        CopyHashesButton.IsEnabled = false;
+        ComputeHashesButton.IsEnabled = true;
         XbePreviewStatusTextBlock.Text = "";
         XbePreviewPathTextBox.Text = "/default.xbe";
     }
@@ -931,10 +1302,11 @@ public partial class MainWindow
     private static readonly string[] OptionsArray4 = ["*.cci"];
 
     /// <summary>File picker patterns matching ISO images.</summary>
-    private static readonly string[] OptionsArray = ["*.iso"];
+    private static readonly string[] OptionsArray = ["*.iso", "*.xiso", "*.img"];
 
     /// <summary>File picker patterns matching all supported Xbox images.</summary>
-    private static readonly string[] Options = ["*.iso", "*.cso", "*.cci", "*.zar", "*.chd"];
+    private static readonly string[] Options =
+        ["*.iso", "*.xiso", "*.img", "*.cso", "*.cci", "*.zar", "*.chd"];
 
     /// <summary>Navigates to the parent directory of the explorer view.</summary>
     /// <param name="sender">The button that raised the event.</param>

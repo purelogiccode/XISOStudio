@@ -25,6 +25,9 @@ public class OrchestratorService : IOrchestratorService
     /// <summary>Validates image structure and readability.</summary>
     private readonly IXisoIntegrityService _integrityService;
 
+    /// <summary>Decompresses compressed containers back into plain ISO images.</summary>
+    private readonly IImageConversionService _imageConversionService;
+
     /// <summary>Converts images to XISO, ZAR or CSO.</summary>
     private readonly IXisoSharpService _xisoSharpService;
 
@@ -84,6 +87,7 @@ public class OrchestratorService : IOrchestratorService
     /// <param name="xisoSharpService">Converts images to XISO, ZAR or CSO.</param>
     /// <param name="chdService">Converts images to CHD.</param>
     /// <param name="diskMonitorService">Resolves temporary directories based on free disk space.</param>
+    /// <param name="imageConversionService">Decompresses compressed containers back into plain ISO images.</param>
     public OrchestratorService(
         IFileExtractor fileExtractor,
         IFileMover fileMover,
@@ -91,7 +95,8 @@ public class OrchestratorService : IOrchestratorService
         IXisoIntegrityService integrityService,
         IXisoSharpService xisoSharpService,
         IChdService chdService,
-        IDiskMonitorService diskMonitorService)
+        IDiskMonitorService diskMonitorService,
+        IImageConversionService imageConversionService)
     {
         _fileExtractor = fileExtractor;
         _fileMover = fileMover;
@@ -100,6 +105,7 @@ public class OrchestratorService : IOrchestratorService
         _xisoSharpService = xisoSharpService;
         _chdService = chdService;
         _diskMonitorService = diskMonitorService;
+        _imageConversionService = imageConversionService;
     }
 
     #region Conversion Logic
@@ -300,7 +306,7 @@ public class OrchestratorService : IOrchestratorService
                 {
                     switch (extension)
                     {
-                        case ".iso":
+                        case ".iso" or ".xiso" or ".img":
                             var isoStatus = await ConvertFileInternalAsync(entryPath, outputFolder, deleteOriginals,
                                 context.GlobalFileIndex++, context, skipSystemUpdate, checkIntegrity, outputFormat,
                                 progress, onCloudRetryRequired, token);
@@ -837,6 +843,7 @@ public class OrchestratorService : IOrchestratorService
             {
                 OutputFormat.Zar => ".zar",
                 OutputFormat.Cso => ".cso",
+                OutputFormat.Cci => ".cci",
                 OutputFormat.Chd => ".chd",
                 _ => ".iso"
             };
@@ -861,6 +868,7 @@ public class OrchestratorService : IOrchestratorService
             {
                 OutputFormat.Zar => "ZAR",
                 OutputFormat.Cso => "CSO",
+                OutputFormat.Cci => "CCI",
                 OutputFormat.Chd => "CHD",
                 _ => "optimized XISO"
             };
@@ -926,6 +934,304 @@ public class OrchestratorService : IOrchestratorService
                 await TempFolderCleanupHelper.TryDeleteDirectoryWithRetryAsync(localTempWorkingDir, 5, 1000, _logger,
                     CancellationToken.None);
             }
+        }
+    }
+
+    /// <summary>
+    /// Decompresses the selected CISO/CSO, CCI, ZAR, CHD and GOD/SVOD images back into plain
+    /// ISO files and optionally deletes each source after a successful decompression.
+    /// </summary>
+    /// <param name="files">Full paths of the images to decompress; unsupported files are ignored.</param>
+    /// <param name="outputFolder">Folder the decompressed ISO files are written to.</param>
+    /// <param name="deleteOriginals">When <c>true</c>, deletes each source after a successful decompression.</param>
+    /// <param name="checkIntegrity">When <c>true</c>, audits the decompressed ISO structure.</param>
+    /// <param name="progress">Receives progress updates for the batch.</param>
+    /// <param name="onCloudRetryRequired">Callback invoked when a cloud file cannot be read and a retry decision is needed.</param>
+    /// <param name="token">Token used to cancel the batch.</param>
+    /// <returns>A task that completes when the batch decompression has finished.</returns>
+    public Task DecompressFilesAsync(
+        IReadOnlyList<string> files,
+        string outputFolder,
+        bool deleteOriginals,
+        bool checkIntegrity,
+        IProgress<BatchOperationProgress> progress,
+        Func<string, Task<CloudRetryResult>> onCloudRetryRequired,
+        CancellationToken token)
+    {
+        return RunWithErrorHandlingAsync("DecompressFilesAsync", async () =>
+        {
+            var imageFiles = files.Where(SupportedFiles.IsDecompressible).ToList();
+            if (imageFiles.Count == 0)
+            {
+                _logger.Information("No compressed images selected for decompression.");
+                return;
+            }
+
+            _logger.Information("Starting decompression of {FileCount} selected image(s). Output: {OutputFolder}",
+                imageFiles.Count, outputFolder);
+
+            await DecompressEntriesCoreAsync(imageFiles, outputFolder, deleteOriginals, checkIntegrity, progress,
+                onCloudRetryRequired, token);
+        });
+    }
+
+    /// <summary>
+    /// Decompresses every entry, reports the per-file status and cleans up temporary copies.
+    /// </summary>
+    /// <param name="entries">Images to decompress.</param>
+    /// <param name="outputFolder">Folder the ISO files are written to.</param>
+    /// <param name="deleteOriginals">Whether to delete each source after success.</param>
+    /// <param name="checkIntegrity">Whether to audit each produced ISO.</param>
+    /// <param name="progress">Receives progress updates for the batch.</param>
+    /// <param name="onCloudRetryRequired">Callback invoked when a cloud file cannot be read and a retry decision is needed.</param>
+    /// <param name="token">Token used to cancel the batch.</param>
+    private async Task DecompressEntriesCoreAsync(IReadOnlyList<string> entries, string outputFolder,
+        bool deleteOriginals, bool checkIntegrity, IProgress<BatchOperationProgress> progress,
+        Func<string, Task<CloudRetryResult>> onCloudRetryRequired, CancellationToken token)
+    {
+        progress.Report(new BatchOperationProgress { TotalFiles = entries.Count });
+
+        var context = new ProcessingContext();
+        var processed = 0;
+
+        foreach (var entryPath in entries)
+        {
+            token.ThrowIfCancellationRequested();
+
+            var fileName = Path.GetFileName(entryPath);
+            progress.Report(new BatchOperationProgress
+            {
+                StatusText = $"Decompressing: {fileName}", CurrentDrive = PathHelper.GetDriveLetter(entryPath)
+            });
+
+            string? tempDir = null;
+            try
+            {
+                if (!File.Exists(entryPath))
+                {
+                    progress.Report(new BatchOperationProgress
+                    {
+                        LogMessage = $"Error: Source file not found: {entryPath}. Skipping.", FailedCount = 1,
+                        FailedPathToAdd = entryPath
+                    });
+                    _logger.Information("Source file not found, skipping: {FilePath}", entryPath);
+                }
+                else
+                {
+                    var (sourcePath, preparedTempDir) = await PrepareLocalSourceAsync(entryPath,
+                        context.GlobalFileIndex++, onCloudRetryRequired, progress, token);
+                    tempDir = preparedTempDir;
+
+                    if (sourcePath is null)
+                    {
+                        progress.Report(new BatchOperationProgress
+                            { FailedCount = 1, FailedPathToAdd = entryPath });
+                    }
+                    else
+                    {
+                        var outputStem = XisoImageSource.StripImageSuffix(fileName);
+                        // CHD is not an XisoImageSource suffix, so stripping returns the name
+                        // unchanged; fall back to a plain extension strip for it.
+                        if (string.IsNullOrWhiteSpace(outputStem) ||
+                            string.Equals(outputStem, fileName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            outputStem = Path.GetFileNameWithoutExtension(fileName);
+                        }
+
+                        var destinationPath = context.ReserveOutputPath(outputFolder, outputStem, ".iso");
+
+                        progress.Report(new BatchOperationProgress
+                        {
+                            LogMessage = $"File '{fileName}': Decompressing to ISO...",
+                            CurrentDrive = PathHelper.GetDriveLetter(outputFolder)
+                        });
+
+                        var status = await _imageConversionService.DecompressToIsoAsync(sourcePath, outputFolder,
+                            Path.GetFileName(destinationPath), checkIntegrity, progress, token);
+                        ReportStatus(status, entryPath, progress);
+
+                        if (status == FileProcessingStatus.Converted && deleteOriginals)
+                        {
+                            await DeleteSourceImageAsync(entryPath, progress);
+                        }
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.Debug("Decompression canceled while processing {FileName}", fileName);
+                throw;
+            }
+            catch (Exception ex) when (PathHelper.IsDiskSpaceError(ex))
+            {
+                progress.Report(new BatchOperationProgress
+                {
+                    LogMessage =
+                        "ERROR: Not enough disk space on the output drive. Batch operation stopped. Please free up disk space and try again.",
+                    FailedCount = 1,
+                    FailedPathToAdd = entryPath
+                });
+                _logger.Information(ex, "Not enough disk space; batch decompression stopped on {FileName}", fileName);
+                throw;
+            }
+            catch (Exception ex) when (IsFatalEnvironmentalError(ex))
+            {
+                progress.Report(new BatchOperationProgress
+                {
+                    LogMessage =
+                        $"FATAL ERROR: The source or output device is not available: {ex.Message}. Batch operation stopped.",
+                    FailedCount = 1,
+                    FailedPathToAdd = entryPath
+                });
+                _logger.Information(ex, "Device or path unavailable; batch decompression stopped on {FileName}",
+                    fileName);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                progress.Report(new BatchOperationProgress
+                {
+                    LogMessage = $"ERROR: {fileName} could not be decompressed: {ex.Message}",
+                    FailedCount = 1,
+                    FailedPathToAdd = entryPath
+                });
+
+                if (IsFatalEnvironmentalError(ex) || PathHelper.IsNetworkError(ex) ||
+                    ex is UnauthorizedAccessException or IOException)
+                {
+                    _logger.Information(ex, "Handled decompression error on {FileName}", fileName);
+                }
+                else
+                {
+                    _logger.Error(ex, "Orchestrator decompression error on {FileName}", fileName);
+                }
+            }
+            finally
+            {
+                if (tempDir != null)
+                {
+                    await TempFolderCleanupHelper.TryDeleteDirectoryWithRetryAsync(tempDir, 5, 1000, _logger,
+                        CancellationToken.None);
+                }
+            }
+
+            processed++;
+            progress.Report(new BatchOperationProgress { ProcessedCount = processed });
+        }
+
+        _logger.Information("Batch decompression completed. Processed {ProcessedCount} of {TotalFiles} file(s)",
+            processed, entries.Count);
+    }
+
+    /// <summary>
+    /// Returns a locally readable path for <paramref name="inputFile"/>, copying cloud
+    /// placeholders to a temporary folder when the source cannot be opened directly.
+    /// </summary>
+    /// <param name="inputFile">Path of the source image.</param>
+    /// <param name="fileIndex">One-based index used to name the temporary copy.</param>
+    /// <param name="onCloudRetryRequired">Callback invoked when a cloud file cannot be read.</param>
+    /// <param name="progress">Receives progress updates for the copy.</param>
+    /// <param name="token">Token used to cancel the copy.</param>
+    /// <returns>The readable path and the temporary folder to clean up, or a null path on failure.</returns>
+    private async Task<(string? Path, string? TempDir)> PrepareLocalSourceAsync(string inputFile, int fileIndex,
+        Func<string, Task<CloudRetryResult>> onCloudRetryRequired, IProgress<BatchOperationProgress> progress,
+        CancellationToken token)
+    {
+        try
+        {
+            await Task.Run(() =>
+            {
+                using var stream = File.OpenRead(inputFile);
+            }, token);
+            return (inputFile, null);
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            progress.Report(new BatchOperationProgress
+                { LogMessage = $"Error: Source file not found: {inputFile}. Skipping." });
+            _logger.Information(ex, "Source file no longer exists while preparing decompression: {FileName}",
+                inputFile);
+            return (null, null);
+        }
+        catch (IOException)
+        {
+            _logger.Debug("File {FileName} is not directly readable; copying to a local temp file", inputFile);
+
+            var tempDir = ResolveTempDirectory(new FileInfo(inputFile).Length, "XISOStudio_Decompress");
+            Directory.CreateDirectory(tempDir);
+            var tempPath = Path.Combine(tempDir, GenerateFilename.GenerateSimpleFilename(fileIndex));
+
+            progress.Report(new BatchOperationProgress
+            {
+                LogMessage = $"File '{Path.GetFileName(inputFile)}': Copying to local temp...",
+                CurrentDrive = PathHelper.GetDriveLetter(Path.GetTempPath())
+            });
+
+            return await CopyFileWithCloudRetryAsync(inputFile, tempPath, onCloudRetryRequired, progress, token)
+                ? (tempPath, tempDir)
+                : (null, tempDir);
+        }
+    }
+
+    /// <summary>
+    /// Deletes a source image after a successful decompression, including every part of a
+    /// split CISO/CCI/ISO set so no orphaned continuation part is left behind.
+    /// </summary>
+    /// <param name="imagePath">Path of the source image that was decompressed.</param>
+    /// <param name="progress">Receives the deletion log lines.</param>
+    private async Task DeleteSourceImageAsync(string imagePath, IProgress<BatchOperationProgress> progress)
+    {
+        foreach (var fileToDelete in EnumerateSourceParts(imagePath))
+        {
+            try
+            {
+                await Task.Run(() => File.Delete(fileToDelete));
+                progress.Report(new BatchOperationProgress
+                    { LogMessage = $"Deleted original: {Path.GetFileName(fileToDelete)}" });
+            }
+            catch (Exception ex)
+            {
+                progress.Report(new BatchOperationProgress
+                {
+                    LogMessage =
+                        $"Warning: Could not delete original {Path.GetFileName(fileToDelete)}: {ex.Message}"
+                });
+
+                if (PathHelper.IsFileInUseError(ex) || PathHelper.IsDeviceIoError(ex) ||
+                    PathHelper.IsNetworkError(ex) || ex is UnauthorizedAccessException)
+                {
+                    _logger.Information(ex, "Could not delete original file {FileName}", fileToDelete);
+                }
+                else
+                {
+                    _logger.Warning(ex, "Could not delete original file {FileName}", fileToDelete);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Yields the source and, for a split set starting at <c>.1</c>, every existing part.
+    /// </summary>
+    /// <param name="imagePath">Path of the source image.</param>
+    /// <returns>The files that make up the source image.</returns>
+    private static IEnumerable<string> EnumerateSourceParts(string imagePath)
+    {
+        yield return imagePath;
+
+        var extension = Path.GetExtension(imagePath);
+        if (extension.Length == 0) yield break;
+
+        var firstPartSuffix = ".1" + extension;
+        if (!imagePath.EndsWith(firstPartSuffix, StringComparison.OrdinalIgnoreCase)) yield break;
+
+        var basePath = imagePath[..^firstPartSuffix.Length];
+        for (var part = 2;; part++)
+        {
+            var partPath = $"{basePath}.{part.ToString(CultureInfo.InvariantCulture)}{extension}";
+            if (!File.Exists(partPath)) yield break;
+
+            yield return partPath;
         }
     }
 
@@ -1094,7 +1400,7 @@ public class OrchestratorService : IOrchestratorService
     }
 
     /// <summary>
-    /// Moves a tested image to the success/failed folder. A split CISO set is opened
+    /// Moves a tested image to the success/failed folder. A split ISO/CISO/CCI set is opened
     /// through its first part (<c>game.1.cso</c>), so the continuation parts
     /// (<c>game.2.cso</c>, …) travel with it — moving part 1 alone would break the set.
     /// </summary>
@@ -1107,7 +1413,9 @@ public class OrchestratorService : IOrchestratorService
     {
         await _fileMover.MoveTestedFileAsync(imagePath, destinationFolder, moveReason, token);
 
-        if (!imagePath.EndsWith(".1.cso", StringComparison.OrdinalIgnoreCase)) return;
+        var extension = Path.GetExtension(imagePath);
+        var firstPartSuffix = ".1" + extension;
+        if (!imagePath.EndsWith(firstPartSuffix, StringComparison.OrdinalIgnoreCase)) return;
 
         // Part 1 was not moved (destination already exists or the move failed): leave the
         // set together instead of stranding the continuation parts.
@@ -1115,8 +1423,7 @@ public class OrchestratorService : IOrchestratorService
 
         // Preserve the original extension casing: on case-sensitive file systems a
         // hard-coded ".cso" would never find parts named "game.2.CSO".
-        var basePath = imagePath[..^".1.cso".Length];
-        var extension = imagePath[^4..];
+        var basePath = imagePath[..^firstPartSuffix.Length];
         for (var part = 2;; part++)
         {
             var partPath = $"{basePath}.{part.ToString(CultureInfo.InvariantCulture)}{extension}";
@@ -1127,15 +1434,16 @@ public class OrchestratorService : IOrchestratorService
     }
 
     /// <summary>
-    ///     Enumerates the existing parts of a split CISO set starting at its first part
+    ///     Enumerates the existing parts of a split ISO/CISO/CCI set starting at its first part
     ///     (<c>game.1.cso</c>, <c>game.2.cso</c>, …), preserving the original extension casing.
     /// </summary>
-    /// <param name="firstPartPath">Path of the first part of the split CISO set (for example <c>game.1.cso</c>).</param>
+    /// <param name="firstPartPath">Path of the first part of the split set (for example <c>game.1.cso</c>).</param>
     /// <returns>The existing parts of the set, starting with the first part.</returns>
-    private static IEnumerable<string> EnumerateSplitCisoParts(string firstPartPath)
+    private static IEnumerable<string> EnumerateSplitParts(string firstPartPath)
     {
-        var basePath = firstPartPath[..^".1.cso".Length];
-        var extension = firstPartPath[^4..];
+        var extension = Path.GetExtension(firstPartPath);
+        var firstPartSuffix = ".1" + extension;
+        var basePath = firstPartPath[..^firstPartSuffix.Length];
 
         for (var part = 1;; part++)
         {
@@ -1194,13 +1502,15 @@ public class OrchestratorService : IOrchestratorService
                 // Likely cloud file issue, use existing copy logic
                 _logger.Debug("Image {ImagePath} is not directly readable; copying to local temp", isoPath);
 
-                // A split CISO set is opened through its first part, so every part must be
-                // copied and the names must keep the ".1.cso"/".2.cso" markers XISOSharp
+                // A split ISO/CISO/CCI set is opened through its first part, so every part must
+                // be copied and the names must keep the ".1.cso"/".2.cso" markers XISOSharp
                 // uses to recognize the set.
                 var extension = Path.GetExtension(isoPath);
                 var simpleStem = Path.GetFileNameWithoutExtension(GenerateFilename.GenerateSimpleFilename(index));
-                var isSplitCiso = isoPath.EndsWith(".1.cso", StringComparison.OrdinalIgnoreCase);
-                var parts = isSplitCiso ? EnumerateSplitCisoParts(isoPath).ToList() : [isoPath];
+                var isSplitSet = isoPath.EndsWith(".1.cso", StringComparison.OrdinalIgnoreCase) ||
+                                 isoPath.EndsWith(".1.cci", StringComparison.OrdinalIgnoreCase) ||
+                                 isoPath.EndsWith(".1.iso", StringComparison.OrdinalIgnoreCase);
+                var parts = isSplitSet ? EnumerateSplitParts(isoPath).ToList() : [isoPath];
 
                 long estimatedSize = 0;
                 try
@@ -1219,7 +1529,7 @@ public class OrchestratorService : IOrchestratorService
 
                 for (var partIndex = 0; partIndex < parts.Count; partIndex++)
                 {
-                    var partName = isSplitCiso
+                    var partName = isSplitSet
                         ? $"{simpleStem}.{(partIndex + 1).ToString(CultureInfo.InvariantCulture)}{extension}"
                         : simpleStem + extension;
                     var tempPartPath = Path.Combine(tempDir, partName);

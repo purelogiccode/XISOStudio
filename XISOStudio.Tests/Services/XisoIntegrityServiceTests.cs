@@ -1,5 +1,6 @@
 using XISOStudio.Models;
 using XISOStudio.Services;
+using XISOStudio.Tests.Fixtures;
 using Serilog.Events;
 using CCISharp;
 using XISOSharp;
@@ -761,5 +762,70 @@ public sealed class XisoIntegrityServiceTests : IDisposable
 
         Assert.False(passed);
         Assert.Equal(0, TotalInvalidIsoCount(progress));
+    }
+
+    [Fact]
+    public async Task GodContainerPassesIntegrityTest()
+    {
+        var isoPath = CreateOptimizedXiso("god-source.iso");
+        var godDirectory = Directory.CreateDirectory(Path.Combine(_tempRoot, "god")).FullName;
+        var header = SyntheticGodContainer.CreateFromIso(
+            isoPath,
+            Path.Combine(godDirectory, "58480813ABCDEF0123456789"),
+            "GOD Integrity Test",
+            0x58480813,
+            discNumber: 1,
+            discCount: 1);
+
+        var service = CreateService();
+        var progress = new CollectingProgress();
+
+        var passed = await service.TestIsoIntegrityAsync(header, false, progress, CancellationToken.None);
+
+        Assert.True(passed);
+        Assert.Equal(0, TotalInvalidIsoCount(progress));
+    }
+
+    [Fact]
+    public async Task ValidStfsPackagePassesIntegrityTest()
+    {
+        var packagePath = CreateStfsPackage();
+        var service = CreateService();
+        var progress = new CollectingProgress();
+
+        var passed = await service.TestIsoIntegrityAsync(packagePath, false, progress, CancellationToken.None);
+
+        Assert.True(passed);
+        Assert.Equal(0, TotalInvalidIsoCount(progress));
+    }
+
+    [Fact]
+    public async Task CorruptStfsDataBlockFailsIntegrityTest()
+    {
+        var packagePath = CreateStfsPackage();
+        var bytes = File.ReadAllBytes(packagePath);
+        bytes[^1] ^= 0xFF;
+        File.WriteAllBytes(packagePath, bytes);
+
+        var service = CreateService();
+        var progress = new CollectingProgress();
+
+        var passed = await service.TestIsoIntegrityAsync(packagePath, false, progress, CancellationToken.None);
+
+        Assert.False(passed);
+        Assert.Equal(1, TotalInvalidIsoCount(progress));
+    }
+
+    /// <summary>Builds a small synthetic XBLA package for the STFS integrity tests.</summary>
+    /// <returns>Path of the package.</returns>
+    private string CreateStfsPackage()
+    {
+        var packagePath = Path.Combine(_tempRoot, "584109B7");
+        SyntheticStfsPackage.Create(packagePath,
+        [
+            new SyntheticStfsFile("default.xex", new byte[512]),
+            new SyntheticStfsFile("data/readme.txt", "hello"u8.ToArray())
+        ], titleName: "Integrity STFS");
+        return packagePath;
     }
 }

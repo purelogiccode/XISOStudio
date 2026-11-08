@@ -15,5 +15,8 @@ public enum OutputFormat
     Cso = 2,
 
     /// <summary>Compressed Hunks of Data (<c>.chd</c>) — CHD v5, readable by MAME-compatible tools.</summary>
-    Chd = 3
+    Chd = 3,
+
+    /// <summary>CCI/CCIM compressed image (<c>.cci</c>) — LZ4 sectors, single file.</summary>
+    Cci = 4
 }

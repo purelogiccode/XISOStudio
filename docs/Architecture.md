@@ -30,13 +30,19 @@ CSharp_XISOStudio.sln
 │   └── Services/                        All business logic
 │       ├── OrchestratorService.cs       Batch pipeline coordination
 │       ├── SupportedFiles.cs            Extension filters shared by the UI lists and folder scans
-│       ├── XisoSharpService.cs          XISO/ZAR/CSO conversion via the XISOSharp library
+│       ├── XisoSharpService.cs          XISO/ZAR/CSO/CCI conversion via the XISOSharp library
 │       ├── ChdService.cs                CHD conversion via the CHDSharp library
+│       ├── ImageConversionService.cs    CSO/CCI/ZAR/CHD/GOD decompression back to plain ISO
+│       ├── ConversionValidationService.cs  Source-vs-output tree/size/SHA-256 comparison
+│       ├── ImageHashService.cs          CRC-32/MD5/SHA-1/SHA-256/SHA3-256 and xdvdfs tree hashes
+│       ├── XisoRecoveryService.cs       In-place repair and salvage-to-ISO
+│       ├── XisoSplitService.cs          FATX split/join for plain ISO images
 │       ├── XisoIntegrityService.cs      Structural audit + deep scan via XISOSharp / CCISharp / ZArchiveSharp / CHDSharp
 │       ├── ImageExplorerFactory.cs      Opens the right IImageExplorer (XISO/CISO/CCI/GOD, ZAR or CHD)
 │       ├── XisoImageExplorer.cs         IImageExplorer over ISO/CSO/CCI/GOD via XisoImage + metadata/XBE assets
 │       ├── ZarImageExplorer.cs          IImageExplorer over ZAR via ZArchiveReader (zip-slip safe)
-│       ├── ChdImageExplorer.cs          IImageExplorer over CHD via CHDSharp + XISOSharp (on-demand decompression)
+│       ├── ChdImageExplorer.cs          IImageExplorer over CHD via CHDSharp + XISOSharp (read-ahead, on-demand)
+│       ├── StfsImageExplorer.cs         IImageExplorer over XBLA/XBLIG STFS packages via StfsSharp
 │       ├── ImagePaths.cs                Shared internal-path normalization helpers
 │       ├── FileExtractorService.cs      Archive handling (zip/7z/rar), locked-file retries
 │       ├── ArchiveErrorClassifier.cs    Classifies SharpCompress failures as user input
@@ -63,10 +69,15 @@ The bundled 7-Zip CLI fallback (`7za.exe`/`7za_arm64.exe` on Windows, `7zz_linux
 | Serilog `ILogger` | Singleton | Structured logging pipeline (UI, rolling file, and bug-report sinks) |
 | `IDiskMonitorService` | Singleton | Drive throughput counters (Windows performance counters; `N/A` on Linux/macOS) and free-space queries |
 | `IOrchestratorService` | Singleton | Batch pipeline: per-file dispatch for the selected files, progress, cancellation |
-| `IXisoSharpService` | Singleton | XISO/ZAR/CSO conversion via the XISOSharp library |
+| `IXisoSharpService` | Singleton | XISO/ZAR/CSO/CCI conversion via the XISOSharp library |
 | `IChdService` | Singleton | CHD conversion via the CHDSharp library (rewrites non-optimized inputs through `IXisoSharpService`, then encodes and verifies) |
-| `IXisoIntegrityService` | Singleton | Structural audit + deep scan via XISOSharp (ISO/CSO), CCISharp (CCI container + LZ4 sectors), ZArchiveSharp (ZAR) and CHDSharp (CHD container + Xbox filesystem) |
-| `IImageExplorer` | Per open image | Explorer over ISO/CSO/CCI/GOD (`XisoImage`), ZAR (`ZArchiveReader`) or CHD (`ChdImageStream` + XISOSharp), built by `ImageExplorerFactory`; exposes title metadata and XBE assets for the details panel |
+| `IImageConversionService` | Singleton | CSO/CCI/ZAR/CHD/GOD decompression back to plain ISO (Decompress view) |
+| `IConversionValidationService` | Singleton | Compares each converted output with its source (paths, sizes, per-file SHA-256; ignores a deliberate `$SystemUpdate` removal) |
+| `IImageHashService` | Singleton | Whole-image CRC-32/MD5/SHA-1/SHA-256/SHA3-256, xdvdfs tree hash and per-file sidecars (ISO/ZAR/STFS tree hashes) |
+| `IXisoRecoveryService` | Singleton | In-place `XisoReader.Repair` (always with `.old` backup) and `XisoReader.Salvage` |
+| `IXisoSplitService` | Singleton | `XisoReader.SplitXiso` / `JoinSplitXiso` with a post-join audit |
+| `IXisoIntegrityService` | Singleton | Structural audit + deep scan via XISOSharp (ISO/XISO/IMG/CSO), CCISharp (CCI container + LZ4 sectors), ZArchiveSharp (ZAR), CHDSharp (CHD container + Xbox filesystem) and StfsSharp (STFS SHA-1 hash tree) |
+| `IImageExplorer` | Per open image | Explorer over ISO/XISO/IMG/CSO/CCI/GOD (`XisoImage`), ZAR (`ZArchiveReader`), CHD (`ChdImageStream` + XISOSharp) or STFS (`StfsPackage`), built by `ImageExplorerFactory`; exposes title metadata, container details, XBE/XDBF assets and whole-image extraction |
 | `IFileExtractor` | Transient | Archive extraction with fallbacks and lock retries |
 | `IFileMover` | Transient | Move/copy operations with retry + backoff |
 | `IBugReportService` | Singleton | Sends exception reports to the developer endpoint |
@@ -85,39 +96,63 @@ MainWindow (Convert tab)
    └─► OrchestratorService (ConvertFilesAsync)
          ├─ for each selected file:
           │    ├─ .zip/.7z/.rar ──► FileExtractorService ──► temp ISO ──► convert ──► cleanup
-          │    └─ .iso ──► XisoSharpService (in-process: XISO / ZAR / CSO)
-          │                or ChdService (CHDSharp CHD encode + deep verify)
+          │    └─ .iso/.xiso/.img ──► XisoSharpService (in-process: XISO / ZAR / CSO / CCI)
+          │                             or ChdService (CHDSharp CHD encode + deep verify)
          ├─ after each file: optional integrity check, optional original deletion,
          │   file moves (retry-aware), progress + stats updates
          └─ final summary (success/fail/skip counts, elapsed time)
 ```
 
 The requested output format flows from the UI through `ConvertFilesAsync`/`ConvertAsync`:
-**XISO**, **ZAR**, and **CSO** go to `IXisoSharpService.ConvertIsoAsync` — XISO uses
+**XISO**, **ZAR**, **CSO**, and **CCI** go to `IXisoSharpService.ConvertIsoAsync` — XISO uses
 `XisoReader.Rewrite`, ZAR streams the game-partition tree via `XisoZarchive.CreateZar` (Redump
-partition offsets detected with `XgdTables`), and CSO repacks non-optimized inputs to a
-temporary XISO and calls `CisoWriter.CompressToCso` (CISO v2/LZ4). **CHD** goes to
+partition offsets detected with `XgdTables`), CSO repacks non-optimized inputs to a
+temporary XISO and calls `CisoWriter.CompressToCso` (CISO v2/LZ4), and CCI reuses the same
+preparation and calls `XisoCci.CompressToCci` (single file, level 9). **CHD** goes to
 `IChdService.ConvertIsoToChdAsync`, which reuses the optimized-XISO rewrite for non-optimized
 inputs and then calls `ChdEncoder.EncodeRaw` (CHDSharp) with the chdman `createdvd` preset
 (4096-byte hunks, 2048-byte units, `lzma,zlib,huff,flac`, `DVD ` metadata), followed by a
 header check and — when output integrity is enabled — a full `Chd.CheckFile` deep verification.
 
 Already-optimized inputs are skipped by default; when **Skip $SystemUpdate** is enabled they are
-rewritten through the `$SystemUpdate` filter before CSO/CHD packing, so the option is honored for
-every output format.
+rewritten through the `$SystemUpdate` filter before CSO/CCI/CHD packing, so the option is honored
+for every output format. With output integrity enabled, non-CHD formats are additionally compared
+with their source by `IConversionValidationService` (paths, sizes and per-file SHA-256).
+
+## Decompression Pipeline
+
+```text
+MainWindow (Decompress tab)
+   └─► OrchestratorService (DecompressFilesAsync)
+         └─ ImageConversionService.DecompressToIsoAsync
+              ├─ CISO/CSO   ──► CisoReader.DecompressToIso
+              ├─ CCI        ──► XisoCci.DecompressToIso
+              ├─ ZAR        ──► XisoZarchive.ConvertZarToIso
+              ├─ CHD        ──► ChdImageStream copy (read-ahead enabled)
+              └─ GOD/SVOD   ──► XisoImageSource.OpenRead copy
+```
+
+The orchestrator handles cloud hydration, split-set deletion (only after success), progress,
+cancellation and temporary-folder cleanup, and optionally audits each produced ISO before
+reporting success.
 
 The folder-scanning `ConvertAsync`/`TestAsync` overloads remain available for callers that want the
 orchestrator to discover files itself; the UI always passes the explicit list of ticked files.
 
 The test pipeline (`TestAsync`/`TestFilesAsync` → `IXisoIntegrityService`) dispatches by extension:
-`.iso` and `.cso` (single or split `.1.cso`) go through `XisoReader.AuditXiso(...,
+`.iso`, `.xiso`, `.img` and `.cso` (single or split `.1.cso`) go through `XisoReader.AuditXiso(...,
 requireOptimizedTag: false)` and, with the deep scan enabled, a sequential read of the whole
 decompressed image; `.cci` is validated with `CciFile.Validate` (header/index, or every LZ4 sector
 with the deep scan) before the same XDVDFS audit; `.zar` is opened, tree-walked, and (deep scan)
 fully decompressed through `ZArchiveReader`; `.chd` (Xbox DVD images only) is verified with
 `Chd.CheckFile` (header-only, or every hunk and checksum with the deep scan) and the Xbox filesystem
-is audited through `XisoReader.AuditXiso(IBlockDevice)` over a `ChdImageStream`. Split CISO/CCI
-continuation parts are hidden from the list and move together with part 1.
+is audited through `XisoReader.AuditXiso(IBlockDevice)` over a `ChdImageStream`. Single-file
+XBLA/XBLIG **STFS packages** are detected before the extension dispatch and validated through
+`StfsPackage.Validate` (every data block, file chain, level table, top hash and header hash).
+Split ISO/CISO/CCI continuation parts are hidden from the list and move together with part 1.
+Recovery actions call `IXisoRecoveryService` directly from the test view: `Repair` mutates the
+selected plain images in place (always writing a `.old` backup) and `Salvage` rebuilds a fresh
+`<name>.salvaged.iso` without modifying the source.
 
 Safety characteristics of the pipeline:
 
@@ -174,7 +209,7 @@ The `XISOStudio.Tests` project (xUnit, Moq) covers models, services, and helper 
 dotnet test CSharp_XISOStudio.sln
 ```
 
-The suite includes service tests (e.g., `OrchestratorServiceTests`, `FileExtractorServiceTests`, `XisoSharpServiceTests`, `XisoIntegrityServiceTests`) plus model and helper coverage. Tests run
+The suite includes service tests (e.g., `OrchestratorServiceTests`, `FileExtractorServiceTests`, `XisoSharpServiceTests`, `XisoIntegrityServiceTests`, `ImageConversionServiceTests`, `ConversionValidationServiceTests`, `ImageHashServiceTests`, `XisoRecoveryServiceTests`, `XisoSplitServiceTests`) plus model and helper coverage. Tests run
 sequentially (`CollectionBehavior(DisableTestParallelization = true)`) because XISOSharp uses
 process-wide static state and the process working directory during extract/pack. Analyzers
 (Meziantou, Roslynator) enforce code quality on both projects.

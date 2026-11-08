@@ -20,11 +20,20 @@ public class XisoSharpService : IXisoSharpService
     /// </summary>
     private const int CsoCompressionLevel = 9;
 
+    /// <summary>
+    /// CCI compression level 9: fast LZ4 with acceleration 1, matching the CISO default.
+    /// Levels 10-12 select the slower high-compression encoder.
+    /// </summary>
+    private const int CciCompressionLevel = 9;
+
     /// <summary>Logger used for diagnostics.</summary>
     private readonly ILogger _logger;
 
     /// <summary>Resolves temporary directories based on free disk space.</summary>
     private readonly IDiskMonitorService _diskMonitorService;
+
+    /// <summary>Compares each converted output against its source image.</summary>
+    private readonly IConversionValidationService _conversionValidationService;
 
     /// <summary>
     /// Serializes conversions because XISOSharp exposes its system-update filter and
@@ -59,10 +68,13 @@ public class XisoSharpService : IXisoSharpService
     /// </summary>
     /// <param name="logger">Logger used for diagnostics.</param>
     /// <param name="diskMonitorService">Resolves temporary directories based on free disk space.</param>
-    public XisoSharpService(ILogger logger, IDiskMonitorService diskMonitorService)
+    /// <param name="conversionValidationService">Compares each converted output against its source image.</param>
+    public XisoSharpService(ILogger logger, IDiskMonitorService diskMonitorService,
+        IConversionValidationService conversionValidationService)
     {
         _logger = logger.ForContext<XisoSharpService>();
         _diskMonitorService = diskMonitorService;
+        _conversionValidationService = conversionValidationService;
     }
 
     /// <summary>
@@ -170,12 +182,14 @@ public class XisoSharpService : IXisoSharpService
                     skipSystemUpdate, checkIntegrity, progress, token),
                 OutputFormat.Cso => ConvertToCompressedCore(OutputFormat.Cso, inputFile, outputPath,
                     skipSystemUpdate, checkIntegrity, progress, token),
+                OutputFormat.Cci => ConvertToCompressedCore(OutputFormat.Cci, inputFile, outputPath,
+                    skipSystemUpdate, checkIntegrity, progress, token),
                 OutputFormat.Xiso => ConvertToXisoCore(inputFile, outputFolder, outputPath, skipSystemUpdate,
                     checkIntegrity, progress, token),
                 // CHD encoding lives in IChdService; failing loudly prevents a mis-routed
                 // call from silently producing an XISO file under a .chd name.
                 _ => throw new ArgumentOutOfRangeException(nameof(outputFormat), outputFormat,
-                    "Only XISO, ZAR, and CSO are handled by IXisoSharpService; CHD is handled by IChdService.")
+                    "Only XISO, ZAR, CSO, and CCI are handled by IXisoSharpService; CHD is handled by IChdService.")
             }, token);
     }
 
@@ -253,6 +267,13 @@ public class XisoSharpService : IXisoSharpService
 
                 _logger.Information("Output XISO passed validation ({FilesChecked} files, {DirsChecked} directories).",
                     audit.FilesChecked, audit.DirsChecked);
+            }
+
+            if (checkIntegrity &&
+                !ValidateConversionOutput(inputFile, resultPath, fileName, systemUpdateRemoved: false))
+            {
+                DeletePartialOutput(resultPath);
+                return FileProcessingStatus.Failed;
             }
 
             _logger.Information("Successfully converted '{FileName}' to XISO format.", fileName);
@@ -430,6 +451,12 @@ public class XisoSharpService : IXisoSharpService
                 audit.FilesChecked, audit.DirsChecked);
         }
 
+        if (checkIntegrity && !ValidateConversionOutput(inputFile, outputPath, fileName, systemUpdateRemoved: true))
+        {
+            DeletePartialOutput(outputPath);
+            return FileProcessingStatus.Failed;
+        }
+
         _logger.Information("Successfully converted '{FileName}' to XISO format.", fileName);
         return FileProcessingStatus.Converted;
     }
@@ -452,7 +479,13 @@ public class XisoSharpService : IXisoSharpService
         IProgress<BatchOperationProgress> progress, CancellationToken token)
     {
         var fileName = Path.GetFileName(inputFile);
-        var formatName = outputFormat == OutputFormat.Zar ? "ZAR" : "CSO";
+        var formatName = outputFormat switch
+        {
+            OutputFormat.Zar => "ZAR",
+            OutputFormat.Cso => "CSO",
+            OutputFormat.Cci => "CCI",
+            _ => outputFormat.ToString()
+        };
         string? tempDir = null;
 
         var previousRemoveSystemUpdate = Logger.RemoveSystemUpdate;
@@ -469,12 +502,13 @@ public class XisoSharpService : IXisoSharpService
             Logger.ForwardInfo = new LibraryOutputLineBuffer(_logger, "  [xiso] ").Append;
             Logger.ForwardError = new LibraryOutputLineBuffer(_logger, "  [xiso] ERROR: ").Append;
 
-            if (outputFormat == OutputFormat.Cso)
+            if (outputFormat is OutputFormat.Cso or OutputFormat.Cci)
             {
-                // CISO compresses a plain image stream; rewrite Redump/non-optimized inputs to a
-                // temporary optimized XISO first so the archive contains the game partition only
-                // and the $SystemUpdate filter applies. Already-optimized inputs are rewritten
-                // too when $SystemUpdate must be stripped (CISO has no filter of its own).
+                // CISO and CCI both compress a plain image stream; rewrite Redump/non-optimized
+                // inputs to a temporary optimized XISO first so the archive contains the game
+                // partition only and the $SystemUpdate filter applies. Already-optimized inputs
+                // are rewritten too when $SystemUpdate must be stripped (neither container has
+                // a filter of its own).
                 var sourceForCompression = inputFile;
                 if (!XisoReader.IsOptimizedImage(inputFile) || skipSystemUpdate)
                 {
@@ -482,7 +516,8 @@ public class XisoSharpService : IXisoSharpService
                     // when no local drive has enough space, and the default drive is one of
                     // those checked.
                     tempDir = PathHelper.ResolveTempDirectory(new FileInfo(inputFile).Length,
-                        "XISOStudio_Cso", _diskMonitorService);
+                        outputFormat == OutputFormat.Cso ? "XISOStudio_Cso" : "XISOStudio_Cci",
+                        _diskMonitorService);
 
                     Directory.CreateDirectory(tempDir);
 
@@ -506,8 +541,8 @@ public class XisoSharpService : IXisoSharpService
                         if (rewriteResult != 0 || string.IsNullOrEmpty(rewrittenXiso) || !File.Exists(rewrittenXiso))
                         {
                             _logger.Information(
-                                "XISOSharp could not prepare '{FileName}' for CSO compression (result code {ResultCode}).",
-                                fileName, rewriteResult);
+                                "XISOSharp could not prepare '{FileName}' for {Format} compression (result code {ResultCode}).",
+                                fileName, formatName, rewriteResult);
                             return FileProcessingStatus.Failed;
                         }
 
@@ -520,18 +555,33 @@ public class XisoSharpService : IXisoSharpService
                 if (checkIntegrity && !AuditSourceImage(sourceForCompression, fileName))
                     return FileProcessingStatus.Failed;
 
-                progress.Report(new BatchOperationProgress { StatusText = "Compressing to CSO..." });
-                var csoResult = CisoWriter.CompressToCso(sourceForCompression, outputPath, CsoCompressionLevel,
-                    null, CisoWriter.VersionLz4, CreateCisoProgressAdapter(progress), token);
-                if (csoResult != 0 || !File.Exists(outputPath))
+                var isCso = outputFormat == OutputFormat.Cso;
+                progress.Report(new BatchOperationProgress
+                    { StatusText = isCso ? "Compressing to CSO..." : "Compressing to CCI..." });
+
+                var compressionResult = isCso
+                    ? CisoWriter.CompressToCso(sourceForCompression, outputPath, CsoCompressionLevel,
+                        null, CisoWriter.VersionLz4, CreateCisoProgressAdapter(progress), token)
+                    : XisoCci.CompressToCci(sourceForCompression, outputPath, CciCompressionLevel,
+                        splitBytes: 0, overwrite: true, CreateCciProgressAdapter(progress), token);
+
+                if (compressionResult != 0 || !File.Exists(outputPath))
                 {
-                    _logger.Information("XISOSharp could not compress '{FileName}' to CSO (result code {ResultCode}).",
-                        fileName, csoResult);
+                    _logger.Information(
+                        "XISOSharp could not compress '{FileName}' to {Format} (result code {ResultCode}).",
+                        fileName, formatName, compressionResult);
                     DeletePartialOutput(outputPath);
                     return FileProcessingStatus.Failed;
                 }
 
-                _logger.Information("Successfully compressed '{FileName}' to CSO format.", fileName);
+                if (checkIntegrity &&
+                    !ValidateConversionOutput(inputFile, outputPath, fileName, skipSystemUpdate))
+                {
+                    DeletePartialOutput(outputPath);
+                    return FileProcessingStatus.Failed;
+                }
+
+                _logger.Information("Successfully compressed '{FileName}' to {Format} format.", fileName, formatName);
                 return FileProcessingStatus.Converted;
             }
 
@@ -564,6 +614,12 @@ public class XisoSharpService : IXisoSharpService
                 }
 
                 _logger.Information("XISOSharp could not pack '{FileName}' to ZAR.", fileName);
+                return FileProcessingStatus.Failed;
+            }
+
+            if (checkIntegrity && !ValidateConversionOutput(inputFile, outputPath, fileName, skipSystemUpdate))
+            {
+                DeletePartialOutput(outputPath);
                 return FileProcessingStatus.Failed;
             }
 
@@ -692,6 +748,55 @@ public class XisoSharpService : IXisoSharpService
     }
 
     /// <summary>
+    /// Compares the converted output against the source image (paths, sizes and per-file
+    /// SHA-256 hashes) and reports every difference. A deliberate <c>$SystemUpdate</c>
+    /// removal is not counted as a mismatch.
+    /// </summary>
+    /// <param name="sourcePath">Path of the original image.</param>
+    /// <param name="outputPath">Path of the converted image.</param>
+    /// <param name="fileName">File name used in log messages.</param>
+    /// <param name="systemUpdateRemoved">Whether the output intentionally omits <c>$SystemUpdate</c>.</param>
+    /// <returns><c>true</c> when the output matches the source; otherwise <c>false</c>.</returns>
+    private bool ValidateConversionOutput(string sourcePath, string outputPath, string fileName,
+        bool systemUpdateRemoved)
+    {
+        _logger.Information("Validating the converted file against the source...");
+
+        ValidationResult result;
+        try
+        {
+            result = _conversionValidationService.ValidateConversion(sourcePath, outputPath,
+                verifyChecksums: true, ignoreSystemUpdate: systemUpdateRemoved);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or NotSupportedException
+                                       or UnauthorizedAccessException or ArgumentException)
+        {
+            // A container the validator cannot read is a validation failure, not a defect:
+            // the output has already been produced and the caller deletes it.
+            _logger.Information(ex, "Could not validate the converted file for '{FileName}': {Reason}",
+                fileName, ex.Message);
+            return false;
+        }
+
+        if (result.Passed)
+        {
+            _logger.Information("Conversion validation passed ({FilesValidated} files, {TotalBytes}).",
+                result.OutputFileCount, Formatter.FormatBytes(result.OutputTotalBytes));
+            return true;
+        }
+
+        _logger.Information("Conversion validation failed for '{FileName}': {IssueCount} difference(s).",
+            fileName, result.Issues.Count);
+        foreach (var issue in result.Issues.Take(20))
+        {
+            _logger.Information("  - {IssueType}: {Path} (source {SourceSize} bytes, output {OutputSize} bytes)",
+                issue.Type, issue.Path, issue.SourceSize, issue.OutputSize);
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Validates the image that is about to be packed/compressed. Compressed outputs cannot be
     /// audited with the XISO reader, so the structural check runs on the source image instead.
     /// </summary>
@@ -771,6 +876,35 @@ public class XisoSharpService : IXisoSharpService
                 case ProgressInfoType.FileAdded:
                     if (totalBlocks <= 0) break;
                     var percent = (int)(info.Sector * 100 / totalBlocks);
+                    if (percent < lastPercent + 5 && percent < 100) break;
+                    lastPercent = percent;
+                    progress.Report(new BatchOperationProgress { StatusText = $"Compressing: {percent}%" });
+                    break;
+                case ProgressInfoType.FinishedPacking:
+                    progress.Report(new BatchOperationProgress { StatusText = "Finalizing output..." });
+                    break;
+            }
+        });
+    }
+
+    /// <summary>
+    /// CCI progress arrives per sector as a single <see cref="ProgressInfoType.FileProgress"/>
+    /// stream (total bytes in <c>Count</c>, bytes processed in <c>Size</c>); report only at
+    /// 5% steps so the UI is not flooded for multi-gigabyte images.
+    /// </summary>
+    /// <param name="progress">Receives the converted progress updates.</param>
+    /// <returns>An adapter that reports CCI compression progress to the batch.</returns>
+    private static IProgress<ProgressInfo> CreateCciProgressAdapter(IProgress<BatchOperationProgress> progress)
+    {
+        var lastPercent = -1;
+
+        return new SynchronousProgress<ProgressInfo>(info =>
+        {
+            switch (info.Type)
+            {
+                case ProgressInfoType.FileProgress:
+                    if (info.Count <= 0) break;
+                    var percent = (int)Math.Clamp(info.Size * 100 / info.Count, 0, 100);
                     if (percent < lastPercent + 5 && percent < 100) break;
                     lastPercent = percent;
                     progress.Report(new BatchOperationProgress { StatusText = $"Compressing: {percent}%" });

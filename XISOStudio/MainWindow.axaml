@@ -19,7 +19,8 @@
                     <TextBlock Text="XISO Studio" FontSize="20" FontWeight="Bold" Foreground="{StaticResource HeaderTextBrush}" VerticalAlignment="Center" Margin="0,0,30,0" ToolTip.Tip="XISO Studio — Xbox preservation utility" />
                     <Button x:Name="BtnNavConvert" Content="Convert" Click="NavConvert_Click" Theme="{StaticResource MenuButtonStyle}" ToolTip.Tip="Switch to the ISO to XISO batch conversion view" />
                     <Button x:Name="BtnNavTest" Content="Test Integrity" Click="NavTest_Click" Theme="{StaticResource MenuButtonStyle}" ToolTip.Tip="Switch to the image integrity testing view (ISO, CSO, ZAR)" />
-                    <Button x:Name="BtnNavExplorer" Content="Explorer" Click="NavExplorer_Click" Theme="{StaticResource MenuButtonStyle}" ToolTip.Tip="Switch to the image explorer (ISO, CSO, CHD, ZAR, GOD/SVOD) with title metadata and XBE image preview" />
+                    <Button x:Name="BtnNavDecompress" Content="Decompress" Click="NavDecompress_Click" Theme="{StaticResource MenuButtonStyle}" ToolTip.Tip="Switch to the image decompression view (CSO, CCI, ZAR, CHD or GOD/SVOD back to ISO)" />
+                    <Button x:Name="BtnNavExplorer" Content="Explorer" Click="NavExplorer_Click" Theme="{StaticResource MenuButtonStyle}" ToolTip.Tip="Switch to the image explorer (ISO, XISO, CSO, CCI, CHD, ZAR, GOD/SVOD, STFS/XBLA) with metadata, checksums and artwork" />
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <Button Content="Donate" Click="DonateButton_Click" Theme="{StaticResource DonateMenuButtonStyle}" ToolTip.Tip="Support the development of this application — opens the PureLogicCode donation page" />
@@ -61,7 +62,8 @@
                                     <RadioButton x:Name="OutputFormatXisoRadio" Content="XISO" IsChecked="True" GroupName="OutputFormat" Margin="0,0,14,0" ToolTip.Tip="Optimized XISO image (.iso) — the standard trimmed Xbox image" />
                                     <RadioButton x:Name="OutputFormatZarRadio" Content="ZAR" GroupName="OutputFormat" Margin="0,0,14,0" ToolTip.Tip="ZArchive (.zar) — zstd-compressed image, loadable in Xenia canary" />
                                     <RadioButton x:Name="OutputFormatCsoRadio" Content="CSO" GroupName="OutputFormat" Margin="0,0,14,0" ToolTip.Tip="Compressed ISO (.cso) — CISO v2 (LZ4), xdvdfs-compatible" />
-                                    <RadioButton Content="CHD" GroupName="OutputFormat" ToolTip.Tip="Compressed Hunks of Data (.chd) — CHD v5 with the chdman createdvd preset, readable by MAME-compatible tools" />
+                                    <RadioButton x:Name="OutputFormatCciRadio" Content="CCI" GroupName="OutputFormat" Margin="0,0,14,0" ToolTip.Tip="CCI/CCIM (.cci) — LZ4-compressed sectors, single file" />
+                                    <RadioButton x:Name="OutputFormatChdRadio" Content="CHD" GroupName="OutputFormat" ToolTip.Tip="Compressed Hunks of Data (.chd) — CHD v5 with the chdman createdvd preset, readable by MAME-compatible tools" />
                                 </StackPanel>
                                 <CheckBox x:Name="DeleteOriginalsCheckBox" Content="Delete original files after successful conversion" Margin="0,2,0,2" HorizontalAlignment="Left" ToolTip.Tip="Deletes the original ISO/archive if conversion is successful. Use with caution!" />
                                 <CheckBox x:Name="SearchSubfoldersConversionCheckBox" Content="Search for files in subfolders" Margin="0,8,0,8" HorizontalAlignment="Left" ToolTip.Tip="Include files found in subdirectories of the source folder" IsCheckedChanged="SearchSubfoldersCheckBox_Changed" />
@@ -85,10 +87,10 @@
                     </Grid>
 
                     <!-- Test View (Hidden by default) -->
-                    <Grid x:Name="TestView" IsVisible="False" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+                    <Grid x:Name="TestView" IsVisible="False" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto">
                         <Grid Margin="0,0,0,10" ColumnDefinitions="150,*,Auto">
-                            <Label Content="Image Folder:" ToolTip.Tip="The folder containing ISO, CSO, ZAR, or CHD files to test for structural integrity" />
-                            <TextBox x:Name="TestInputFolderTextBox" Grid.Column="1" IsReadOnly="True" Margin="5,0" ToolTip.Tip="Select the folder containing ISO, CSO, ZAR, or CHD files to test" />
+                            <Label Content="Image Folder:" ToolTip.Tip="The folder containing ISO, CSO, CCI, ZAR, CHD, GOD/SVOD or STFS/XBLA files to test for integrity" />
+                            <TextBox x:Name="TestInputFolderTextBox" Grid.Column="1" IsReadOnly="True" Margin="5,0" ToolTip.Tip="Select the folder containing images, containers or STFS packages to test" />
                             <Button Grid.Column="2" Content="Browse..." Click="BrowseTestInputButton_ClickAsync" Theme="{StaticResource ActionButtonStyle}" ToolTip.Tip="Browse for image folder" />
                         </Grid>
                         <Expander Grid.Row="1" Header="Options" Margin="0,5,0,5" Padding="10,8" IsExpanded="True" ToolTip.Tip="Configure integrity test behavior such as file sorting and scan depth. Click the header to collapse or expand.">
@@ -112,6 +114,44 @@
                             <Button Content="Deselect All" Click="DeselectAllTest_Click" Theme="{StaticResource ActionButtonStyle}" Padding="10,5" ToolTip.Tip="Untick every file in the list" />
                         </StackPanel>
                         <Button Grid.Row="5" Content="Start Integrity Test" Theme="{StaticResource StartButtonStyle}" HorizontalAlignment="Center" Margin="0,5,0,0" Click="StartTestButton_ClickAsync" ToolTip.Tip="Begin the batch integrity test process" />
+                        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0" Spacing="8" ToolTip.Tip="Recover images that failed the integrity test">
+                            <Button x:Name="RepairSelectedButton" Content="Repair selected" Click="RepairSelectedButton_ClickAsync" Theme="{StaticResource ActionButtonStyle}" ToolTip.Tip="Fix safely patchable issues in the selected .iso/.xiso images in place (always writes a .old backup)" />
+                            <Button x:Name="SalvageSelectedButton" Content="Salvage selected" Click="SalvageSelectedButton_ClickAsync" Theme="{StaticResource ActionButtonStyle}" ToolTip.Tip="Rebuild every reachable file from the selected damaged image into a fresh .salvaged.iso" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Decompress View (Hidden by default) -->
+                    <Grid x:Name="DecompressView" IsVisible="False" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto">
+                        <Grid Margin="0,0,0,10" ColumnDefinitions="150,*,Auto">
+                            <Label Content="Image Folder:" ToolTip.Tip="The folder containing CSO, CCI, ZAR, CHD or GOD/SVOD images to decompress back to ISO" />
+                            <TextBox x:Name="DecompressInputFolderTextBox" Grid.Column="1" IsReadOnly="True" Margin="5,0" ToolTip.Tip="Select the folder containing compressed images" />
+                            <Button Grid.Column="2" Content="Browse..." Click="BrowseDecompressInputButton_ClickAsync" Theme="{StaticResource ActionButtonStyle}" ToolTip.Tip="Browse for the image folder" />
+                        </Grid>
+                        <Grid Grid.Row="1" Margin="0,0,0,10" ColumnDefinitions="150,*,Auto">
+                            <Label Content="Output Folder:" ToolTip.Tip="The folder where decompressed ISO files are written" />
+                            <TextBox x:Name="DecompressOutputFolderTextBox" Grid.Column="1" IsReadOnly="True" Margin="5,0" ToolTip.Tip="Select the output folder for decompressed ISO files" />
+                            <Button Grid.Column="2" Content="Browse..." Click="BrowseDecompressOutputButton_ClickAsync" Theme="{StaticResource ActionButtonStyle}" ToolTip.Tip="Browse for the output folder" />
+                        </Grid>
+                        <Expander Grid.Row="2" Header="Options" Margin="0,5,0,10" Padding="10,8" IsExpanded="True" ToolTip.Tip="Configure decompression behavior. Click the header to collapse or expand.">
+                            <StackPanel Orientation="Vertical">
+                                <CheckBox x:Name="DeleteDecompressOriginalsCheckBox" Content="Delete original files after successful decompression" Margin="0,2,0,2" HorizontalAlignment="Left" ToolTip.Tip="Deletes the source image (and every part of a split set) after the ISO was produced and verified" />
+                                <CheckBox x:Name="SearchSubfoldersDecompressCheckBox" Content="Search for files in subfolders" Margin="0,8,0,8" HorizontalAlignment="Left" ToolTip.Tip="Include files found in subdirectories of the source folder" IsCheckedChanged="SearchSubfoldersCheckBox_Changed" />
+                                <CheckBox x:Name="CheckDecompressIntegrityCheckBox" Content="Check integrity of the output file" Margin="0,2,0,8" HorizontalAlignment="Left" IsChecked="True" ToolTip.Tip="Performs a structural integrity check on each decompressed ISO before reporting success" />
+                            </StackPanel>
+                        </Expander>
+                        <Label Grid.Row="3" Content="Select Files to Decompress:" Margin="0,5,0,0" FontWeight="SemiBold" ToolTip.Tip="Tick the compressed images to include in the decompression batch" />
+                        <DataGrid x:Name="DecompressFilesDataGrid" Grid.Row="4" MinHeight="120" Margin="0,5" AutoGenerateColumns="False" Classes="FileList" ToolTip.Tip="Compressed images found in the folder. Untick any file you do not want to decompress.">
+                            <DataGrid.Columns>
+                                <DataGridCheckBoxColumn Header="Selected" Binding="{Binding IsSelected, Mode=TwoWay}" Width="95" />
+                                <DataGridTextColumn Header="Filename" Binding="{Binding FileName}" Width="*" IsReadOnly="True" />
+                                <DataGridTextColumn Header="Size" Binding="{Binding DisplaySize}" Width="110" IsReadOnly="True" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,5" ToolTip.Tip="Select or deselect all files in the decompression list">
+                            <Button Content="Select All" Click="SelectAllDecompress_Click" Theme="{StaticResource ActionButtonStyle}" Padding="10,5" ToolTip.Tip="Tick every file in the list" />
+                            <Button Content="Deselect All" Click="DeselectAllDecompress_Click" Theme="{StaticResource ActionButtonStyle}" Padding="10,5" ToolTip.Tip="Untick every file in the list" />
+                        </StackPanel>
+                        <Button Grid.Row="6" Content="Start Decompression" Theme="{StaticResource StartButtonStyle}" HorizontalAlignment="Center" Margin="0,5,0,0" Click="StartDecompressionButton_ClickAsync" ToolTip.Tip="Begin the batch decompression process" />
                     </Grid>
 
                     <!-- Explorer View: file picker with the explorer below it -->
@@ -133,6 +173,10 @@
                                     <Button x:Name="ExplorerUpButton" Content="⬆ Up" Click="ExplorerUpButton_Click" Width="60" Margin="0,0,10,0" IsEnabled="False" Theme="{StaticResource ActionButtonStyle}" ToolTip.Tip="Go up one directory level" />
                                     <TextBlock Text="Current Path: " VerticalAlignment="Center" FontWeight="Bold" Foreground="{StaticResource TerminalForegroundBrush}" ToolTip.Tip="The current directory path within the image file system" />
                                     <TextBlock x:Name="ExplorerPathTextBlock" Text="/" VerticalAlignment="Center" Foreground="{StaticResource TerminalForegroundBrush}" ToolTip.Tip="Full path of the current directory inside the image" />
+                                    <Button x:Name="ExtractAllButton" Content="Extract all..." Click="ExtractAllButton_ClickAsync" Margin="15,0,0,0" Theme="{StaticResource ActionButtonStyle}" ToolTip.Tip="Extract every file in the image into a folder" />
+                                    <CheckBox x:Name="ExtractAllSkipExistingCheckBox" Content="Skip existing" IsChecked="True" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip.Tip="Leave files that already exist with the same size untouched, so an interrupted extraction can be resumed" />
+                                    <Button x:Name="SplitImageButton" Content="Split..." Click="SplitImageButton_ClickAsync" Margin="15,0,0,0" Theme="{StaticResource ActionButtonStyle}" ToolTip.Tip="Split the open plain ISO into sector-aligned parts for FAT32/FATX drives" />
+                                    <Button x:Name="JoinImageButton" Content="Join..." Click="JoinImageButton_ClickAsync" Margin="6,0,0,0" Theme="{StaticResource ActionButtonStyle}" ToolTip.Tip="Reassemble a split .1.iso/.2.iso set into a single ISO" />
                                 </StackPanel>
 
                                 <!-- File List -->
@@ -208,6 +252,35 @@
                                 <TextBlock Grid.Row="4" Grid.Column="0" Text="Path:" Foreground="{StaticResource TerminalForegroundBrush}" />
                                 <TextBlock Grid.Row="4" Grid.Column="1" x:Name="ImagePathValueTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" TextWrapping="Wrap" />
                             </Grid>
+
+                            <TextBlock Text="Container details" FontWeight="Bold" Foreground="{StaticResource TerminalForegroundBrush}" Margin="0,6,0,0" />
+                            <ItemsControl x:Name="ImageDetailsItemsControl">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:ImageMetadataDetail">
+                                        <Grid ColumnDefinitions="110,*">
+                                            <TextBlock Text="{Binding Label}" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Value}" Foreground="{StaticResource TerminalForegroundBrush}" TextWrapping="Wrap" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Text="Hashes" FontWeight="Bold" Foreground="{StaticResource TerminalForegroundBrush}" Margin="0,6,0,0" />
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Button x:Name="ComputeHashesButton" Content="Compute hashes" Click="ComputeHashesButton_ClickAsync" Theme="{StaticResource ActionButtonStyle}" ToolTip.Tip="Reads the whole image and computes CRC-32, MD5, SHA-1, SHA-256, SHA3-256 and the xdvdfs tree hash (can take a while for large images)" />
+                                <Button x:Name="CopyHashesButton" Content="Copy" Click="CopyHashesButton_ClickAsync" Theme="{StaticResource ActionButtonStyle}" IsEnabled="False" ToolTip.Tip="Copy every computed hash to the clipboard" />
+                            </StackPanel>
+                            <ItemsControl x:Name="ImageHashesItemsControl">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:ImageMetadataDetail">
+                                        <Grid ColumnDefinitions="110,*">
+                                            <TextBlock Text="{Binding Label}" Foreground="{StaticResource TerminalForegroundBrush}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Value}" Foreground="{StaticResource TerminalForegroundBrush}" TextWrapping="Wrap" FontFamily="{StaticResource TerminalFontFamily}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock x:Name="ImageHashesStatusTextBlock" Foreground="{StaticResource TerminalForegroundBrush}" TextWrapping="Wrap" />
 
                             <TextBlock Text="Title metadata" FontWeight="Bold" Foreground="{StaticResource TerminalForegroundBrush}" Margin="0,6,0,0" />
                             <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">

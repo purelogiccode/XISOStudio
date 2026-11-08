@@ -3,7 +3,8 @@ using XISOStudio.Models;
 namespace XISOStudio.Interfaces;
 
 /// <summary>
-/// Converts Xbox ISO images to the optimized XISO, ZAR, or CSO format using the XISOSharp library.
+/// Converts Xbox ISO images to the optimized XISO, ZAR, CSO, or CCI format using the
+/// XISOSharp library.
 /// </summary>
 public interface IXisoSharpService
 {
@@ -16,7 +17,7 @@ public interface IXisoSharpService
     /// <param name="inputFile">Path of the ISO image to convert.</param>
     /// <param name="outputFolder">Folder that receives the converted file.</param>
     /// <param name="outputFileName">File name to use for the result.</param>
-    /// <param name="outputFormat">Target format (XISO, ZAR, or CSO).</param>
+    /// <param name="outputFormat">Target format (XISO, ZAR, CSO, or CCI).</param>
     /// <param name="skipSystemUpdate">Whether to exclude the $SystemUpdate folder from the optimized image.</param>
     /// <param name="checkIntegrity">Whether to validate image structure: the converted XISO output, or the source image when producing ZAR/CSO (those formats are streamed and are not re-read afterwards).</param>
     /// <param name="progress">Receives batch progress and status updates.</param>

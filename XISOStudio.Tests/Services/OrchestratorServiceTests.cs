@@ -153,6 +153,47 @@ public class OrchestratorServiceTests : IDisposable
 
     #endregion
 
+    #region Decompression Tests
+
+    [Theory]
+    [InlineData("game.cso", "game.iso")]
+    [InlineData("game.cci", "game.iso")]
+    [InlineData("game.zar", "game.iso")]
+    [InlineData("game.chd", "game.iso")]
+    [InlineData("game.1.cso", "game.iso")]
+    [InlineData("game.1.cci", "game.iso")]
+    public async Task DecompressFilesAsyncDerivesTheOutputStem(string inputName, string expectedOutputName)
+    {
+        var inputFolder = Path.Combine(_tempDir, "decompress-input");
+        Directory.CreateDirectory(inputFolder);
+        var inputPath = Path.Combine(inputFolder, inputName);
+        await File.WriteAllTextAsync(inputPath, "x");
+
+        var outputFolder = Path.Combine(_tempDir, "decompress-output");
+        string? capturedOutputName = null;
+
+        var conversion = new Mock<IImageConversionService>();
+        conversion.Setup(static s => s.DecompressToIsoAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<IProgress<BatchOperationProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .Returns((string _, string _, string outputName, bool _, IProgress<BatchOperationProgress> __,
+                CancellationToken ___) =>
+            {
+                capturedOutputName = outputName;
+                return Task.FromResult(FileProcessingStatus.Converted);
+            });
+
+        var orchestrator = CreateOrchestrator(new Mock<IFileExtractor>(), FileProcessingStatus.Converted,
+            imageConversion: conversion);
+
+        await orchestrator.DecompressFilesAsync([inputPath], outputFolder, false, false,
+            new Progress<BatchOperationProgress>(), CloudRetrySkip, CancellationToken.None);
+
+        Assert.Equal(expectedOutputName, capturedOutputName);
+    }
+
+    #endregion
+
     #region Delete Originals Tests
 
     private static OrchestratorService CreateOrchestrator(
@@ -164,7 +205,8 @@ public class OrchestratorServiceTests : IDisposable
         Mock<IXisoIntegrityService>? integrity = null,
         Mock<IFileMover>? fileMover = null,
         Mock<IDiskMonitorService>? diskMonitor = null,
-        TestLogger? logger = null)
+        TestLogger? logger = null,
+        Mock<IImageConversionService>? imageConversion = null)
     {
         logger ??= new TestLogger();
         if (diskMonitor == null)
@@ -211,8 +253,18 @@ public class OrchestratorServiceTests : IDisposable
                 .ReturnsAsync(conversionStatus);
         }
 
+        if (imageConversion == null)
+        {
+            imageConversion = new Mock<IImageConversionService>();
+            imageConversion.Setup(static s => s.DecompressToIsoAsync(It.IsAny<string>(), It.IsAny<string>(),
+                    It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<IProgress<BatchOperationProgress>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(FileProcessingStatus.Converted);
+        }
+
         return new OrchestratorService(extractor.Object, fileMover.Object, logger.Logger,
-            integrity.Object, xisoSharp.Object, chdService.Object, diskMonitor.Object);
+            integrity.Object, xisoSharp.Object, chdService.Object, diskMonitor.Object,
+            imageConversion.Object);
     }
 
     private static Task<CloudRetryResult> CloudRetrySkip(string fileName)
@@ -771,6 +823,34 @@ public class OrchestratorServiceTests : IDisposable
 
         Assert.Equal("game.cso", capturedName);
         Assert.Equal(OutputFormat.Cso, capturedFormat);
+    }
+
+    [Fact]
+    public async Task ConvertFilesAsyncCciOutputPassesCciFormatAndExtension()
+    {
+        var isoPath = CreateTempFile("game.iso", "iso data");
+        string? capturedName = null;
+        var capturedFormat = OutputFormat.Xiso;
+        var xisoSharp = new Mock<IXisoSharpService>();
+        xisoSharp.Setup(static s => s.ConvertIsoAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<OutputFormat>(), It.IsAny<bool>(), It.IsAny<bool>(),
+                It.IsAny<IProgress<BatchOperationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string _, string outputName, OutputFormat format, bool _, bool _,
+                IProgress<BatchOperationProgress> _, CancellationToken _) =>
+            {
+                capturedName = outputName;
+                capturedFormat = format;
+                return FileProcessingStatus.Converted;
+            });
+
+        var orchestrator = CreateOrchestrator(new Mock<IFileExtractor>(), FileProcessingStatus.Converted,
+            xisoSharp: xisoSharp);
+
+        await orchestrator.ConvertFilesAsync([isoPath], Path.Combine(_tempDir, "out"), false, false, false,
+            OutputFormat.Cci, new Progress<BatchOperationProgress>(), CloudRetrySkip, CancellationToken.None);
+
+        Assert.Equal("game.cci", capturedName);
+        Assert.Equal(OutputFormat.Cci, capturedFormat);
     }
 
     [Fact]

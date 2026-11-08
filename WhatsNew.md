@@ -4,6 +4,34 @@
 
 ## Unreleased
 
+**A format-complete workflow: CCI output, decompression, checksums, STFS packages and image recovery.**
+
+The Convert tab now produces single-file **CCI** (`.cci`, LZ4 level 9) alongside XISO, ZAR, CSO and
+CHD. A new **Decompress** tab turns CSO, CCI, ZAR, Xbox DVD CHD and GOD/SVOD images back into plain
+ISO files; ZAR is repacked (the xdvdfs tree hash is preserved), CHD and GOD are read through their
+decompressed logical view, and **Delete originals** removes a split set as a whole only after a
+successful decompression.
+
+**Check Output Integrity** now proves the conversion: the output file tree is compared with the
+source (paths, sizes and per-file SHA-256) through `XisoValidator`, and only a deliberately removed
+`$SystemUpdate` folder is ignored. CHD keeps its full hunk/checksum deep verification.
+
+The Explorer gained container details (disc layout, XGD generation, Redump-size match, partitions,
+layer break, security sectors, split parts, compression ratio, codecs, SHA-1), CRC-32/MD5/SHA-1/
+SHA-256/SHA3-256 and xdvdfs tree hashes, Xbox 360 XDBF thumbnails, whole-image **Extract all** with
+resume, and FATX **Split... / Join...** tools. `.xiso` and `.img` files and split `.1.iso` sets are
+now accepted everywhere, ZAR entries with extended names are decoded, and CHD browsing uses an LRU
+hunk cache with background read-ahead.
+
+The Explorer and Test Integrity tabs now support single-file **XBLA/XBLIG STFS packages**: browse the
+package tree, read title metadata and XDBF artwork, compute checksums, extract everything, and verify
+the package's SHA-1 hash tree (data blocks, file chains, level tables, top hash and header hash).
+
+The Test Integrity tab also recovers failures with **Repair selected** (in place, always writing a
+`.old` backup) or **Salvage selected** (a fresh `.salvaged.iso`, source untouched).
+
+The suite is now 1,668 tests.
+
 **Xbox 360 GOD/SVOD, title metadata and XBE image preview.**
 
 The Explorer now opens Xbox 360 Games-on-Demand containers: use **Browse...** for the content-hash

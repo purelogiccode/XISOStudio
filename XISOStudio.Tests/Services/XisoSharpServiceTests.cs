@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security.AccessControl;
+using CCISharp;
 using System.Security.Principal;
 using XISOStudio.Interfaces;
 using XISOStudio.Models;
@@ -54,7 +55,8 @@ public sealed class XisoSharpServiceTests : IDisposable
     {
         var diskMonitor = new Mock<IDiskMonitorService>();
         diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(long.MaxValue);
-        return new XisoSharpService(_logger.Logger, diskMonitor.Object);
+        return new XisoSharpService(_logger.Logger, diskMonitor.Object,
+            new ConversionValidationService(_logger.Logger));
     }
 
     [Fact]
@@ -365,6 +367,81 @@ public sealed class XisoSharpServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CciOutputCompressesAlreadyOptimizedImage()
+    {
+        var isoPath = CreateOptimizedXiso();
+        var service = CreateService();
+        var outputFolder = Path.Combine(_tempRoot, "out");
+
+        var status = await service.ConvertIsoAsync(isoPath, outputFolder, "game.cci", OutputFormat.Cci, false, true,
+            new Progress<BatchOperationProgress>(), CancellationToken.None);
+
+        Assert.Equal(FileProcessingStatus.Converted, status);
+        var outputPath = Path.Combine(outputFolder, "game.cci");
+        Assert.True(File.Exists(outputPath));
+
+        // Round-trip: the CCI must open, validate deeply and expose the same files.
+        Assert.Equal(CciError.None, CciFile.Open(outputPath, out var cci));
+        using (cci)
+        {
+            Assert.NotNull(cci);
+            Assert.Equal(CciError.None, cci.Validate(true, out var report));
+            Assert.NotNull(report);
+            Assert.True(report.IsValid);
+        }
+    }
+
+    [Fact]
+    public async Task CciOutputFromNonOptimizedImageRewritesBeforeCompressing()
+    {
+        var isoPath = CreateOptimizedXiso();
+
+        // Clear the optimized tag so the CCI path exercises the temporary XISO rewrite.
+        await using (var stream = new FileStream(isoPath, FileMode.Open, FileAccess.Write, FileShare.None))
+        {
+            stream.Seek(Constants.OptimizedTagOffset, SeekOrigin.Begin);
+            stream.Write(new byte[Constants.OptimizedTagLength]);
+        }
+
+        var service = CreateService();
+        var outputFolder = Path.Combine(_tempRoot, "out");
+
+        var status = await service.ConvertIsoAsync(isoPath, outputFolder, "game.cci", OutputFormat.Cci, false, true,
+            new Progress<BatchOperationProgress>(), CancellationToken.None);
+
+        Assert.Equal(FileProcessingStatus.Converted, status);
+        var outputPath = Path.Combine(outputFolder, "game.cci");
+        Assert.True(File.Exists(outputPath));
+        Assert.Equal(CciError.None, CciFile.Open(outputPath, out var cci));
+        using (cci)
+        {
+            Assert.NotNull(cci);
+            Assert.Equal(CciError.None, cci.Validate(true, out var report));
+            Assert.NotNull(report);
+            Assert.True(report.IsValid);
+        }
+    }
+
+    [Fact]
+    public async Task CciOutputWithSkipSystemUpdateStripsUpdateFolder()
+    {
+        var isoPath = CreateXisoWithSystemUpdate("game-su-cci.iso");
+        Assert.True(XisoReader.IsOptimizedImage(isoPath));
+        var service = CreateService();
+        var outputFolder = Path.Combine(_tempRoot, "out");
+
+        var status = await service.ConvertIsoAsync(isoPath, outputFolder, "game-su.cci", OutputFormat.Cci, true,
+            false, new Progress<BatchOperationProgress>(), CancellationToken.None);
+
+        Assert.Equal(FileProcessingStatus.Converted, status);
+
+        using var explorer = ImageExplorerFactory.Open(Path.Combine(outputFolder, "game-su.cci"));
+        var names = explorer.ListChildren("/").Select(static e => e.Name).ToList();
+        Assert.Contains(names, name => name.Equals("default.xbe", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(names, name => name.Equals("$SystemUpdate", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task XisoOutputWithSkipSystemUpdateRewritesOptimizedImage()
     {
         var isoPath = CreateXisoWithSystemUpdate("game-su-xiso.iso");
@@ -392,7 +469,8 @@ public sealed class XisoSharpServiceTests : IDisposable
         var csoRequired = halfSize + Math.Max(halfSize / 10, 200L * 1024 * 1024);
         var diskMonitor = new Mock<IDiskMonitorService>();
         diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(csoRequired + 1);
-        var service = new XisoSharpService(_logger.Logger, diskMonitor.Object);
+        var service = new XisoSharpService(_logger.Logger, diskMonitor.Object,
+            new ConversionValidationService(_logger.Logger));
 
         var status = await service.ConvertIsoAsync(isoPath, Path.Combine(_tempRoot, "out"), "space.cso",
             OutputFormat.Cso, false, false, new Progress<BatchOperationProgress>(), CancellationToken.None);
@@ -418,7 +496,8 @@ public sealed class XisoSharpServiceTests : IDisposable
         var csoRequired = halfSize + Math.Max(halfSize / 10, 200L * 1024 * 1024);
         var diskMonitor = new Mock<IDiskMonitorService>();
         diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(csoRequired + 1);
-        var service = new XisoSharpService(_logger.Logger, diskMonitor.Object);
+        var service = new XisoSharpService(_logger.Logger, diskMonitor.Object,
+            new ConversionValidationService(_logger.Logger));
 
         var status = await service.ConvertIsoAsync(isoPath, Path.Combine(_tempRoot, "out"), "space.iso",
             OutputFormat.Xiso, false, false, new Progress<BatchOperationProgress>(), CancellationToken.None);
@@ -703,7 +782,8 @@ public sealed class XisoSharpServiceTests : IDisposable
         var isoPath = CreateOptimizedXiso();
         var diskMonitor = new Mock<IDiskMonitorService>();
         diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(1);
-        var service = new XisoSharpService(_logger.Logger, diskMonitor.Object);
+        var service = new XisoSharpService(_logger.Logger, diskMonitor.Object,
+            new ConversionValidationService(_logger.Logger));
 
         var status = await service.ConvertIsoAsync(isoPath, Path.Combine(_tempRoot, "out"), "space.zar",
             OutputFormat.Zar, false, false, new CollectingProgress(), CancellationToken.None);
@@ -718,7 +798,8 @@ public sealed class XisoSharpServiceTests : IDisposable
         var isoPath = CreateOptimizedXiso();
         var diskMonitor = new Mock<IDiskMonitorService>();
         diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(1);
-        var service = new XisoSharpService(_logger.Logger, diskMonitor.Object);
+        var service = new XisoSharpService(_logger.Logger, diskMonitor.Object,
+            new ConversionValidationService(_logger.Logger));
 
         var status = await service.ConvertIsoAsync(isoPath, Path.Combine(_tempRoot, "out"), "space.cso",
             OutputFormat.Cso, false, false, new CollectingProgress(), CancellationToken.None);
@@ -734,7 +815,8 @@ public sealed class XisoSharpServiceTests : IDisposable
         RemoveOptimizedTag(isoPath);
         var diskMonitor = new Mock<IDiskMonitorService>();
         diskMonitor.Setup(static d => d.GetAvailableFreeSpace(It.IsAny<string>())).Returns(0);
-        var service = new XisoSharpService(_logger.Logger, diskMonitor.Object);
+        var service = new XisoSharpService(_logger.Logger, diskMonitor.Object,
+            new ConversionValidationService(_logger.Logger));
 
         var status = await service.ConvertIsoAsync(isoPath, Path.Combine(_tempRoot, "out"), "game.iso",
             OutputFormat.Xiso, false, false, new CollectingProgress(), CancellationToken.None);

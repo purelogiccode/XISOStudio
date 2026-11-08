@@ -5,9 +5,10 @@ using GodHeader = StfsSharp.GodHeader;
 namespace XISOStudio.Services;
 
 /// <summary>
-/// Opens an <see cref="IImageExplorer"/> for a supported image path: ZAR archives
-/// are read with ZArchiveSharp, CHD images with CHDSharp (decompressed on demand),
-/// and everything else (plain ISO, CISO, CCI, GOD/SVOD) with XISOSharp.
+/// Opens an <see cref="IImageExplorer"/> for a supported image path: single-file STFS
+/// packages (XBLA/XBLIG) with StfsSharp, ZAR archives with ZArchiveSharp, CHD images with
+/// CHDSharp (decompressed on demand), and everything else (plain ISO, CISO, CCI, GOD/SVOD)
+/// with XISOSharp.
 /// </summary>
 public static class ImageExplorerFactory
 {
@@ -22,8 +23,13 @@ public static class ImageExplorerFactory
         try
         {
             var resolvedPath = ResolveContainerPath(imagePath);
-            var extension = Path.GetExtension(resolvedPath);
 
+            // Single-file STFS packages (XBLA/XBLIG) are extensionless, so probe their
+            // XContent header before the extension-based dispatch.
+            if (StfsSharp.StfsPackage.IsStfsPackage(resolvedPath))
+                return new StfsImageExplorer(resolvedPath, logger);
+
+            var extension = Path.GetExtension(resolvedPath);
             if (extension.Equals(".zar", StringComparison.OrdinalIgnoreCase))
                 return new ZarImageExplorer(resolvedPath, logger);
 
@@ -36,7 +42,8 @@ public static class ImageExplorerFactory
         {
             // Invalid, missing, or unreadable user-selected files are expected conditions,
             // so the failure is logged below the automatic bug-report threshold.
-            logger?.Information(ex, "Failed to open an image explorer: {Message}", ex.Message);
+            logger?.Information(ex, "Failed to open an image explorer: {Message}",
+                HostIoErrorDescriber.TryDescribe(ex, "opening the image", imagePath) ?? ex.Message);
             throw;
         }
     }

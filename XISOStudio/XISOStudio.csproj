@@ -68,7 +68,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Meziantou.Analyzer" Version="3.0.318">
+        <PackageReference Include="Meziantou.Analyzer" Version="3.0.321">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
@@ -81,15 +81,15 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="CCISharp" Version="1.1.0" />
-        <PackageReference Include="CHDSharp" Version="1.6.0" />
-        <PackageReference Include="SharpCompress" Version="0.50.7" />
+        <PackageReference Include="CHDSharp" Version="1.6.3" />
+        <PackageReference Include="SharpCompress" Version="0.50.8" />
         <PackageReference Include="StfsSharp" Version="1.0.0" />
-        <PackageReference Include="XISOSharp" Version="1.8.0" />
+        <PackageReference Include="XISOSharp" Version="1.9.0" />
         <PackageReference Include="ZArchiveSharp" Version="1.4.0" />
-        <PackageReference Include="Avalonia" Version="12.1.4" />
+        <PackageReference Include="Avalonia" Version="12.1.5" />
         <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
-        <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+        <PackageReference Include="Avalonia.Desktop" Version="12.1.5" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.5" />
         <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.14" />
     </ItemGroup>
 

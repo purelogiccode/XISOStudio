@@ -21,6 +21,9 @@ public partial class MainWindow
     /// <summary>Files discovered for batch integrity testing.</summary>
     private readonly ObservableCollection<FileItem> _testFiles = new();
 
+    /// <summary>Files discovered for batch decompression.</summary>
+    private readonly ObservableCollection<FileItem> _decompressFiles = new();
+
     // A scan generation per file list: a refresh only mutates its list while it is still
     // the newest scan for that list, so an older, slower scan cannot clear or repopulate
     // the list after a newer one (e.g. when the user changes the source folder quickly).
@@ -37,6 +40,7 @@ public partial class MainWindow
     {
         ConversionFilesDataGrid.ItemsSource = _conversionFiles;
         TestFilesDataGrid.ItemsSource = _testFiles;
+        DecompressFilesDataGrid.ItemsSource = _decompressFiles;
     }
 
     /// <summary>Refreshes the affected file list when the search-subfolders option changes.</summary>
@@ -53,6 +57,10 @@ public partial class MainWindow
         else if (ReferenceEquals(sender, SearchSubfoldersTestCheckBox))
         {
             _ = RefreshTestFileListAsync();
+        }
+        else if (ReferenceEquals(sender, SearchSubfoldersDecompressCheckBox))
+        {
+            _ = RefreshDecompressFileListAsync();
         }
     }
 
@@ -88,6 +96,22 @@ public partial class MainWindow
         foreach (var file in _testFiles) file.IsSelected = false;
     }
 
+    /// <summary>Selects every file in the decompression list.</summary>
+    /// <param name="sender">The button that raised the event.</param>
+    /// <param name="e">The event data.</param>
+    private void SelectAllDecompress_Click(object? sender, RoutedEventArgs e)
+    {
+        foreach (var file in _decompressFiles) file.IsSelected = true;
+    }
+
+    /// <summary>Deselects every file in the decompression list.</summary>
+    /// <param name="sender">The button that raised the event.</param>
+    /// <param name="e">The event data.</param>
+    private void DeselectAllDecompress_Click(object? sender, RoutedEventArgs e)
+    {
+        foreach (var file in _decompressFiles) file.IsSelected = false;
+    }
+
     /// <summary>Gets the conversion files the user selected.</summary>
     /// <returns>The full paths of the selected conversion files.</returns>
     private IReadOnlyList<string> GetSelectedConversionFiles()
@@ -100,6 +124,13 @@ public partial class MainWindow
     private IReadOnlyList<string> GetSelectedTestFiles()
     {
         return _testFiles.Where(static f => f.IsSelected).Select(static f => f.FullPath).ToList();
+    }
+
+    /// <summary>Gets the decompression files the user selected.</summary>
+    /// <returns>The full paths of the selected decompression files.</returns>
+    private IReadOnlyList<string> GetSelectedDecompressFiles()
+    {
+        return _decompressFiles.Where(static f => f.IsSelected).Select(static f => f.FullPath).ToList();
     }
 
     /// <summary>Rescans the conversion input folder and repopulates the conversion list.</summary>
@@ -115,6 +146,14 @@ public partial class MainWindow
     {
         return LoadFileListAsync(TestInputFolderTextBox.Text, SearchSubfoldersTestCheckBox.IsChecked == true,
             _testFiles, SupportedFiles.IsTestable, "testing");
+    }
+
+    /// <summary>Rescans the decompression input folder and repopulates the decompression list.</summary>
+    private Task RefreshDecompressFileListAsync()
+    {
+        return LoadFileListAsync(DecompressInputFolderTextBox.Text,
+            SearchSubfoldersDecompressCheckBox.IsChecked == true, _decompressFiles,
+            SupportedFiles.IsDecompressible, "decompression");
     }
 
     /// <summary>

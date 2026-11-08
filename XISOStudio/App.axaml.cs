@@ -325,9 +325,15 @@ public class App : Application
             new FileMoverService(provider.GetRequiredService<ILogger>(),
                 provider.GetRequiredService<IDiskMonitorService>()));
         services.AddTransient<AboutWindow>();
+        services.AddSingleton<IConversionValidationService, ConversionValidationService>();
+        services.AddSingleton<IImageHashService, ImageHashService>();
+        services.AddSingleton<IImageConversionService, ImageConversionService>();
+        services.AddSingleton<IXisoRecoveryService, XisoRecoveryService>();
+        services.AddSingleton<IXisoSplitService, XisoSplitService>();
         services.AddSingleton<IXisoSharpService>(static provider =>
             new XisoSharpService(provider.GetRequiredService<ILogger>(),
-                provider.GetRequiredService<IDiskMonitorService>()));
+                provider.GetRequiredService<IDiskMonitorService>(),
+                provider.GetRequiredService<IConversionValidationService>()));
         services.AddSingleton<IChdService>(static provider =>
             new ChdService(provider.GetRequiredService<ILogger>(),
                 provider.GetRequiredService<IXisoSharpService>()));

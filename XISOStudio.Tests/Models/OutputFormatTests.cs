@@ -13,21 +13,23 @@ public class OutputFormatTests
         Assert.Equal(1, (int)OutputFormat.Zar);
         Assert.Equal(2, (int)OutputFormat.Cso);
         Assert.Equal(3, (int)OutputFormat.Chd);
+        Assert.Equal(4, (int)OutputFormat.Cci);
     }
 
     [Fact]
     public void DefinedMembersMatchExpectedNamesInOrder()
     {
-        Assert.Equal(["Xiso", "Zar", "Cso", "Chd"], Enum.GetNames<OutputFormat>());
+        Assert.Equal(["Xiso", "Zar", "Cso", "Chd", "Cci"], Enum.GetNames<OutputFormat>());
     }
 
     [Fact]
-    public void EnumContainsExactlyFourValues()
+    public void EnumContainsExactlyFiveValues()
     {
         var values = Enum.GetValues<OutputFormat>();
 
-        Assert.Equal(4, values.Length);
-        Assert.Equal([OutputFormat.Xiso, OutputFormat.Zar, OutputFormat.Cso, OutputFormat.Chd], values);
+        Assert.Equal(5, values.Length);
+        Assert.Equal([OutputFormat.Xiso, OutputFormat.Zar, OutputFormat.Cso, OutputFormat.Chd, OutputFormat.Cci],
+            values);
     }
 
     [Theory]
@@ -35,6 +37,7 @@ public class OutputFormatTests
     [InlineData(OutputFormat.Zar, 1)]
     [InlineData(OutputFormat.Cso, 2)]
     [InlineData(OutputFormat.Chd, 3)]
+    [InlineData(OutputFormat.Cci, 4)]
     public void CastToIntRoundTrips(OutputFormat format, int expected)
     {
         Assert.Equal(expected, (int)format);
@@ -52,6 +55,7 @@ public class OutputFormatTests
     [InlineData("Zar", OutputFormat.Zar)]
     [InlineData("Cso", OutputFormat.Cso)]
     [InlineData("Chd", OutputFormat.Chd)]
+    [InlineData("Cci", OutputFormat.Cci)]
     public void ParseResolvesDefinedNames(string name, OutputFormat expected)
     {
         Assert.Equal(expected, Enum.Parse<OutputFormat>(name));
@@ -59,7 +63,7 @@ public class OutputFormatTests
 
     [Theory]
     [InlineData(-1)]
-    [InlineData(4)]
+    [InlineData(5)]
     [InlineData(99)]
     public void UndefinedValuesAreNotDefined(int value)
     {

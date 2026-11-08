@@ -1,4 +1,5 @@
 using XISOStudio.Services;
+using XISOStudio.Tests.Fixtures;
 using Xunit;
 
 namespace XISOStudio.Tests.Services;
@@ -9,6 +10,10 @@ public class SupportedFilesTests
     [Theory]
     [InlineData("game.iso")]
     [InlineData("game.ISO")]
+    [InlineData("game.xiso")]
+    [InlineData("game.XISO")]
+    [InlineData("game.img")]
+    [InlineData("game.IMG")]
     [InlineData("games.zip")]
     [InlineData("games.7z")]
     [InlineData("games.rar")]
@@ -31,6 +36,8 @@ public class SupportedFilesTests
     [Theory]
     [InlineData("game.iso")]
     [InlineData("GAME.ISO")]
+    [InlineData("game.xiso")]
+    [InlineData("game.img")]
     [InlineData(@"C:\folder\game.iso")]
     public void IsIsoIsoFilesReturnsTrue(string path)
     {
@@ -39,7 +46,10 @@ public class SupportedFilesTests
 
     [Theory]
     [InlineData("game.zip")]
-    [InlineData("game.xiso")]
+    [InlineData("game.cso")]
+    [InlineData("game.cci")]
+    [InlineData("game.zar")]
+    [InlineData("game.chd")]
     public void IsIsoNonIsoFilesReturnsFalse(string path)
     {
         Assert.False(SupportedFiles.IsIso(path));
@@ -48,6 +58,10 @@ public class SupportedFilesTests
     [Theory]
     [InlineData("game.iso")]
     [InlineData("GAME.ISO")]
+    [InlineData("game.xiso")]
+    [InlineData("GAME.XISO")]
+    [InlineData("game.img")]
+    [InlineData("GAME.IMG")]
     [InlineData(@"C:\folder\game.iso")]
     [InlineData("game.cso")]
     [InlineData("GAME.CSO")]
@@ -74,7 +88,6 @@ public class SupportedFilesTests
     [InlineData("game.10.cso")]
     [InlineData(@"C:\folder\game.2.cso")]
     [InlineData("game.zip")]
-    [InlineData("game.xiso")]
     [InlineData("game.bin")]
     [InlineData("game")]
     public void IsTestableUnsupportedFilesReturnsFalse(string path)
@@ -237,7 +250,6 @@ public class SupportedFilesTests
     [Theory]
     [InlineData("game.bin")]
     [InlineData("game.txt")]
-    [InlineData("game.xiso")]
     [InlineData("game.zip")]
     [InlineData("game.7z")]
     [InlineData("game.rar")]
@@ -252,6 +264,8 @@ public class SupportedFilesTests
 
     [Theory]
     [InlineData("game.iso")]
+    [InlineData("game.xiso")]
+    [InlineData("game.img")]
     [InlineData("game.cso")]
     [InlineData("game.1.cso")]
     [InlineData("game.2.cso")]
@@ -274,11 +288,113 @@ public class SupportedFilesTests
     [InlineData("game.7z")]
     [InlineData("game.rar")]
     [InlineData("game.bin")]
-    [InlineData("game.xiso")]
     [InlineData("game")]
     public void IsImageNonImageFilesReturnFalse(string path)
     {
         Assert.False(SupportedFiles.IsImage(path));
+    }
+
+    [Theory]
+    [InlineData("game.iso")]
+    [InlineData("game.xiso")]
+    [InlineData("game.img")]
+    [InlineData("game.cso")]
+    [InlineData("game.1.cso")]
+    [InlineData("game.cci")]
+    [InlineData("game.1.cci")]
+    [InlineData("game.zar")]
+    [InlineData("game.chd")]
+    public void IsDecompressibleImageFilesReturnTrue(string path)
+    {
+        Assert.True(SupportedFiles.IsDecompressible(path));
+    }
+
+    [Theory]
+    [InlineData("game.zip")]
+    [InlineData("game.7z")]
+    [InlineData("game.bin")]
+    [InlineData("game")]
+    [InlineData("game.2.cso")]
+    public void IsDecompressibleUnsupportedFilesReturnFalse(string path)
+    {
+        Assert.False(SupportedFiles.IsDecompressible(path));
+    }
+
+    [Fact]
+    public void IsTestableSplitIsoContinuationPartWithFirstPartReturnsFalse()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "game.1.iso"), string.Empty);
+        File.WriteAllText(Path.Combine(directory, "game.2.iso"), string.Empty);
+
+        try
+        {
+            Assert.True(SupportedFiles.IsTestable(Path.Combine(directory, "game.1.iso")));
+            Assert.False(SupportedFiles.IsTestable(Path.Combine(directory, "game.2.iso")));
+            Assert.False(SupportedFiles.IsDecompressible(Path.Combine(directory, "game.2.iso")));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void IsTestableStandaloneNumericIsoReturnsTrue()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "game.2.iso"), string.Empty);
+
+        try
+        {
+            Assert.True(SupportedFiles.IsTestable(Path.Combine(directory, "game.2.iso")));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ExtensionlessStfsPackageIsTestableButNotDecompressible()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        var packagePath = Path.Combine(directory, "584109B7");
+        SyntheticStfsPackage.Create(packagePath, [new SyntheticStfsFile("default.xex", [1, 2, 3])]);
+
+        try
+        {
+            Assert.True(SupportedFiles.IsImage(packagePath));
+            Assert.True(SupportedFiles.IsTestable(packagePath));
+            Assert.False(SupportedFiles.IsDecompressible(packagePath));
+            Assert.False(SupportedFiles.IsConvertible(packagePath));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ExtensionlessNonContainerFileIsNotAnImage()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        var filePath = Path.Combine(directory, "randomfile");
+        File.WriteAllText(filePath, "not a container");
+
+        try
+        {
+            Assert.False(SupportedFiles.IsImage(filePath));
+            Assert.False(SupportedFiles.IsTestable(filePath));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     [Fact]
@@ -299,6 +415,12 @@ public class SupportedFilesTests
         Assert.Throws<NullReferenceException>(static () => SupportedFiles.IsTestable(null!));
     }
 
+    [Fact]
+    public void IsDecompressibleNullThrowsNullReferenceException()
+    {
+        Assert.Throws<NullReferenceException>(static () => SupportedFiles.IsDecompressible(null!));
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
@@ -308,5 +430,6 @@ public class SupportedFilesTests
         Assert.False(SupportedFiles.IsConvertible(path));
         Assert.False(SupportedFiles.IsIso(path));
         Assert.False(SupportedFiles.IsTestable(path));
+        Assert.False(SupportedFiles.IsDecompressible(path));
     }
 }

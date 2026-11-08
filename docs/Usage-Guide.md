@@ -8,15 +8,16 @@
 
 ---
 
-The main window is organized into three views, selectable from the navigation buttons at the top:
+The main window is organized into four views, selectable from the navigation buttons at the top:
 
 | View | Purpose |
 |:---|:---|
-| **Convert** | Batch-convert ISOs (and archives containing ISOs) into trimmed XISO, ZAR, CSO, or CHD files |
-| **Test Integrity** | Validate ISO, CSO, ZAR, and Xbox CHD images and organize results |
-| **Explorer** | Browse the contents of an Xbox ISO, CSO, ZAR, CHD or GOD/SVOD container without extracting it, with title metadata and XBE image previews |
+| **Convert** | Batch-convert ISOs (and archives containing ISOs) into trimmed XISO, ZAR, CSO, CCI, or CHD files |
+| **Test Integrity** | Validate ISO, XISO, IMG, CSO, CCI, ZAR, Xbox CHD images and XBLA/XBLIG STFS packages, and repair or salvage failures |
+| **Decompress** | Turn CSO, CCI, ZAR, CHD or GOD/SVOD images back into plain ISO files |
+| **Explorer** | Browse the contents of an Xbox ISO, XISO, IMG, CSO, CCI, ZAR, CHD, GOD/SVOD container or XBLA/XBLIG STFS package without extracting it, with metadata, container details, checksums, extract-all, and split/join tools |
 
-Below the three views, a shared **status bar** shows a live log, progress bar, cancel button, statistics (total / success / fail / skipped / processing time), and per-drive read/write speed indicators.
+Below the four views, a shared **status bar** shows a live log, progress bar, cancel button, statistics (total / success / fail / skipped / processing time), and per-drive read/write speed indicators.
 
 ---
 
@@ -24,7 +25,7 @@ Below the three views, a shared **status bar** shows a live log, progress bar, c
 
 ### 1. Select Folders
 
-- **Input folder** — the folder containing your source files. Supported inputs: `.iso` (Redump full-disc images or optimized XISO files), `.zip`, `.7z`, `.rar`.
+- **Input folder** — the folder containing your source files. Supported inputs: `.iso`, `.xiso`, `.img` (Redump full-disc images or optimized XISO files), `.zip`, `.7z`, `.rar`.
 - **Output folder** — the folder where converted `.iso` (XISO) files are written.
 
 > The system temporary folder (or a subfolder of it) cannot be selected as an input or output folder. The application refuses it deliberately to avoid recursive processing and cleanup conflicts.
@@ -46,6 +47,7 @@ All conversion is performed in-process by the **[XISOSharp](https://github.com/p
 - **XISO** (default) — tightly packed, optimized XISO (`.iso`); images that already carry the optimized tag are skipped automatically.
 - **ZAR** — ZArchive (`.zar`, zstd) for direct use in Xenia canary.
 - **CSO** — compressed ISO (`.cso`, CISO v2/LZ4), compatible with the xdvdfs ecosystem.
+- **CCI** — CCI/CCIM (`.cci`, LZ4 level 9 by default), written as a single file.
 - **CHD** — Compressed Hunks of Data (`.chd`, CHD v5) with the chdman `createdvd` preset (4096-byte hunks, 2048-byte units, `lzma,zlib,huff,flac`).
 
 See the [Conversion Methods](Conversion-Methods.md) page for details.
@@ -54,10 +56,10 @@ See the [Conversion Methods](Conversion-Methods.md) page for details.
 
 | Option | Behavior when enabled |
 |:---|:---|
-| **Output Format** | Produces `.iso` (optimized XISO), `.zar` (ZArchive/zstd), `.cso` (CISO v2/LZ4), or `.chd` (CHD v5, chdman `createdvd` preset). |
+| **Output Format** | Produces `.iso` (optimized XISO), `.zar` (ZArchive/zstd), `.cso` (CISO v2/LZ4), `.cci` (CCI/CCIM), or `.chd` (CHD v5, chdman `createdvd` preset). |
 | **Skip $SystemUpdate** | Excludes the `$SystemUpdate` folder from the output for extra space savings (~100–300 MB). |
 | **Delete Originals** | Replaces each input file with its converted version. Deletion happens **only after** the output has been produced and verified. An archive is kept when any entry was skipped or any extracted image was not converted. |
-| **Check Output Integrity** | Runs a structural validation on each newly created XISO and a full deep verification (every hunk and hash) on each newly created CHD before reporting success (for ZAR/CSO the source image is validated instead). |
+| **Check Output Integrity** | Audits each new XISO, then compares the output against the source (paths, sizes and per-file SHA-256 hashes) for XISO/CSO/CCI/ZAR; a deliberately removed `$SystemUpdate` folder is ignored. CHD is deep-verified (every hunk and hash). |
 | **Search Subfolders** | Includes files found in subdirectories of the input folder in the list. |
 
 ### 5. Start, Monitor, Cancel
@@ -85,18 +87,27 @@ Files stored in cloud-sync folders (OneDrive, etc.) that are not hydrated locall
 
 Use this view to validate images without converting them. Supported formats:
 
-- **`.iso`** and **`.cso`** (CISO, including split `.1.cso` part sets) — a deep audit of the XDVDFS file tree, with an optional sequential sector scan.
+- **`.iso`**, **`.xiso`**, **`.img`** and **`.cso`** (CISO, including split `.1.cso` part sets) — a deep audit of the XDVDFS file tree, with an optional sequential sector scan.
+- **`.cci`** (including split `.1.cci` part sets) — validates the CCI container and decodes every sector with the deep scan enabled, then audits the decompressed Xbox filesystem.
 - **`.zar`** (ZArchive/zstd) — opens the archive (header, index, name table, file tree), walks the whole tree, and with the deep scan enabled decompresses every file to prove all blocks are readable.
 - **`.chd`** (Xbox DVD images only) — verifies the CHD container (header-only, or every hunk and checksum with the deep scan enabled) and then audits the Xbox filesystem inside the decompressed image. CD/GD-ROM/hard-disk CHDs are rejected.
+- **XBLA/XBLIG STFS packages** (extensionless files with a `CON `/`LIVE`/`PIRS` signature) — verifies the package SHA-1 hash tree: every data block, file chain, level-0/1/2 table, top hash and header hash. Package signatures are not checked.
 
 ### Options
 
 | Option | Behavior when enabled |
 |:---|:---|
-| **Move Passed Files** | Moves images that pass validation into a `_success` subfolder (a split CISO's continuation parts travel with part 1) |
+| **Move Passed Files** | Moves images that pass validation into a `_success` subfolder (a split set's continuation parts travel with part 1) |
 | **Move Failed Files** | Moves images that fail validation into a `_failed` subfolder |
 | **Search Subfolders** | Recurses into subdirectories of the input folder |
-| **Perform Deep Scan** | Reads the entire image — every sector for ISO/CSO, every decompressed block for ZAR, every CHD hunk and checksum for CHD — to detect physical corruption / bad sectors (slower, but thorough) |
+| **Perform Deep Scan** | Reads the entire image — every sector for ISO/CSO/CCI, every decompressed block for ZAR, every CHD hunk and checksum for CHD — to detect physical corruption / bad sectors (slower, but thorough). STFS packages are always fully hash-checked. |
+
+### Recovery
+
+Two buttons below the start button recover images that failed the test:
+
+- **Repair selected** — fixes safely patchable defects in place (reserved attribute bits, a missing optimized tag, separators in names). Every image is backed up as `<name>.old` first; truncated or structurally broken images are reported, never modified. Only plain `.iso`/`.xiso` images can be repaired (compressed CISO/CCI files must be decompressed first).
+- **Salvage selected** — rebuilds every reachable file from a damaged ISO, CISO or CCI image into a fresh `<name>.salvaged.iso`. The source is never modified, and every skipped entry is listed with its reason.
 
 ### Workflow
 
@@ -110,9 +121,35 @@ Use this view to validate images without converting them. Supported formats:
 
 ---
 
+## The Decompress Tab
+
+Use this view to turn container images back into a plain ISO:
+
+1. Select the folder containing the compressed images and the output folder.
+2. Tick the files to process. Supported inputs: `.cso`, `.cci`, `.zar`, `.chd`, GOD/SVOD headers or `.data` folders. Plain `.iso`/`.xiso`/`.img` files are listed but skipped as already uncompressed.
+3. Choose whether to **delete the originals** after a successful decompression, whether to **search subfolders**, and whether to **check the output integrity**.
+4. Click **Start Decompression**.
+
+| Input | Result |
+|:---|:---|
+| CISO/CSO (single or split) | the decompressed sector image |
+| CCI (single or split) | the decompressed sector image |
+| ZAR | the file tree repacked into an ISO (the xdvdfs tree hash is preserved; the sector layout may differ) |
+| CHD (Xbox DVD) | the decompressed image copied to an ISO |
+| GOD/SVOD | the mapped logical image copied to an ISO |
+
+Split sets are deleted as a whole when **Delete Originals** is enabled, so no orphaned continuation parts are left behind.
+
 ## The Explorer Tab
 
-The built-in Image Explorer lets you inspect the contents of an Xbox `.iso`, `.cso`, `.zar`, `.chd` or GOD/SVOD container without extraction. The right-hand panel shows title metadata (title name/ID, region, disc, version, publisher, developer, genre, description) and renders the XBE logo, title and save images. See the dedicated [XISO Explorer](XISO-Explorer.md) page for the full walkthrough.
+The built-in Image Explorer lets you inspect the contents of an Xbox `.iso`, `.xiso`, `.img`, `.cso`, `.cci`, `.zar`, `.chd` or GOD/SVOD container, or an extensionless XBLA/XBLIG STFS package, without extraction. The right-hand panel shows title metadata (title name/ID, region, disc, version, publisher, developer, genre, description), container details (disc layout, XGD generation, codecs, parts, compression ratio, SHA-1), and renders the XBE logo/title/save images or the Xbox 360 XDBF thumbnail. See the dedicated [XISO Explorer](XISO-Explorer.md) page for the full walkthrough.
+
+The toolbar also provides:
+
+- **Extract all…** — writes the whole image to a folder (safe name sanitizing, per-file error containment, optional skip-existing resume).
+- **Compute hashes** — CRC-32, MD5, SHA-1, SHA-256, SHA3-256 and the xdvdfs-compatible sorted-path SHA3-256 tree hash, with a Copy button.
+- **Split…** — splits the open plain ISO into sector-aligned parts for FAT32/FATX drives (4 GiB − 16 MiB per part).
+- **Join…** — reassembles a split `.1.iso`/`.2.iso` set into a single ISO and audits the result.
 
 ---
 

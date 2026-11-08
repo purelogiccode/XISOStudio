@@ -1,3 +1,5 @@
+using System.Globalization;
+using XISOSharp;
 using XISOSharp.Models;
 using XISOStudio.Interfaces;
 using XISOStudio.Models;
@@ -28,9 +30,21 @@ internal sealed class ZarImageExplorer : IImageExplorer
     {
         _logger = logger?.ForContext<ZarImageExplorer>();
         _archivePath = zarPath;
-        _reader = ZArchiveReader.TryOpen(zarPath, out var failure)
+        _reader = ZArchiveReader.TryOpen(zarPath, CreateReaderOptions(), out var failure)
                   ?? throw new InvalidDataException($"Not a valid ZAR archive ({failure}): {zarPath}");
     }
+
+    /// <summary>
+    /// Reader options shared by the explorer and the integrity test: extended names are
+    /// decoded (the default silently drops stored names of 0x80+ characters) and the archive
+    /// is opened with write sharing so antivirus scanners and sync clients can hold it too.
+    /// </summary>
+    /// <returns>The reader options used for every ZAR open in the application.</returns>
+    internal static ZArchiveReaderOptions CreateReaderOptions() => new()
+    {
+        DecodeExtendedNames = true,
+        FileShare = FileShare.ReadWrite
+    };
 
     /// <inheritdoc/>
     public IReadOnlyList<ImageEntry> ListChildren(string internalPath)
@@ -73,7 +87,7 @@ internal sealed class ZarImageExplorer : IImageExplorer
             if (ImageErrorClassifier.IsUserInputImageError(ex) || ImageErrorClassifier.IsEnvironmentalIoError(ex))
             {
                 _logger?.Information(ex, "Could not list '{InternalPath}' in the archive: {Reason}", internalPath,
-                    ex.Message);
+                    HostIoErrorDescriber.TryDescribe(ex, "reading the archive", _archivePath) ?? ex.Message);
             }
             else
             {
@@ -99,7 +113,8 @@ internal sealed class ZarImageExplorer : IImageExplorer
             if (ImageErrorClassifier.IsUserInputImageError(ex) || ImageErrorClassifier.IsEnvironmentalIoError(ex))
             {
                 _logger?.Information(ex, "Could not copy out '{InternalPath}' from the archive: {Reason}",
-                    internalPath, ex.Message);
+                    internalPath, HostIoErrorDescriber.TryDescribe(ex, "writing the extracted file", destPath)
+                                  ?? ex.Message);
             }
             else
             {
@@ -233,12 +248,79 @@ internal sealed class ZarImageExplorer : IImageExplorer
     }
 
     /// <inheritdoc/>
-    public ImageMetadata GetMetadata() =>
-        ImageMetadata.Unavailable(
+    public int ExtractAll(string destinationDirectory, bool skipExisting, IProgress<ProgressInfo>? progress,
+        CancellationToken token)
+    {
+        try
+        {
+            return XisoZarchive.ExtractZar(_archivePath, destinationDirectory, ExtractNamePolicy.Sanitize,
+                skipExisting, progress, token);
+        }
+        catch (Exception ex)
+        {
+            if (ImageErrorClassifier.IsUserInputImageError(ex) || ImageErrorClassifier.IsEnvironmentalIoError(ex))
+            {
+                _logger?.Information(ex, "Could not extract the archive to '{Directory}': {Reason}",
+                    destinationDirectory,
+                    HostIoErrorDescriber.TryDescribe(ex, "extracting the archive", destinationDirectory)
+                    ?? ex.Message);
+            }
+            else
+            {
+                _logger?.Error(ex, "Failed to extract the archive to '{Directory}'", destinationDirectory);
+            }
+
+            throw;
+        }
+    }
+
+    /// <inheritdoc/>
+    public ImageMetadata GetMetadata()
+    {
+        var uncompressedLength = _reader.TotalUncompressedSize > long.MaxValue
+            ? long.MaxValue
+            : (long)_reader.TotalUncompressedSize;
+
+        return ImageMetadata.Unavailable(
             "Zar",
             _archivePath,
-            _reader.TotalUncompressedSize > long.MaxValue ? long.MaxValue : (long)_reader.TotalUncompressedSize,
-            "ZAR archives expose a file tree, not an Xbox disc image, so title metadata is unavailable.");
+            uncompressedLength,
+            "ZAR archives expose a file tree, not an Xbox disc image, so title metadata is unavailable.",
+            BuildDetails(uncompressedLength));
+    }
+
+    /// <summary>
+    /// Builds the archive detail rows: entry count, uncompressed size, on-disk size and ratio.
+    /// </summary>
+    /// <param name="uncompressedLength">Total uncompressed size reported by the reader.</param>
+    /// <returns>The detail rows.</returns>
+    private IReadOnlyList<ImageMetadataDetail> BuildDetails(long uncompressedLength)
+    {
+        var details = new List<ImageMetadataDetail>
+        {
+            new("Entries", _reader.EntryCount.ToString("N0", CultureInfo.InvariantCulture)),
+            new("Uncompressed", Formatter.FormatBytes(uncompressedLength))
+        };
+
+        try
+        {
+            var compressed = new FileInfo(_archivePath).Length;
+            if (compressed <= 0) return details;
+
+            details.Add(new ImageMetadataDetail("Archive size", Formatter.FormatBytes(compressed)));
+            if (uncompressedLength > 0)
+            {
+                details.Add(new ImageMetadataDetail("Ratio",
+                    $"{(double)compressed * 100 / uncompressedLength:F1}%"));
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            _logger?.Debug(ex, "Could not read the archive size of '{ArchivePath}'", _archivePath);
+        }
+
+        return details;
+    }
 
     /// <inheritdoc/>
     public XbeImage? GetXbeImage(string internalPath, XbeImageKind kind)

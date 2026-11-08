@@ -1,7 +1,10 @@
 using System.Buffers;
+using System.Globalization;
 using CCISharp;
 using CHDSharp;
 using CHDSharp.Models;
+using StfsSharp;
+using StfsSharp.Models;
 using XISOStudio.Interfaces;
 using XISOStudio.Models;
 using Serilog;
@@ -50,6 +53,15 @@ public class XisoIntegrityService : IXisoIntegrityService
 
             try
             {
+                // Single-file STFS packages (XBLA/XBLIG) are validated through their SHA-1
+                // hash tree instead of the XDVDFS audit.
+                if (StfsPackage.IsStfsPackage(isoPath))
+                {
+                    var stfsPassed = TestStfsIntegrity(isoPath, progress, token);
+                    if (!stfsPassed && File.Exists(isoPath)) ReportInvalidIso(progress);
+                    return stfsPassed;
+                }
+
                 if (Path.GetExtension(isoPath).Equals(".zar", StringComparison.OrdinalIgnoreCase))
                 {
                     var zarPassed = TestZarIntegrity(isoPath, performDeepScan, progress, token);
@@ -112,6 +124,7 @@ public class XisoIntegrityService : IXisoIntegrityService
 
                 _logger.Information("Structure is valid ({FilesChecked} files, {DirsChecked} directories checked).",
                     audit.FilesChecked, audit.DirsChecked);
+                LogDiscLayout(isoPath);
                 return true;
             }
             catch (OperationCanceledException)
@@ -163,6 +176,58 @@ public class XisoIntegrityService : IXisoIntegrityService
     private static void ReportInvalidIso(IProgress<BatchOperationProgress> progress)
     {
         progress.Report(new BatchOperationProgress { InvalidIsoCount = 1 });
+    }
+
+    /// <summary>
+    /// Validates a single-file STFS package (XBLA/XBLIG) by verifying its SHA-1 hash tree:
+    /// every data block, file block chain, level-0/1/2 table, top hash and header hash.
+    /// Package signatures are not checked.
+    /// </summary>
+    /// <param name="packagePath">Path of the STFS package to validate.</param>
+    /// <param name="progress">Receives progress updates during validation.</param>
+    /// <param name="token">Token used to cancel the validation.</param>
+    /// <returns><c>true</c> when every hash and block chain matched; otherwise <c>false</c>.</returns>
+    private bool TestStfsIntegrity(string packagePath, IProgress<BatchOperationProgress> progress,
+        CancellationToken token)
+    {
+        var fileName = Path.GetFileName(packagePath);
+        _logger.Information("Starting integrity test for STFS package: {FileName}", fileName);
+        _logger.Information(
+            "Note: This verifies the package SHA-1 hash tree; package signatures are not checked.");
+
+        StfsPackage? package;
+        try
+        {
+            package = StfsPackage.Open(packagePath, FileShare.ReadWrite);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            _logger.Information(ex, "STFS package could not be opened: {FileName}", fileName);
+            return false;
+        }
+
+        using (package)
+        {
+            progress.Report(new BatchOperationProgress { StatusText = "Validating STFS hash tree..." });
+            var report = package.Validate(token);
+
+            if (!report.IsValid)
+            {
+                _logger.Information("STFS validation failed for {FileName}:", fileName);
+                foreach (var issue in report.Issues.Take(20))
+                {
+                    _logger.Information("  - {Area}: {Reason}", issue.Area, issue.Reason);
+                }
+
+                return false;
+            }
+
+            _logger.Information(
+                "STFS package is valid ({FilesChecked} files, {BlocksChecked} blocks, {TablesChecked} hash tables, {BytesChecked} checked).",
+                report.FilesChecked, report.BlocksChecked, report.HashTablesChecked,
+                Formatter.FormatBytes(report.BytesChecked));
+            return true;
+        }
     }
 
     /// <summary>
@@ -272,7 +337,7 @@ public class XisoIntegrityService : IXisoIntegrityService
             "Note: This verifies archive structure and readability, not data checksums.");
 
         _logger.Information("Validating ZAR archive structure...");
-        using var reader = ZArchiveReader.TryOpen(zarPath, out var failure);
+        using var reader = ZArchiveReader.TryOpen(zarPath, ZarImageExplorer.CreateReaderOptions(), out var failure);
         if (reader is null)
         {
             _logger.Information("ZAR archive could not be opened ({Failure}): {FileName}", failure, fileName);
@@ -398,9 +463,22 @@ public class XisoIntegrityService : IXisoIntegrityService
 
         // 2. Xbox filesystem audit over the decompressed image.
         _logger.Information("Validating Xbox filesystem structure...");
-        var openError = ChdFile.OpenAsStream(chdPath, out var chdStream, token);
+        var chdOpenError = ChdFile.Open(chdPath, out var chd, token);
+        if (chdOpenError != ChdError.Chderrnone || chd is null)
+        {
+            _logger.Information("Could not open CHD image for filesystem validation: {Error}",
+                chdOpenError.GetMessage());
+            return false;
+        }
+
+        // The audit walks the image sequentially; decode whole hunks ahead of the reader.
+        chd.ConfigureCache(32);
+        chd.ConfigureReadAhead(8);
+
+        var openError = ChdFile.OpenAsStream(chd, ownsChd: true, out var chdStream);
         if (openError != ChdError.Chderrnone || chdStream is null)
         {
+            chd.Dispose();
             _logger.Information("Could not open CHD image for filesystem validation: {Error}",
                 openError.GetMessage());
             return false;
@@ -548,6 +626,36 @@ public class XisoIntegrityService : IXisoIntegrityService
             {
                 files.Add(new ZarFileEntry(childNode, path, entry.Size));
             }
+        }
+    }
+
+    /// <summary>
+    /// Logs the Redump/XGD layout (generation, partitions, layer break, security sectors and
+    /// warnings) for a passing image. Layout inspection is informational, so a container the
+    /// inspector cannot read must not change the test verdict.
+    /// </summary>
+    /// <param name="isoPath">Path of the image that passed the structural test.</param>
+    private void LogDiscLayout(string isoPath)
+    {
+        try
+        {
+            var layout = XisoDiscInfo.Read(isoPath, quiet: true);
+            _logger.Information(
+                "Disc layout: {DiscFormat}, {XgdType}, {TotalSectors} sectors, game partition at {GameOffset} ({GameLength}).",
+                layout.DiscFormat, layout.XgdType,
+                layout.TotalSectors.ToString("N0", CultureInfo.InvariantCulture),
+                Formatter.FormatBytes(layout.GamePartition?.ByteOffset ?? 0),
+                Formatter.FormatBytes(layout.GamePartition?.ByteLength ?? 0));
+
+            foreach (var warning in layout.Warnings)
+            {
+                _logger.Information("  layout warning: {Warning:l}", warning);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or NotSupportedException
+                                       or UnauthorizedAccessException)
+        {
+            _logger.Debug(ex, "Could not inspect the disc layout of '{ImagePath}'", isoPath);
         }
     }
 

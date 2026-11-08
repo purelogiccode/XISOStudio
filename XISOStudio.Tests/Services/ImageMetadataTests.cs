@@ -1,6 +1,7 @@
 using CCISharp;
 using XISOSharp;
 using XISOSharp.Models;
+using XISOStudio.Models;
 using XISOStudio.Services;
 using XISOStudio.Tests.Fixtures;
 using Xunit;
@@ -59,6 +60,20 @@ public sealed class ImageMetadataTests : IDisposable
         return header;
     }
 
+    /// <summary>
+    /// Asserts that the metadata contains a detail row with the given label and, when
+    /// supplied, an exactly matching value.
+    /// </summary>
+    /// <param name="metadata">Metadata whose details are inspected.</param>
+    /// <param name="label">Expected detail label.</param>
+    /// <param name="value">Expected value, or <c>null</c> to accept any value.</param>
+    private static void AssertDetail(ImageMetadata metadata, string label, string? value = null)
+    {
+        Assert.Contains(metadata.Details, detail =>
+            string.Equals(detail.Label, label, StringComparison.Ordinal) &&
+            (value is null || detail.Value.Contains(value, StringComparison.Ordinal)));
+    }
+
     [Fact]
     public void XisoExplorer_ReportsTitleMetadataAndXbeAssets()
     {
@@ -74,6 +89,9 @@ public sealed class ImageMetadataTests : IDisposable
         Assert.True(metadata.HasTitleImage);
         Assert.True(metadata.HasSaveImage);
         Assert.Null(metadata.UnavailableReason);
+        AssertDetail(metadata, "Container", "Iso");
+        AssertDetail(metadata, "Disc layout", "RAW");
+        AssertDetail(metadata, "Optimized tag");
 
         foreach (var kind in new[] { XbeImageKind.Logo, XbeImageKind.Title, XbeImageKind.Save })
         {
@@ -101,6 +119,8 @@ public sealed class ImageMetadataTests : IDisposable
             Assert.Equal(1u, metadata.DiscNumber);
             Assert.Equal(2u, metadata.DiscCount);
             Assert.Equal("GOD/SVOD", metadata.Kind);
+            AssertDetail(metadata, "Container", "God");
+            AssertDetail(metadata, "Disc layout");
         }
 
         using (var explorer = ImageExplorerFactory.Open(dataDirectory))
@@ -144,6 +164,9 @@ public sealed class ImageMetadataTests : IDisposable
         Assert.Equal("Metadata Test", metadata.TitleName);
         Assert.Equal("0x4D530123", metadata.TitleIdHex);
         Assert.Equal("/default.xbe", metadata.ExecutablePath);
+        AssertDetail(metadata, "Container", "Cci");
+        AssertDetail(metadata, "Compressed size");
+        AssertDetail(metadata, "Ratio");
 
         var image = explorer.GetXbeImage("/default.xbe", XbeImageKind.Title);
         Assert.NotNull(image);
@@ -162,6 +185,10 @@ public sealed class ImageMetadataTests : IDisposable
         Assert.Equal("Chd", metadata.Format);
         Assert.Equal("Metadata Test", metadata.TitleName);
         Assert.Equal("/default.xbe", metadata.ExecutablePath);
+        AssertDetail(metadata, "Container", "CHD v5");
+        AssertDetail(metadata, "Hunk size");
+        AssertDetail(metadata, "Codecs", "zlib");
+        AssertDetail(metadata, "SHA-1");
 
         var image = explorer.GetXbeImage("/default.xbe", XbeImageKind.Title);
         Assert.NotNull(image);
@@ -180,7 +207,36 @@ public sealed class ImageMetadataTests : IDisposable
         var metadata = explorer.GetMetadata();
         Assert.Equal("Zar", metadata.Format);
         Assert.NotNull(metadata.UnavailableReason);
+        AssertDetail(metadata, "Entries");
+        AssertDetail(metadata, "Uncompressed");
+        AssertDetail(metadata, "Ratio");
         Assert.Null(explorer.GetXbeImage("/default.xbe", XbeImageKind.Logo));
+    }
+
+    [Fact]
+    public void StfsExplorer_ReportsPackageMetadata()
+    {
+        var packagePath = Path.Combine(_tempRoot, "584109B7");
+        SyntheticStfsPackage.Create(packagePath,
+        [
+            new SyntheticStfsFile("default.xex", new byte[256]),
+            new SyntheticStfsFile("data/file.bin", new byte[64])
+        ], xblig: true, titleName: "STFS Metadata Test");
+
+        using var explorer = ImageExplorerFactory.Open(packagePath);
+
+        var metadata = explorer.GetMetadata();
+        Assert.Equal("Stfs", metadata.Format);
+        Assert.Equal("STFS Metadata Test", metadata.TitleName);
+        Assert.Equal("XBLIG", metadata.Kind);
+        Assert.Equal("/default.xex", metadata.ExecutablePath);
+        Assert.Equal("0x584109B7", metadata.TitleIdHex);
+        AssertDetail(metadata, "Package kind", "XBLIG");
+        AssertDetail(metadata, "Files");
+        AssertDetail(metadata, "Content size");
+
+        Assert.Contains(explorer.ListChildren("/"), static e => e is { Name: "default.xex" });
+        Assert.Null(explorer.GetXbeImage("/default.xex", XbeImageKind.Logo));
     }
 
     [Fact]
