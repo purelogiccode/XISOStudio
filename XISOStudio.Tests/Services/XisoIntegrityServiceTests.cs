@@ -803,9 +803,9 @@ public sealed class XisoIntegrityServiceTests : IDisposable
     public async Task CorruptStfsDataBlockFailsIntegrityTest()
     {
         var packagePath = CreateStfsPackage();
-        var bytes = File.ReadAllBytes(packagePath);
+        var bytes = await File.ReadAllBytesAsync(packagePath);
         bytes[^1] ^= 0xFF;
-        File.WriteAllBytes(packagePath, bytes);
+        await File.WriteAllBytesAsync(packagePath, bytes);
 
         var service = CreateService();
         var progress = new CollectingProgress();

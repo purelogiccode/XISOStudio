@@ -55,7 +55,10 @@ public sealed class ImageHashService : IImageHashService
     private ImageHashes Compute(string imagePath, CancellationToken token)
     {
         ArgumentException.ThrowIfNullOrEmpty(imagePath);
-        if (!File.Exists(imagePath)) throw new FileNotFoundException("Image not found.", imagePath);
+        if (!File.Exists(imagePath) && !Directory.Exists(imagePath))
+        {
+            throw new FileNotFoundException("Image not found.", imagePath);
+        }
 
         token.ThrowIfCancellationRequested();
 
@@ -124,7 +127,7 @@ public sealed class ImageHashService : IImageHashService
         chd.ConfigureReadAhead(8);
 
         var streamError = ChdFile.OpenAsStream(chd, ownsChd: true, out var stream);
-        if (streamError != ChdError.Chderrnone || stream is null)
+        if (streamError != ChdError.Chderrnone)
         {
             chd.Dispose();
             throw new InvalidDataException($"Not a valid CHD image ({streamError.GetMessage()}): {imagePath}");

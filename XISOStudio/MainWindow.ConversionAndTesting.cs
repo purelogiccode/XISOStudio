@@ -13,6 +13,8 @@ namespace XISOStudio;
         "XAML event handlers are resolved by the Avalonia markup compiler, which ReSharper does not link across partial class files.")]
 [SuppressMessage("ReSharper", "UnusedParameter.Local",
     Justification = "Parameters are required by XAML event handler signatures (sender, event args).")]
+[SuppressMessage("ReSharper", "AsyncVoidEventHandlerMethod",
+    Justification = "XAML event handlers must be async void; every awaited operation is guarded by try/catch.")]
 public partial class MainWindow
 {
     /// <summary>Prompts for the conversion input folder and refreshes the conversion file list.</summary>

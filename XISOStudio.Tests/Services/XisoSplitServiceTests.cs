@@ -46,7 +46,7 @@ public sealed class XisoSplitServiceTests : IDisposable
     public async Task SplitAndJoinRoundTripsByteIdentically()
     {
         var isoPath = CreateIso();
-        var originalHash = XisoImageHash.Compute(isoPath).Sha256;
+        var originalHash = (await XisoImageHash.ComputeAsync(isoPath)).Sha256;
 
         var partSize = Math.Max(2048, new FileInfo(isoPath).Length / 2 / 2048 * 2048);
         var parts = await _service.SplitAsync(isoPath, Path.Combine(_tempRoot, "game"), partSize);
@@ -58,7 +58,7 @@ public sealed class XisoSplitServiceTests : IDisposable
         var result = await _service.JoinAsync(parts[0], joinedPath);
 
         Assert.Equal(joinedPath, result);
-        Assert.Equal(originalHash, XisoImageHash.Compute(result).Sha256);
+        Assert.Equal(originalHash, (await XisoImageHash.ComputeAsync(result)).Sha256);
     }
 
     [Fact]

@@ -12,8 +12,9 @@ public interface IImageHashService
 {
     /// <summary>
     /// Computes the checksums of <paramref name="imagePath"/>. ISO, split ISO, CISO, CCI and
-    /// GOD inputs are hashed through their decompressed view; ZAR hashes cover the stored
-    /// archive bytes plus the extracted tree hash; CHD hashes cover the decompressed image.
+    /// GOD inputs (header or <c>.data</c> folder) are hashed through their decompressed view;
+    /// ZAR hashes cover the stored archive bytes plus the extracted tree hash; CHD hashes cover
+    /// the decompressed image.
     /// </summary>
     /// <param name="imagePath">Path of the image or archive.</param>
     /// <param name="token">Token that cancels the operation.</param>

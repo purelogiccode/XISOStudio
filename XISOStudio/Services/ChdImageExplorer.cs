@@ -66,7 +66,7 @@ internal sealed class ChdImageExplorer : IImageExplorer
         chd.ConfigureReadAhead(ReadAheadHunks);
 
         var streamError = ChdFile.OpenAsStream(chd, ownsChd: true, out var stream);
-        if (streamError != ChdError.Chderrnone || stream is null)
+        if (streamError != ChdError.Chderrnone)
         {
             chd.Dispose();
             throw new InvalidDataException($"Not a valid CHD image ({streamError.GetMessage()}): {chdPath}");
@@ -175,7 +175,7 @@ internal sealed class ChdImageExplorer : IImageExplorer
             TitleInfo? title = XisoReader.GetTitleInfo(_stream, _imageName);
             if (title is null)
             {
-                return ImageMetadata.Unavailable("Chd", _imageName, _stream.Length,
+                return ImageMetadata.Unavailable("Chd", _imagePath, _stream.Length,
                     "No root default.xbe/default.xex was found in the decompressed image.");
             }
 
@@ -184,7 +184,7 @@ internal sealed class ChdImageExplorer : IImageExplorer
             return new ImageMetadata
             {
                 Format = "Chd",
-                Path = _imageName,
+                Path = _imagePath,
                 Length = _stream.Length,
                 TitleName = title.TitleName,
                 TitleIdHex = title.TitleIdHex,
@@ -209,7 +209,7 @@ internal sealed class ChdImageExplorer : IImageExplorer
         {
             _logger?.Information(ex, "Could not read title metadata from the CHD image: {Reason}",
                 HostIoErrorDescriber.TryDescribe(ex, "reading the CHD image", _imagePath) ?? ex.Message);
-            return ImageMetadata.Unavailable("Chd", _imageName, _stream.Length,
+            return ImageMetadata.Unavailable("Chd", _imagePath, _stream.Length,
                 $"Metadata could not be read: {ex.Message}");
         }
     }

@@ -343,7 +343,7 @@ public sealed class ImageConversionService : IImageConversionService
         chd.ConfigureReadAhead(ReadAheadHunks);
 
         var streamError = ChdFile.OpenAsStream(chd, ownsChd: true, out var stream);
-        if (streamError != ChdError.Chderrnone || stream is null)
+        if (streamError != ChdError.Chderrnone)
         {
             chd.Dispose();
             throw new InvalidDataException($"Not a valid CHD image ({streamError.GetMessage()}): {inputFile}");

@@ -74,7 +74,7 @@ The **Decompress** tab turns container images back into a plain sector image:
 | `.cci` / split `.1.cci` | `XisoCci.DecompressToIso` |
 | `.zar` | `XisoZarchive.ConvertZarToIso` (the tree is repacked, so the tree hash is preserved while the sector layout may differ) |
 | `.chd` | the decompressed `ChdImageStream` is copied to an ISO |
-| GOD/SVOD header or `.data` folder | the mapped logical image is copied to an ISO |
+| GOD/SVOD header (its `.data` folder is resolved automatically) | the mapped logical image is copied to an ISO |
 
 Plain `.iso`/`.xiso`/`.img` inputs are listed but skipped as already uncompressed. Each result can be
 structurally audited before it is reported as successful, and **Delete Originals** removes the source

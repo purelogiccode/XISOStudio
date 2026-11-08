@@ -1,4 +1,3 @@
-using System.Text;
 using Serilog.Events;
 using XISOStudio.Models;
 using XISOStudio.Services;
@@ -74,7 +73,7 @@ public sealed class ImageExplorerTests : IDisposable
         SyntheticStfsPackage.Create(packagePath,
         [
             new SyntheticStfsFile("default.xex", [1, 2, 3]),
-            new SyntheticStfsFile("data/readme.txt", Encoding.UTF8.GetBytes("hi")),
+            new SyntheticStfsFile("data/readme.txt", "hi"u8.ToArray()),
             new SyntheticStfsFile("data/empty.bin", [])
         ]);
         return packagePath;

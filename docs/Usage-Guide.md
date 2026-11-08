@@ -90,7 +90,8 @@ Use this view to validate images without converting them. Supported formats:
 - **`.iso`**, **`.xiso`**, **`.img`** and **`.cso`** (CISO, including split `.1.cso` part sets) — a deep audit of the XDVDFS file tree, with an optional sequential sector scan.
 - **`.cci`** (including split `.1.cci` part sets) — validates the CCI container and decodes every sector with the deep scan enabled, then audits the decompressed Xbox filesystem.
 - **`.zar`** (ZArchive/zstd) — opens the archive (header, index, name table, file tree), walks the whole tree, and with the deep scan enabled decompresses every file to prove all blocks are readable.
-- **`.chd`** (Xbox DVD images only) — verifies the CHD container (header-only, or every hunk and checksum with the deep scan enabled) and then audits the Xbox filesystem inside the decompressed image. CD/GD-ROM/hard-disk CHDs are rejected.
+- **`.chd`** (Xbox DVD images only) - verifies the CHD container (header-only, or every hunk and checksum with the deep scan enabled) and then audits the Xbox filesystem inside the decompressed image. CD/GD-ROM/hard-disk CHDs are rejected.
+- **GOD/SVOD headers** (extensionless files with a matching `.data` folder) - audits the mapped XDVDFS filesystem; with the deep scan enabled the whole decompressed image is read.
 - **XBLA/XBLIG STFS packages** (extensionless files with a `CON `/`LIVE`/`PIRS` signature) — verifies the package SHA-1 hash tree: every data block, file chain, level-0/1/2 table, top hash and header hash. Package signatures are not checked.
 
 ### Options
@@ -100,7 +101,7 @@ Use this view to validate images without converting them. Supported formats:
 | **Move Passed Files** | Moves images that pass validation into a `_success` subfolder (a split set's continuation parts travel with part 1) |
 | **Move Failed Files** | Moves images that fail validation into a `_failed` subfolder |
 | **Search Subfolders** | Recurses into subdirectories of the input folder |
-| **Perform Deep Scan** | Reads the entire image — every sector for ISO/CSO/CCI, every decompressed block for ZAR, every CHD hunk and checksum for CHD — to detect physical corruption / bad sectors (slower, but thorough). STFS packages are always fully hash-checked. |
+| **Perform Deep Scan** | Reads the entire image - every sector for ISO/CSO/CCI/GOD, every decompressed block for ZAR, every CHD hunk and checksum for CHD - to detect physical corruption / bad sectors (slower, but thorough). STFS packages are always fully hash-checked. |
 
 ### Recovery
 
@@ -126,7 +127,7 @@ Two buttons below the start button recover images that failed the test:
 Use this view to turn container images back into a plain ISO:
 
 1. Select the folder containing the compressed images and the output folder.
-2. Tick the files to process. Supported inputs: `.cso`, `.cci`, `.zar`, `.chd`, GOD/SVOD headers or `.data` folders. Plain `.iso`/`.xiso`/`.img` files are listed but skipped as already uncompressed.
+2. Tick the files to process. Supported inputs: `.cso`, `.cci`, `.zar`, `.chd` and extensionless GOD/SVOD headers (the matching `.data` folder is resolved automatically). Plain `.iso`/`.xiso`/`.img` files are listed but skipped as already uncompressed.
 3. Choose whether to **delete the originals** after a successful decompression, whether to **search subfolders**, and whether to **check the output integrity**.
 4. Click **Start Decompression**.
 
@@ -138,7 +139,7 @@ Use this view to turn container images back into a plain ISO:
 | CHD (Xbox DVD) | the decompressed image copied to an ISO |
 | GOD/SVOD | the mapped logical image copied to an ISO |
 
-Split sets are deleted as a whole when **Delete Originals** is enabled, so no orphaned continuation parts are left behind.
+Split sets are deleted as a whole when **Delete Originals** is enabled, so no orphaned continuation parts are left behind. For a GOD/SVOD source, the header and every `DataNNNN` fragment in the `.data` folder are removed together.
 
 ## The Explorer Tab
 

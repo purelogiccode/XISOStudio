@@ -67,7 +67,7 @@ public sealed class ImageConversionServiceTests : IDisposable
     {
         var isoPath = CreateIso();
         var csoPath = Path.Combine(_tempRoot, "game.cso");
-        Assert.Equal(0, CisoWriter.CompressToCso(isoPath, csoPath));
+        Assert.Equal(0, await CisoWriter.CompressToCsoAsync(isoPath, csoPath));
 
         await AssertDecompressedAsync(csoPath, isoPath);
     }
@@ -77,7 +77,8 @@ public sealed class ImageConversionServiceTests : IDisposable
     {
         var isoPath = CreateIso();
         var cciPath = Path.Combine(_tempRoot, "game.cci");
-        Assert.Equal(CciError.None, CciWriter.Compress(isoPath, cciPath, new CciWriteOptions { SplitBytes = 0 }));
+        Assert.Equal(CciError.None,
+            await CciWriter.CompressAsync(isoPath, cciPath, new CciWriteOptions { SplitBytes = 0 }));
 
         await AssertDecompressedAsync(cciPath, isoPath);
     }

@@ -1,7 +1,9 @@
 using System.Reflection;
+using XISOSharp;
 using XISOStudio.Interfaces;
 using XISOStudio.Models;
 using XISOStudio.Services;
+using XISOStudio.Tests.Fixtures;
 using Moq;
 using Serilog.Events;
 using SharpCompress.Common;
@@ -155,6 +157,28 @@ public class OrchestratorServiceTests : IDisposable
 
     #region Decompression Tests
 
+    [Fact]
+    public async Task DecompressFilesAsyncDeleteOriginalsRemovesGodHeaderAndDataFragments()
+    {
+        var sourceDirectory = Path.Combine(_tempDir, "god-source");
+        Directory.CreateDirectory(sourceDirectory);
+        await File.WriteAllTextAsync(Path.Combine(sourceDirectory, "default.xbe"), "fake xbe content");
+        var isoPath = Path.Combine(_tempDir, "god-source.iso");
+        Assert.Equal(0, await XisoWriter.PackFromDirectoryAsync(sourceDirectory, isoPath));
+        var headerPath = SyntheticGodContainer.CreateFromIso(isoPath,
+            Path.Combine(_tempDir, "god", "58480813ABCDEF0123456789"), "GOD Delete Originals Test", 0x58480813);
+        var dataFile = Path.Combine(headerPath + ".data", "Data0000");
+        Assert.True(File.Exists(dataFile));
+
+        var orchestrator = CreateOrchestrator(new Mock<IFileExtractor>(), FileProcessingStatus.Converted);
+        await orchestrator.DecompressFilesAsync([headerPath], Path.Combine(_tempDir, "decompress-output"), true,
+            false, new Progress<BatchOperationProgress>(), CloudRetrySkip, CancellationToken.None);
+
+        Assert.False(File.Exists(headerPath));
+        Assert.False(File.Exists(dataFile));
+        Assert.False(Directory.Exists(headerPath + ".data"));
+    }
+
     [Theory]
     [InlineData("game.cso", "game.iso")]
     [InlineData("game.cci", "game.iso")]
@@ -176,8 +200,8 @@ public class OrchestratorServiceTests : IDisposable
         conversion.Setup(static s => s.DecompressToIsoAsync(It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<IProgress<BatchOperationProgress>>(),
                 It.IsAny<CancellationToken>()))
-            .Returns((string _, string _, string outputName, bool _, IProgress<BatchOperationProgress> __,
-                CancellationToken ___) =>
+            .Returns((string _, string _, string outputName, bool _, IProgress<BatchOperationProgress> _,
+                CancellationToken _) =>
             {
                 capturedOutputName = outputName;
                 return Task.FromResult(FileProcessingStatus.Converted);

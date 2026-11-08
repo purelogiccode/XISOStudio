@@ -18,7 +18,7 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <TextBlock Text="XISO Studio" FontSize="20" FontWeight="Bold" Foreground="{StaticResource HeaderTextBrush}" VerticalAlignment="Center" Margin="0,0,30,0" ToolTip.Tip="XISO Studio — Xbox preservation utility" />
                     <Button x:Name="BtnNavConvert" Content="Convert" Click="NavConvert_Click" Theme="{StaticResource MenuButtonStyle}" ToolTip.Tip="Switch to the ISO to XISO batch conversion view" />
-                    <Button x:Name="BtnNavTest" Content="Test Integrity" Click="NavTest_Click" Theme="{StaticResource MenuButtonStyle}" ToolTip.Tip="Switch to the image integrity testing view (ISO, CSO, ZAR)" />
+                    <Button x:Name="BtnNavTest" Content="Test Integrity" Click="NavTest_Click" Theme="{StaticResource MenuButtonStyle}" ToolTip.Tip="Switch to the image integrity testing view (ISO, XISO, IMG, CSO, CCI, ZAR, CHD, GOD/SVOD and STFS/XBLA)" />
                     <Button x:Name="BtnNavDecompress" Content="Decompress" Click="NavDecompress_Click" Theme="{StaticResource MenuButtonStyle}" ToolTip.Tip="Switch to the image decompression view (CSO, CCI, ZAR, CHD or GOD/SVOD back to ISO)" />
                     <Button x:Name="BtnNavExplorer" Content="Explorer" Click="NavExplorer_Click" Theme="{StaticResource MenuButtonStyle}" ToolTip.Tip="Switch to the image explorer (ISO, XISO, CSO, CCI, CHD, ZAR, GOD/SVOD, STFS/XBLA) with metadata, checksums and artwork" />
                 </StackPanel>
@@ -46,7 +46,7 @@
                     <!-- Conversion View -->
                     <Grid x:Name="ConvertView" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto">
                         <Grid Margin="0,0,0,10" ColumnDefinitions="150,*,Auto">
-                            <Label Content="Source Folder:" ToolTip.Tip="The folder containing ISO, ZIP, RAR, or 7z files to convert" />
+                            <Label Content="Source Folder:" ToolTip.Tip="The folder containing ISO/XISO/IMG, ZIP, RAR, or 7z files to convert" />
                             <TextBox x:Name="ConversionInputFolderTextBox" Grid.Column="1" IsReadOnly="True" Margin="5,0" ToolTip.Tip="Select the folder containing ISO or archive files" />
                             <Button Grid.Column="2" Content="Browse..." Click="BrowseConversionInputButton_ClickAsync" Theme="{StaticResource ActionButtonStyle}" ToolTip.Tip="Browse for source folder" />
                         </Grid>
@@ -98,11 +98,11 @@
                                 <CheckBox x:Name="MoveSuccessFilesCheckBox" Content="Move successfully tested images to a '_success' subfolder" Margin="0,5,0,0" HorizontalAlignment="Left" IsChecked="False" ToolTip.Tip="Moves valid images to a '_success' folder within the source folder" />
                                 <CheckBox x:Name="MoveFailedFilesCheckBox" Content="Move failed tested images to a '_failed' subfolder" Margin="0,5,0,0" HorizontalAlignment="Left" IsChecked="False" ToolTip.Tip="Moves invalid images to a '_failed' folder within the source folder" />
                                 <CheckBox x:Name="SearchSubfoldersTestCheckBox" Content="Search for files in subfolders" Margin="0,5,0,0" HorizontalAlignment="Left" IsChecked="True" ToolTip.Tip="Include files found in subdirectories of the source folder" IsCheckedChanged="SearchSubfoldersCheckBox_Changed" />
-                                <CheckBox x:Name="PerformDeepScanCheckBox" Content="Perform deep surface scan (slower)" Margin="0,5,0,5" HorizontalAlignment="Left" IsChecked="False" ToolTip.Tip="Reads the entire image (and decompresses every block for CSO/ZAR/CHD) to detect bad sectors or corrupt blocks. Unchecked performs the logical structure test only (faster)." />
+                                <CheckBox x:Name="PerformDeepScanCheckBox" Content="Perform deep surface scan (slower)" Margin="0,5,0,5" HorizontalAlignment="Left" IsChecked="False" ToolTip.Tip="Reads the entire image (and decompresses every block for CSO/CCI/ZAR/CHD) to detect bad sectors or corrupt blocks. Unchecked performs the logical structure test only (faster)." />
                             </StackPanel>
                         </Expander>
-                        <Label Grid.Row="2" Content="Select Files to Test:" Margin="0,5,0,0" FontWeight="SemiBold" ToolTip.Tip="Tick the ISO, CSO, ZAR, or CHD files to include in the integrity test" />
-                        <DataGrid x:Name="TestFilesDataGrid" Grid.Row="3" MinHeight="120" Margin="0,5" AutoGenerateColumns="False" Classes="FileList" ToolTip.Tip="ISO, CSO, ZAR, and CHD files found in the folder. Untick any file you do not want to test.">
+                        <Label Grid.Row="2" Content="Select Files to Test:" Margin="0,5,0,0" FontWeight="SemiBold" ToolTip.Tip="Tick the ISO/XISO/IMG, CSO, CCI, ZAR, CHD, GOD/SVOD header or STFS/XBLA files to include in the integrity test" />
+                        <DataGrid x:Name="TestFilesDataGrid" Grid.Row="3" MinHeight="120" Margin="0,5" AutoGenerateColumns="False" Classes="FileList" ToolTip.Tip="Supported images, containers and STFS packages found in the folder. Untick any file you do not want to test.">
                             <DataGrid.Columns>
                                 <DataGridCheckBoxColumn Header="Selected" Binding="{Binding IsSelected, Mode=TwoWay}" Width="95" />
                                 <DataGridTextColumn Header="Filename" Binding="{Binding FileName}" Width="*" IsReadOnly="True" />

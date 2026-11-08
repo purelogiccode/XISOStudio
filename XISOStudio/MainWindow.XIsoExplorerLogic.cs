@@ -24,6 +24,8 @@ namespace XISOStudio;
         "XAML event handlers are resolved by the Avalonia markup compiler, which ReSharper does not link across partial class files.")]
 [SuppressMessage("ReSharper", "UnusedParameter.Local",
     Justification = "Parameters are required by XAML event handler signatures (sender, event args).")]
+[SuppressMessage("ReSharper", "AsyncVoidEventHandlerMethod",
+    Justification = "XAML event handlers must be async void; every awaited operation is guarded by try/catch.")]
 public partial class MainWindow
 {
     // Drag-drop state tracking
@@ -746,19 +748,28 @@ public partial class MainWindow
     /// <param name="e">The event data.</param>
     private async void CopyHashesButton_ClickAsync(object? sender, RoutedEventArgs e)
     {
-        if (_currentHashes.Count == 0) return;
-
-        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-        if (clipboard is null)
+        try
         {
-            ImageHashesStatusTextBlock.Text = "The clipboard is not available.";
-            return;
-        }
+            if (_currentHashes.Count == 0) return;
 
-        var text = string.Join(Environment.NewLine,
-            _currentHashes.Select(static row => $"{row.Label}: {row.Value}"));
-        await clipboard.SetValueAsync(DataFormat.Text, text);
-        ImageHashesStatusTextBlock.Text = "Hashes copied to the clipboard.";
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard is null)
+            {
+                ImageHashesStatusTextBlock.Text = "The clipboard is not available.";
+                return;
+            }
+
+            var text = string.Join(Environment.NewLine,
+                _currentHashes.Select(static row => $"{row.Label}: {row.Value}"));
+            await clipboard.SetValueAsync(DataFormat.Text, text);
+            ImageHashesStatusTextBlock.Text = "Hashes copied to the clipboard.";
+        }
+        catch (Exception ex)
+        {
+            // Clipboard access is best-effort and depends on the desktop integration.
+            _logger.Information(ex, "Could not copy the hashes to the clipboard");
+            ImageHashesStatusTextBlock.Text = "The hashes could not be copied to the clipboard.";
+        }
     }
 
     /// <summary>Converts the computed hashes into display rows, omitting unavailable values.</summary>
@@ -767,6 +778,7 @@ public partial class MainWindow
     private static IReadOnlyList<ImageMetadataDetail> BuildHashRows(ImageHashes hashes)
     {
         var rows = new List<ImageMetadataDetail>();
+        if (hashes.TotalBytes > 0) rows.Add(new ImageMetadataDetail("Size", Formatter.FormatBytes(hashes.TotalBytes)));
         if (!string.IsNullOrEmpty(hashes.Crc32)) rows.Add(new ImageMetadataDetail("CRC-32", hashes.Crc32));
         if (!string.IsNullOrEmpty(hashes.Md5)) rows.Add(new ImageMetadataDetail("MD5", hashes.Md5));
         if (!string.IsNullOrEmpty(hashes.Sha1)) rows.Add(new ImageMetadataDetail("SHA-1", hashes.Sha1));

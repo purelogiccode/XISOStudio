@@ -4,7 +4,6 @@ using CCISharp;
 using CHDSharp;
 using CHDSharp.Models;
 using StfsSharp;
-using StfsSharp.Models;
 using XISOStudio.Interfaces;
 using XISOStudio.Models;
 using Serilog;
@@ -249,7 +248,9 @@ public class XisoIntegrityService : IXisoIntegrityService
             "Note: This verifies CCI container structure, sector decoding and the Xbox filesystem; it doesn't verify game data checksums.");
 
         token.ThrowIfCancellationRequested();
-        CciError openError = CciFile.Open(cciPath, new CciReaderOptions { Share = FileShare.Read },
+        // Match the rest of the app: write sharing lets antivirus scanners and sync clients
+        // keep the image open while it is being tested.
+        CciError openError = CciFile.Open(cciPath, new CciReaderOptions { Share = FileShare.ReadWrite },
             out CciFile? cci);
         if (openError != CciError.None || cci is null)
         {
@@ -476,7 +477,7 @@ public class XisoIntegrityService : IXisoIntegrityService
         chd.ConfigureReadAhead(8);
 
         var openError = ChdFile.OpenAsStream(chd, ownsChd: true, out var chdStream);
-        if (openError != ChdError.Chderrnone || chdStream is null)
+        if (openError != ChdError.Chderrnone)
         {
             chd.Dispose();
             _logger.Information("Could not open CHD image for filesystem validation: {Error}",

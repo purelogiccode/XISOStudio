@@ -1,3 +1,4 @@
+using XISOSharp;
 using XISOStudio.Services;
 using XISOStudio.Tests.Fixtures;
 using Xunit;
@@ -371,6 +372,32 @@ public class SupportedFilesTests
             Assert.True(SupportedFiles.IsTestable(packagePath));
             Assert.False(SupportedFiles.IsDecompressible(packagePath));
             Assert.False(SupportedFiles.IsConvertible(packagePath));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ExtensionlessGodHeaderIsTestableAndDecompressible()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        var sourceDirectory = Path.Combine(directory, "source");
+        Directory.CreateDirectory(sourceDirectory);
+        File.WriteAllText(Path.Combine(sourceDirectory, "default.xbe"), "fake xbe content");
+        var isoPath = Path.Combine(directory, "source.iso");
+        Assert.Equal(0, XisoWriter.PackFromDirectory(sourceDirectory, isoPath));
+        var headerPath = SyntheticGodContainer.CreateFromIso(isoPath,
+            Path.Combine(directory, "58480813ABCDEF0123456789"), "GOD Supported Files Test", 0x58480813);
+
+        try
+        {
+            Assert.True(SupportedFiles.IsImage(headerPath));
+            Assert.True(SupportedFiles.IsTestable(headerPath));
+            Assert.True(SupportedFiles.IsDecompressible(headerPath));
+            Assert.False(SupportedFiles.IsConvertible(headerPath));
         }
         finally
         {

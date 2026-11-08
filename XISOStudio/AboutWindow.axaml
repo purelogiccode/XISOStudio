@@ -75,7 +75,7 @@
                                Margin="0,0,0,12"
                                ToolTip.Tip="XISO Studio converts Xbox/Xbox 360 ISOs into trimmed XISO format, saving space while preserving content" />
                     <TextBlock
-                        Text="Features include batch conversion powered by the XISOSharp library, integrity testing with deep scanning for ISO, CSO, ZAR, and CHD images, and an image explorer with GOD/SVOD support, title metadata, XBE image previews, and drag-and-drop extraction."
+                        Text="Features include batch conversion powered by the XISOSharp library, integrity testing with deep scanning for ISO, CSO, CCI, ZAR, CHD and STFS/XBLA images, a decompression view, and an image explorer with GOD/SVOD support, title metadata, checksums, XBE image previews, and drag-and-drop extraction."
                         Foreground="{StaticResource TextSecondaryBrush}"
                         TextWrapping="Wrap"
                         LineHeight="20"

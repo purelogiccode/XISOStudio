@@ -36,10 +36,9 @@ internal static class SyntheticStfsPackage
     /// <param name="titleName">Title name stored in the XContent header.</param>
     /// <param name="extraDirectories">Additional empty directories to create.</param>
     /// <param name="nonContiguousPath">A file path whose blocks are separated by an unused block.</param>
-    /// <returns><paramref name="packagePath"/>.</returns>
     /// <exception cref="ArgumentException">A path is empty or unsafe.</exception>
     /// <exception cref="NotSupportedException">The fixture would need more than 170 data blocks.</exception>
-    public static string Create(
+    public static void Create(
         string packagePath,
         IReadOnlyList<SyntheticStfsFile> files,
         bool readOnlyFormat = true,
@@ -55,7 +54,6 @@ internal static class SyntheticStfsPackage
         byte[] package = Build(files, readOnlyFormat, rootActiveIndex, xblig, titleName,
             extraDirectories, nonContiguousPath);
         File.WriteAllBytes(packagePath, package);
-        return packagePath;
     }
 
     /// <summary>
@@ -70,7 +68,7 @@ internal static class SyntheticStfsPackage
     /// <param name="nonContiguousPath">A file path whose blocks are separated by an unused block.</param>
     /// <exception cref="ArgumentException">A path is empty or unsafe.</exception>
     /// <exception cref="NotSupportedException">The fixture would need more than 170 data blocks.</exception>
-    public static byte[] Build(
+    private static byte[] Build(
         IReadOnlyList<SyntheticStfsFile> files,
         bool readOnlyFormat = true,
         bool rootActiveIndex = false,

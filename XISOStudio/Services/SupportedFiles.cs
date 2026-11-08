@@ -34,12 +34,22 @@ public static class SupportedFiles
     ///     decompressor skips them as already uncompressed.
     /// </summary>
     /// <param name="path">Path to inspect.</param>
-    /// <returns><c>true</c> for every supported image extension; otherwise <c>false</c>.</returns>
+    /// <returns>
+    ///     <c>true</c> for every supported image extension and for extensionless GOD/SVOD
+    ///     headers; otherwise <c>false</c>.
+    /// </returns>
     public static bool IsDecompressible(string path)
     {
-        // Extensionless containers (GOD/SVOD headers and STFS packages) are not listed
-        // here: only the image formats the decompressor writes to ISO are.
-        return IsImage(path) && Path.HasExtension(path) && !IsSplitContinuationPart(path);
+        var extension = Path.GetExtension(path);
+        if (extension.Length == 0)
+        {
+            // GOD/SVOD headers are extensionless containers with a matching ".data" folder,
+            // so they must be listed even though the user never types an extension. STFS
+            // packages are also extensionless but are not sector images, so they stay out.
+            return File.Exists(path) && StfsSharp.GodHeader.IsGodContainer(path);
+        }
+
+        return IsImage(path) && !IsSplitContinuationPart(path);
     }
 
     /// <summary>

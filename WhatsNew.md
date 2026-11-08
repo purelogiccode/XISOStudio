@@ -2,56 +2,73 @@
 
 <!-- Keep this file focused on the newest release. Full history lives in docs/Release-Notes.md. -->
 
-## Unreleased
+## Version 3.2.0
 
-**A format-complete workflow: CCI output, decompression, checksums, STFS packages and image recovery.**
+**Release date:** November 2026
 
-The Convert tab now produces single-file **CCI** (`.cci`, LZ4 level 9) alongside XISO, ZAR, CSO and
-CHD. A new **Decompress** tab turns CSO, CCI, ZAR, Xbox DVD CHD and GOD/SVOD images back into plain
-ISO files; ZAR is repacked (the xdvdfs tree hash is preserved), CHD and GOD are read through their
-decompressed logical view, and **Delete originals** removes a split set as a whole only after a
-successful decompression.
+Version 3.2.0 is the **format-complete release**: CCI output, a Decompress view, real conversion
+validation, image checksums, STFS/XBLA packages, repair and salvage, whole-image extraction, FATX
+split/join, GOD/SVOD exploration and XBE metadata/previews.
 
-**Check Output Integrity** now proves the conversion: the output file tree is compared with the
-source (paths, sizes and per-file SHA-256) through `XisoValidator`, and only a deliberately removed
-`$SystemUpdate` folder is ignored. CHD keeps its full hunk/checksum deep verification.
+### Highlights
 
-The Explorer gained container details (disc layout, XGD generation, Redump-size match, partitions,
-layer break, security sectors, split parts, compression ratio, codecs, SHA-1), CRC-32/MD5/SHA-1/
-SHA-256/SHA3-256 and xdvdfs tree hashes, Xbox 360 XDBF thumbnails, whole-image **Extract all** with
-resume, and FATX **Split... / Join...** tools. `.xiso` and `.img` files and split `.1.iso` sets are
-now accepted everywhere, ZAR entries with extended names are decoded, and CHD browsing uses an LRU
-hunk cache with background read-ahead.
+- **CCI output** - the Convert tab writes a single `.cci` file (LZ4 level 9) from the same optimized
+  packing pipeline as CSO; `.cci` images remain fully browsable and testable.
+- **Decompress tab** - turn CSO, CCI, ZAR, Xbox DVD CHD and GOD/SVOD images back into plain ISO
+  files, with optional output audit and safe source deletion (split sets and GOD `.data` fragments
+  are removed as a whole).
+- **Real conversion validation** - the output integrity option compares the converted file tree with
+  the source (paths, sizes and per-file SHA-256), ignoring only a deliberately removed
+  `$SystemUpdate` folder. CHD keeps its full hunk/checksum deep verification.
+- **Image checksums** - the Explorer computes CRC-32, MD5, SHA-1, SHA-256, SHA3-256 and the
+  xdvdfs-compatible sorted-path SHA3-256 tree hash, with a one-click copy.
+- **Container details** - the Explorer reports disc layout, XGD generation, Redump-size match,
+  partitions, layer break, security sectors, split parts, compression ratio, codecs and SHA-1.
+- **STFS/XBLA packages** - single-file XBLA/XBLIG packages open in the Explorer (file tree, title
+  metadata, XDBF artwork, checksums, extract-all) and pass through the Test Integrity tab, which
+  verifies the package SHA-1 hash tree.
+- **GOD/SVOD and title metadata** - Xbox 360 Games-on-Demand containers open in the Explorer (header,
+  `.data` folder or parent folder) and the Decompress view (header); the details panel shows image
+  format/size, title name/ID, region, disc, version, publisher, developer, genre and description,
+  and renders XBE logo/title/save images or XDBF thumbnails in-process.
+- **Repair and salvage** - failed images can be repaired in place (always with a `.old` backup) or
+  rebuilt into a fresh `.salvaged.iso`.
+- **Extract all, split and join** - whole-image extraction with resume and safe names, plus
+  FATX-sized split and join for plain ISO files.
+- **Broader input support** - `.xiso`/`.img` files and split `.1.iso` sets everywhere, extensionless
+  GOD headers in the Decompress view, and extensionless GOD/STFS containers in the Explorer and Test
+  views; ZAR entries with extended names are decoded, and CHD browsing uses an LRU hunk cache with
+  background read-ahead.
 
-The Explorer and Test Integrity tabs now support single-file **XBLA/XBLIG STFS packages**: browse the
-package tree, read title metadata and XDBF artwork, compute checksums, extract everything, and verify
-the package's SHA-1 hash tree (data blocks, file chains, level tables, top hash and header hash).
+### Fixes
 
-The Test Integrity tab also recovers failures with **Repair selected** (in place, always writing a
-`.old` backup) or **Salvage selected** (a fresh `.salvaged.iso`, source untouched).
+- **GOD/SVOD decompression is reachable** - extensionless GOD headers are now listed in the
+  Decompress view instead of being filtered out by the plain-image check.
+- **Delete originals removes GOD data** - deleting a decompressed GOD/SVOD source now removes the
+  header and every `DataNNNN` fragment (and the empty `.data` folder), not just the header.
+- **Split sets survive cloud hydration** - when a split CISO/CCI/ISO set has to be copied to a local
+  temporary folder, every part is copied with its `.1`/`.2` marker, so decompression cannot run on a
+  truncated set.
+- **GOD `.data` folders can be hashed** - the Explorer hash command accepts a GOD/SVOD `.data`
+  directory as well as the header and image files.
+- **CCI integrity testing honors sharing** - CCI validation opens the container with write sharing,
+  matching the Explorer and the other image formats.
 
-The suite is now 1,668 tests.
+### Dependencies
 
-**Xbox 360 GOD/SVOD, title metadata and XBE image preview.**
+- **XISOSharp 1.9.0**, **CCISharp 1.1.0**, **StfsSharp 1.0.0**, **ZArchiveSharp 1.4.0**,
+  **CHDSharp 1.6.3**, **SharpCompress 0.50.8**, **Avalonia 12.1.5**, **Serilog 4.4.0**.
+- The solution remains free of ReSharper InspectCode findings and builds with zero warnings.
 
-The Explorer now opens Xbox 360 Games-on-Demand containers: use **Browse...** for the content-hash
-header or **Folder...** for its `.data` directory or parent folder. The XDVDFS game partition is
-mapped through XISOSharp 1.8 (`XisoImage`/`XisoImageSource`) and StfsSharp, with no extraction.
+### Tests
 
-CCI/CCIM images (`.cci`) are now first-class Explorer and integrity-test inputs: the file picker and
-folder filters include them, and the integrity test validates the CCI header, split set and LZ4
-sectors with the standalone **CCISharp 1.1.0** package before auditing the XDVDFS tree. GOD header
-parsing now uses `StfsSharp.GodHeader` directly, so neither reader depends on the XISOSharp
-compatibility facades removed in 2.0.0.
+- 1,671 tests passing across Windows, Linux and macOS.
 
-The suite is now 1,582 tests, including synthetic GOD headers, CCI containers and XBE image assets.
+### Upgrading
 
-A new details panel shows image format/size, title name, title ID, region, disc number/count,
-version, publisher, developer, genre and description. Original-Xbox values come from the XBE
-certificate; Xbox 360 values come from XDBF/XSRC resources or the GOD XContent header. The panel
-also renders the XBE Microsoft logo, `$$XTIMAGE` title image and `$$XSIMAGE` save image, with a
-clear message when an asset is absent, undecodable, or the container (for example a ZAR tree) has no
-XBE geometry.
+Download the archive for your platform and replace the previous files. There are no configuration or
+format changes; existing 3.1.2 workflows and outputs continue to work. The new Decompress view and
+GOD/SVOD support are additive.
 
 ## Version 3.1.2
 

@@ -69,12 +69,12 @@ public sealed class XisoRecoveryServiceTests : IDisposable
     {
         var isoPath = CreateIso();
         RemoveOptimizedTag(isoPath);
-        var before = XisoImageHash.Compute(isoPath).Sha256;
+        var before = (await XisoImageHash.ComputeAsync(isoPath)).Sha256;
 
         var result = await _service.RepairAsync(isoPath, dryRun: true);
 
         Assert.True(result.DryRun);
-        Assert.Equal(before, XisoImageHash.Compute(isoPath).Sha256);
+        Assert.Equal(before, (await XisoImageHash.ComputeAsync(isoPath)).Sha256);
         Assert.False(XisoReader.AuditXiso(isoPath).IsOptimized);
     }
 
@@ -98,11 +98,11 @@ public sealed class XisoRecoveryServiceTests : IDisposable
     {
         var badPath = Path.Combine(_tempRoot, "bad.iso");
         await File.WriteAllBytesAsync(badPath, new byte[4096]);
-        var before = XisoImageHash.Compute(badPath).Sha256;
+        var before = (await XisoImageHash.ComputeAsync(badPath)).Sha256;
 
         await Assert.ThrowsAsync<XisoFormatException>(() =>
             _service.SalvageAsync(badPath, Path.Combine(_tempRoot, "bad.salvaged.iso")));
 
-        Assert.Equal(before, XisoImageHash.Compute(badPath).Sha256);
+        Assert.Equal(before, (await XisoImageHash.ComputeAsync(badPath)).Sha256);
     }
 }

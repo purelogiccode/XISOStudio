@@ -1,5 +1,5 @@
-using System.Text;
 using XISOSharp;
+using XISOStudio.Interfaces;
 using XISOStudio.Services;
 using XISOStudio.Tests.Fixtures;
 using Xunit;
@@ -12,7 +12,7 @@ public sealed class ImageHashServiceTests : IDisposable
     private readonly string _tempRoot = Path.Combine(Path.GetTempPath(),
         $"ImageHashServiceTests_{Guid.NewGuid():N}");
 
-    private readonly ImageHashService _service = new(new TestLogger().Logger);
+    private readonly IImageHashService _service = new ImageHashService(new TestLogger().Logger);
 
     public ImageHashServiceTests()
     {
@@ -48,7 +48,7 @@ public sealed class ImageHashServiceTests : IDisposable
     public async Task IsoHashesMatchTheLibrary()
     {
         var isoPath = CreateIso();
-        var expected = XisoImageHash.Compute(isoPath);
+        var expected = await XisoImageHash.ComputeAsync(isoPath);
 
         var hashes = await _service.ComputeAsync(isoPath);
 
@@ -66,7 +66,7 @@ public sealed class ImageHashServiceTests : IDisposable
     {
         var isoPath = CreateIso();
         var csoPath = Path.Combine(_tempRoot, "game.cso");
-        Assert.Equal(0, CisoWriter.CompressToCso(isoPath, csoPath));
+        Assert.Equal(0, await CisoWriter.CompressToCsoAsync(isoPath, csoPath));
 
         var isoHashes = await _service.ComputeAsync(isoPath);
         var csoHashes = await _service.ComputeAsync(csoPath);
@@ -117,7 +117,7 @@ public sealed class ImageHashServiceTests : IDisposable
         var packagePath = Path.Combine(_tempRoot, "584109B7");
         SyntheticStfsPackage.Create(packagePath,
         [
-            new SyntheticStfsFile("default.xbe", Encoding.UTF8.GetBytes("fake xbe content")),
+            new SyntheticStfsFile("default.xbe", "fake xbe content"u8.ToArray()),
             new SyntheticStfsFile("media/data.bin", [1, 2, 3, 4, 5])
         ]);
 
@@ -131,6 +131,21 @@ public sealed class ImageHashServiceTests : IDisposable
         Assert.False(string.IsNullOrEmpty(stfsHashes.Sha256));
         Assert.Null(stfsHashes.ImageSha3256);
         Assert.NotNull(stfsHashes.Note);
+    }
+
+    [Fact]
+    public async Task GodDataDirectoryHashesEqualTheIsoHashes()
+    {
+        var isoPath = CreateIso();
+        var headerPath = SyntheticGodContainer.CreateFromIso(isoPath,
+            Path.Combine(_tempRoot, "god", "58480813ABCDEF0123456789"), "GOD Hash Test", 0x58480813);
+
+        var isoHashes = await _service.ComputeAsync(isoPath);
+        var godHashes = await _service.ComputeAsync(headerPath + ".data");
+
+        Assert.Equal(isoHashes.Sha256, godHashes.Sha256);
+        Assert.Equal(isoHashes.ImageSha3256, godHashes.ImageSha3256);
+        Assert.Equal(isoHashes.TreeSha3256, godHashes.TreeSha3256);
     }
 
     [Fact]

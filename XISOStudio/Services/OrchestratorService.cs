@@ -1157,9 +1157,28 @@ public class OrchestratorService : IOrchestratorService
         {
             _logger.Debug("File {FileName} is not directly readable; copying to a local temp file", inputFile);
 
-            var tempDir = ResolveTempDirectory(new FileInfo(inputFile).Length, "XISOStudio_Decompress");
+            // A split CISO/CCI/ISO set is opened through its first part, so every part must
+            // be copied and the names must keep their ".1.cso"/".2.cso" markers.
+            var extension = Path.GetExtension(inputFile);
+            var isSplitSet = inputFile.EndsWith(".1.cso", StringComparison.OrdinalIgnoreCase) ||
+                             inputFile.EndsWith(".1.cci", StringComparison.OrdinalIgnoreCase) ||
+                             inputFile.EndsWith(".1.iso", StringComparison.OrdinalIgnoreCase);
+            var parts = isSplitSet ? EnumerateSplitParts(inputFile).ToList() : [inputFile];
+
+            long estimatedSize = 0;
+            try
+            {
+                estimatedSize = parts.Sum(part => new FileInfo(part).Length);
+            }
+            catch (Exception ex)
+            {
+                // Fall back to the first part's size; the copy itself enforces the limit.
+                _logger.Debug(ex, "Could not determine the size of all parts of {ImagePath}", inputFile);
+            }
+
+            var tempDir = ResolveTempDirectory(estimatedSize, "XISOStudio_Decompress");
             Directory.CreateDirectory(tempDir);
-            var tempPath = Path.Combine(tempDir, GenerateFilename.GenerateSimpleFilename(fileIndex));
+            var simpleStem = Path.GetFileNameWithoutExtension(GenerateFilename.GenerateSimpleFilename(fileIndex));
 
             progress.Report(new BatchOperationProgress
             {
@@ -1167,21 +1186,56 @@ public class OrchestratorService : IOrchestratorService
                 CurrentDrive = PathHelper.GetDriveLetter(Path.GetTempPath())
             });
 
-            return await CopyFileWithCloudRetryAsync(inputFile, tempPath, onCloudRetryRequired, progress, token)
-                ? (tempPath, tempDir)
-                : (null, tempDir);
+            string? firstPartPath = null;
+            for (var partIndex = 0; partIndex < parts.Count; partIndex++)
+            {
+                var partName = isSplitSet
+                    ? $"{simpleStem}.{(partIndex + 1).ToString(CultureInfo.InvariantCulture)}{extension}"
+                    : simpleStem + extension;
+                var tempPartPath = Path.Combine(tempDir, partName);
+
+                if (!await CopyFileWithCloudRetryAsync(parts[partIndex], tempPartPath, onCloudRetryRequired,
+                        progress, token))
+                {
+                    return (null, tempDir);
+                }
+
+                firstPartPath ??= tempPartPath;
+            }
+
+            return (firstPartPath, tempDir);
         }
     }
 
     /// <summary>
     /// Deletes a source image after a successful decompression, including every part of a
-    /// split CISO/CCI/ISO set so no orphaned continuation part is left behind.
+    /// split CISO/CCI/ISO set and every <c>DataNNNN</c> fragment of a GOD/SVOD container, so
+    /// no orphaned data is left behind.
     /// </summary>
     /// <param name="imagePath">Path of the source image that was decompressed.</param>
     /// <param name="progress">Receives the deletion log lines.</param>
     private async Task DeleteSourceImageAsync(string imagePath, IProgress<BatchOperationProgress> progress)
     {
-        foreach (var fileToDelete in EnumerateSourceParts(imagePath))
+        var parts = EnumerateSourceParts(imagePath).ToList();
+        string? godDataDirectory = null;
+
+        try
+        {
+            if (XisoImageSource.TryDetect(imagePath, FileShare.ReadWrite, out var sourceInfo) &&
+                sourceInfo is { Format: XisoImageFormat.God })
+            {
+                // The library reports the header followed by every DataNNNN fragment.
+                parts = sourceInfo.Parts.ToList();
+                if (parts.Count > 1) godDataDirectory = Path.GetDirectoryName(parts[1]);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            // The source may already be partially removed; fall back to the file-name rules.
+            _logger.Debug(ex, "Could not enumerate the GOD/SVOD parts of {ImagePath}", imagePath);
+        }
+
+        foreach (var fileToDelete in parts)
         {
             try
             {
@@ -1207,6 +1261,32 @@ public class OrchestratorService : IOrchestratorService
                     _logger.Warning(ex, "Could not delete original file {FileName}", fileToDelete);
                 }
             }
+        }
+
+        if (godDataDirectory is not null)
+        {
+            TryDeleteEmptyDirectory(godDataDirectory);
+        }
+    }
+
+    /// <summary>
+    /// Removes a directory when every file inside it was deleted, ignoring failures because
+    /// the deletion outcome was already reported per file. Used for the GOD/SVOD
+    /// <c>.data</c> folder after its fragments were removed.
+    /// </summary>
+    /// <param name="directory">Directory to remove when empty.</param>
+    private void TryDeleteEmptyDirectory(string directory)
+    {
+        try
+        {
+            if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+            {
+                Directory.Delete(directory);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.Debug(ex, "Could not remove the empty GOD/SVOD data directory {Directory}", directory);
         }
     }
 
