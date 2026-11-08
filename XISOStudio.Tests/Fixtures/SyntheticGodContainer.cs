@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 using XISOSharp;
+using GodHeader = StfsSharp.GodHeader;
 
 namespace XISOStudio.Tests.Fixtures;
 

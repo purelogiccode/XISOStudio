@@ -1,4 +1,5 @@
 using System.Buffers;
+using CCISharp;
 using CHDSharp;
 using CHDSharp.Models;
 using XISOStudio.Interfaces;
@@ -11,8 +12,8 @@ using ZArchiveSharp;
 namespace XISOStudio.Services;
 
 /// <summary>
-/// Validates Xbox images using the XISOSharp, ZArchiveSharp and CHDSharp libraries: a deep
-/// structural audit of the XDVDFS directory tree (plain ISO, CISO and Xbox CHD images) or the
+/// Validates Xbox images using the XISOSharp, CCISharp, ZArchiveSharp and CHDSharp libraries: a deep
+/// structural audit of the XDVDFS directory tree (plain ISO, CISO, CCI and Xbox CHD images) or the
 /// ZAR archive tree, plus an optional sequential surface/deep scan that reads all data
 /// (every sector, decompressed block or CHD hunk) to detect media or decompression errors.
 /// CHD parsing is limited to Xbox DVD images; the CHD container is verified first and the
@@ -64,6 +65,14 @@ public class XisoIntegrityService : IXisoIntegrityService
                     // Same as ZAR: only a readable-but-invalid image is counted.
                     if (!chdPassed && File.Exists(isoPath)) ReportInvalidIso(progress);
                     return chdPassed;
+                }
+
+                if (Path.GetExtension(isoPath).Equals(CciFormat.Extension, StringComparison.OrdinalIgnoreCase))
+                {
+                    var cciPassed = TestCciIntegrity(isoPath, performDeepScan, progress, token);
+                    // Same as ZAR/CHD: only a readable-but-invalid image is counted.
+                    if (!cciPassed && File.Exists(isoPath)) ReportInvalidIso(progress);
+                    return cciPassed;
                 }
 
                 _logger.Information("Starting structural integrity test for: {FileName}", fileName);
@@ -141,7 +150,7 @@ public class XisoIntegrityService : IXisoIntegrityService
     private static bool IsInputError(Exception ex)
     {
         return ex is XisoFormatException or XisoEmptyException or InvalidDataException or ExtractErrorException
-                   or FileNotFoundException or EndOfStreamException ||
+                   or CciException or FileNotFoundException or EndOfStreamException ||
                (ex is IOException ioException &&
                 ioException.Message.StartsWith("Read error", StringComparison.OrdinalIgnoreCase));
     }
@@ -154,6 +163,93 @@ public class XisoIntegrityService : IXisoIntegrityService
     private static void ReportInvalidIso(IProgress<BatchOperationProgress> progress)
     {
         progress.Report(new BatchOperationProgress { InvalidIsoCount = 1 });
+    }
+
+    /// <summary>
+    /// Validates a CCI/CCIM image with CCISharp: the container header, part set and
+    /// (with <paramref name="performDeepScan"/>) every LZ4 sector are decoded, then the
+    /// decompressed XDVDFS directory tree is audited through XISOSharp.
+    /// </summary>
+    /// <param name="cciPath">Path of the CCI image or one of its split parts.</param>
+    /// <param name="performDeepScan">Whether to decode every sector in addition to the header/index checks.</param>
+    /// <param name="progress">Receives progress updates during the test.</param>
+    /// <param name="token">Token used to cancel the test.</param>
+    /// <returns><c>true</c> when the CCI container and filesystem pass the test; otherwise <c>false</c>.</returns>
+    private bool TestCciIntegrity(string cciPath, bool performDeepScan,
+        IProgress<BatchOperationProgress> progress, CancellationToken token)
+    {
+        var fileName = Path.GetFileName(cciPath);
+        _logger.Information("Starting structural integrity test for: {FileName}", fileName);
+        _logger.Information(
+            "Note: This verifies CCI container structure, sector decoding and the Xbox filesystem; it doesn't verify game data checksums.");
+
+        token.ThrowIfCancellationRequested();
+        CciError openError = CciFile.Open(cciPath, new CciReaderOptions { Share = FileShare.Read },
+            out CciFile? cci);
+        if (openError != CciError.None || cci is null)
+        {
+            _logger.Information("CCI image could not be opened ({Error}): {FileName}",
+                openError.ToMessage(), fileName);
+            return false;
+        }
+
+        using (cci)
+        {
+            _logger.Information("Validating CCI structure ({Parts} part(s), {Sectors} sectors)...",
+                cci.Parts.Count, cci.TotalSectors);
+            progress.Report(new BatchOperationProgress { StatusText = "Validating CCI structure..." });
+
+            CciError validationError = cci.Validate(performDeepScan, out CciValidationReport? report);
+            if (validationError != CciError.None || report is null || !report.IsValid)
+            {
+                _logger.Information("CCI validation failed for {FileName}:", fileName);
+                if (report is null)
+                {
+                    _logger.Information("  - {Error}", validationError.ToMessage());
+                }
+                else
+                {
+                    foreach (var issue in report.Issues.Take(20))
+                    {
+                        _logger.Information("  - part {PartIndex}, sector {Sector}: {Reason}",
+                            issue.PartIndex, issue.Sector?.ToString() ?? "-", issue.Reason);
+                    }
+                }
+
+                return false;
+            }
+
+            _logger.Information(
+                "CCI structure is valid ({Parts} part(s), {Compressed} compressed, {Uncompressed} uncompressed, ratio {Ratio:P1}).",
+                report.Parts.Count, Formatter.FormatBytes(report.CompressedSize),
+                Formatter.FormatBytes((long)Math.Min(report.UncompressedSize, long.MaxValue)), report.Ratio);
+        }
+
+        // 2. Logical structure test over the decompressed image. XISOSharp's audit
+        // accepts CCI inputs through XisoImageSource, so the filesystem sees the same
+        // bytes CCISharp decoded above.
+        _logger.Information("Validating XDVDFS directory structure...");
+        var audit = XisoReader.AuditXiso(cciPath, requireOptimizedTag: false);
+        if (audit.Issues.Count > 0)
+        {
+            _logger.Information("Structural validation failed for {FileName}:", fileName);
+            foreach (var issue in audit.Issues)
+            {
+                _logger.Information("  - {Issue:l}", issue);
+            }
+
+            return false;
+        }
+
+        if (!audit.IsOptimized)
+        {
+            _logger.Information(
+                "Image is not optimized (raw ISO); the optimized tag is written during conversion.");
+        }
+
+        _logger.Information("Structure is valid ({FilesChecked} files, {DirsChecked} directories checked).",
+            audit.FilesChecked, audit.DirsChecked);
+        return true;
     }
 
     /// <summary>

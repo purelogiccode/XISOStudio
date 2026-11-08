@@ -59,6 +59,7 @@ public partial class MainWindow
                         { Patterns = Options },
                     new FilePickerFileType("Xbox ISO") { Patterns = OptionsArray },
                     new FilePickerFileType("Compressed ISO") { Patterns = OptionsArray0 },
+                    new FilePickerFileType("CCI image") { Patterns = OptionsArray4 },
                     new FilePickerFileType("ZAR archive") { Patterns = OptionsArray1 },
                     new FilePickerFileType("CHD image") { Patterns = OptionsArray2 },
                     new FilePickerFileType("GOD/SVOD header or other") { Patterns = OptionsArray3 },
@@ -926,11 +927,14 @@ public partial class MainWindow
     /// <summary>File picker patterns matching CSO images.</summary>
     private static readonly string[] OptionsArray0 = ["*.cso"];
 
+    /// <summary>File picker patterns matching CCI/CCIM images.</summary>
+    private static readonly string[] OptionsArray4 = ["*.cci"];
+
     /// <summary>File picker patterns matching ISO images.</summary>
     private static readonly string[] OptionsArray = ["*.iso"];
 
     /// <summary>File picker patterns matching all supported Xbox images.</summary>
-    private static readonly string[] Options = ["*.iso", "*.cso", "*.zar", "*.chd"];
+    private static readonly string[] Options = ["*.iso", "*.cso", "*.cci", "*.zar", "*.chd"];
 
     /// <summary>Navigates to the parent directory of the explorer view.</summary>
     /// <param name="sender">The button that raised the event.</param>

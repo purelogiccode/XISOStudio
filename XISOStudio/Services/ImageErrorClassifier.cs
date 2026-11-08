@@ -16,6 +16,7 @@ public static class ImageErrorClassifier
     /// </summary>
     private static readonly string[] InvalidImageExceptionTypeNames =
     [
+        "CCISharp.CciException",
         "XISOSharp.ExtractErrorException",
         "XISOSharp.ExtractFileException",
         "XISOSharp.TruncatedCopyException",

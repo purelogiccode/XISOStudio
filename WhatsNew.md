@@ -10,14 +10,20 @@ The Explorer now opens Xbox 360 Games-on-Demand containers: use **Browse...** fo
 header or **Folder...** for its `.data` directory or parent folder. The XDVDFS game partition is
 mapped through XISOSharp 1.8 (`XisoImage`/`XisoImageSource`) and StfsSharp, with no extraction.
 
+CCI/CCIM images (`.cci`) are now first-class Explorer and integrity-test inputs: the file picker and
+folder filters include them, and the integrity test validates the CCI header, split set and LZ4
+sectors with the standalone **CCISharp 1.1.0** package before auditing the XDVDFS tree. GOD header
+parsing now uses `StfsSharp.GodHeader` directly, so neither reader depends on the XISOSharp
+compatibility facades removed in 2.0.0.
+
+The suite is now 1,582 tests, including synthetic GOD headers, CCI containers and XBE image assets.
+
 A new details panel shows image format/size, title name, title ID, region, disc number/count,
 version, publisher, developer, genre and description. Original-Xbox values come from the XBE
 certificate; Xbox 360 values come from XDBF/XSRC resources or the GOD XContent header. The panel
 also renders the XBE Microsoft logo, `$$XTIMAGE` title image and `$$XSIMAGE` save image, with a
 clear message when an asset is absent, undecodable, or the container (for example a ZAR tree) has no
 XBE geometry.
-
-The suite is now 1,561 tests, including synthetic GOD headers and XBE image assets.
 
 ## Version 3.1.2
 

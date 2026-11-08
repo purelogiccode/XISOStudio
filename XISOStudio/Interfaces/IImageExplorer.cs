@@ -4,10 +4,10 @@ using XISOStudio.Models;
 namespace XISOStudio.Interfaces;
 
 /// <summary>
-/// A UI-agnostic explorer over one open image or archive: plain ISO and CISO
-/// (<c>.cso</c>) images, GOD/SVOD containers and ZAR archives via XISOSharp, and
-/// CHD images via CHDSharp (decompressed on demand). Internal paths use forward
-/// slashes and are case-insensitive; <c>"/"</c> is the root.
+/// A UI-agnostic explorer over one open image or archive: plain ISO, CISO
+/// (<c>.cso</c>) and CCI (<c>.cci</c>) images, GOD/SVOD containers and ZAR archives
+/// via XISOSharp, and CHD images via CHDSharp (decompressed on demand). Internal
+/// paths use forward slashes and are case-insensitive; <c>"/"</c> is the root.
 /// </summary>
 public interface IImageExplorer : IDisposable
 {

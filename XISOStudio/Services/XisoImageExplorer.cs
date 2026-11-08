@@ -3,6 +3,8 @@ using XISOStudio.Models;
 using XISOSharp;
 using Serilog;
 using XISOSharp.Models;
+using GodHeader = StfsSharp.GodHeader;
+using GodTitleInfo = StfsSharp.Models.GodTitleInfo;
 
 namespace XISOStudio.Services;
 

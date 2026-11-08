@@ -50,7 +50,7 @@ This page describes the repository itself: where things live, how releases are m
 │   ├── Services/                          All business logic
 │   │   ├── XisoSharpService.cs            XISO/ZAR/CSO conversion via the XISOSharp library
 │   │   ├── ChdService.cs                  CHD conversion via the CHDSharp library
-│   │   ├── XisoIntegrityService.cs        Integrity validation via XISOSharp / ZArchiveSharp / CHDSharp
+│   │   ├── XisoIntegrityService.cs        Integrity validation via XISOSharp / CCISharp / ZArchiveSharp / CHDSharp
 │   │   ├── ImageExplorerFactory.cs        Explorer over ISO/CISO/CCI/GOD, ZAR or CHD (resolves GOD header/.data/parent paths)
 │   │   ├── ChdImageExplorer.cs            Explorer over CHD via CHDSharp + XISOSharp
 │   │   └── XisoImageExplorer.cs           Explorer over ISO/CISO/CCI/GOD via XisoImage + title/XBE metadata
@@ -82,7 +82,7 @@ Contributions are welcome!
 3. Open a new issue including:
    - Application version (visible in the About window)
    - Operating system, version, and architecture (x64/ARM64)
-   - The input format used (`.iso`, `.cso`, `.zar`, `.chd`, or archive)
+   - The input format used (`.iso`, `.cso`, `.cci`, `.zar`, `.chd`, or archive)
    - The relevant lines from the in-application log
 
 ### Submitting Changes
@@ -147,7 +147,8 @@ This project is licensed under the **GNU General Public License v3.0** — see [
 
 - **[Avalonia](https://avaloniaui.net/)** — cross-platform UI framework powering the Windows/Linux/macOS interface
 - **[XISOSharp](https://github.com/purelogiccode/XISOSharp)** — XISO/XDVDFS library powering XISO/ZAR/CSO conversion, integrity testing, and exploration
+- **[CCISharp](https://github.com/purelogiccode/CCISharp)** — CCI/CCIM reader used for CCI validation and integrity testing
 - **[ZArchiveSharp](https://github.com/purelogiccode/ZArchiveSharp)** — ZArchive/zstd library powering ZAR output and reading
-- **[StfsSharp](https://github.com/purelogiccode/STFSSharp)** — Xbox 360 STFS/GOD reader used for SVOD fragment mapping and XContent title metadata
+- **[StfsSharp](https://github.com/purelogiccode/STFSSharp)** — Xbox 360 STFS/GOD reader used directly for SVOD fragment mapping and XContent title metadata
 - **[CHDSharp](https://github.com/purelogiccode/CHDSharp)** — CHD reading, verification, and creation powering CHD conversion, testing, and exploration
 - **[SharpCompress](https://github.com/adamhathcock/sharpcompress)** — archive extraction

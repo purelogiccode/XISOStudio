@@ -1,6 +1,7 @@
 using XISOStudio.Models;
 using XISOStudio.Services;
 using Serilog.Events;
+using CCISharp;
 using XISOSharp;
 using Xunit;
 
@@ -138,6 +139,19 @@ public sealed class XisoIntegrityServiceTests : IDisposable
         return csoPath;
     }
 
+    private string CreateCci(string name = "game.cci")
+    {
+        var isoPath = CreateOptimizedXiso($"{Path.GetFileNameWithoutExtension(name)}.iso");
+        var cciPath = Path.Combine(_tempRoot, name);
+        CciError error = CciWriter.Compress(isoPath, cciPath, new CciWriteOptions
+        {
+            Level = 1,
+            SplitBytes = 0,
+        });
+        Assert.Equal(CciError.None, error);
+        return cciPath;
+    }
+
     private string CreateZar(string name = "game.zar")
     {
         var isoPath = CreateOptimizedXiso($"{Path.GetFileNameWithoutExtension(name)}.iso");
@@ -183,6 +197,48 @@ public sealed class XisoIntegrityServiceTests : IDisposable
             CancellationToken.None);
 
         Assert.True(passed);
+    }
+
+    [Fact]
+    public async Task ValidCciPassesStructuralTest()
+    {
+        var cciPath = CreateCci();
+        var service = CreateService();
+
+        var passed = await service.TestIsoIntegrityAsync(cciPath, false, new Progress<BatchOperationProgress>(),
+            CancellationToken.None);
+
+        Assert.True(passed);
+        Assert.True(_logger.HasMessage("CCI structure is valid"));
+    }
+
+    [Fact]
+    public async Task ValidCciPassesDeepScan()
+    {
+        var cciPath = CreateCci();
+        var service = CreateService();
+
+        var passed = await service.TestIsoIntegrityAsync(cciPath, true, new Progress<BatchOperationProgress>(),
+            CancellationToken.None);
+
+        Assert.True(passed);
+        Assert.True(_logger.HasMessage("CCI structure is valid"));
+    }
+
+    [Fact]
+    public async Task InvalidCciFailsCleanly()
+    {
+        var cciPath = Path.Combine(_tempRoot, "bad.cci");
+        await File.WriteAllBytesAsync(cciPath, [0x43, 0x43, 0x49, 0x4D]);
+
+        var service = CreateService();
+        var progress = new CollectingProgress();
+        var passed = await service.TestIsoIntegrityAsync(cciPath, false, progress, CancellationToken.None);
+
+        Assert.False(passed);
+        Assert.True(_logger.HasMessage("CCI image could not be opened"));
+        Assert.Equal(1, progress.Reports.Where(p => p.InvalidIsoCount.HasValue)
+            .Sum(p => p.InvalidIsoCount!.Value));
     }
 
     [Fact]

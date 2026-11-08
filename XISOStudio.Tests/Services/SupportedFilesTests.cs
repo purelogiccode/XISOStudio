@@ -54,6 +54,10 @@ public class SupportedFilesTests
     [InlineData("game.1.cso")]
     [InlineData(@"C:\folder\game.1.cso")]
     [InlineData("my.game.1.cso")]
+    [InlineData("game.cci")]
+    [InlineData("GAME.CCI")]
+    [InlineData("game.1.cci")]
+    [InlineData(@"C:\folder\game.1.cci")]
     [InlineData("game.zar")]
     [InlineData("GAME.ZAR")]
     [InlineData(@"C:\folder\game.zar")]
@@ -87,10 +91,12 @@ public class SupportedFilesTests
     [InlineData("game.2.chd")]
     [InlineData("game.2.CHD")]
     [InlineData(@"C:\folder\my.game.12.iso")]
+    [InlineData("game.2.cci")]
+    [InlineData("game.10.CCI")]
     public void IsTestableNumericSuffixOnNonCisoImageReturnsTrue(string path)
     {
-        // Only split CISO part sets use the ".N.cso" naming convention. A standalone ISO,
-        // ZAR, or CHD whose name ends in a number must not be mistaken for a continuation part.
+        // Only CISO always treats ".N.cso" as a continuation part. A standalone ISO,
+        // ZAR, CHD or CCI whose name ends in a number must not be mistaken for one.
         Assert.True(SupportedFiles.IsTestable(path));
     }
 
@@ -141,6 +147,8 @@ public class SupportedFilesTests
     [InlineData("game.Chd")]
     [InlineData("game.CSO")]
     [InlineData("game.Cso")]
+    [InlineData("game.CCI")]
+    [InlineData("game.Cci")]
     [InlineData(@"C:\Folder\GAME.ZAR")]
     public void IsTestableAllExtensionsAreCaseInsensitive(string path)
     {
@@ -189,6 +197,43 @@ public class SupportedFilesTests
         Assert.False(SupportedFiles.IsTestable("game.1000.cso"));
     }
 
+    [Fact]
+    public void IsTestableCciContinuationPartWithFirstPartReturnsFalse()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "game.1.cci"), string.Empty);
+        File.WriteAllText(Path.Combine(directory, "game.2.cci"), string.Empty);
+
+        try
+        {
+            Assert.True(SupportedFiles.IsTestable(Path.Combine(directory, "game.1.cci")));
+            Assert.False(SupportedFiles.IsTestable(Path.Combine(directory, "game.2.cci")));
+            Assert.False(SupportedFiles.IsTestable(Path.Combine(directory, "game.10.cci")));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void IsTestableStandaloneNumericCciReturnsTrue()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "game.2.cci"), string.Empty);
+
+        try
+        {
+            Assert.True(SupportedFiles.IsTestable(Path.Combine(directory, "game.2.cci")));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Theory]
     [InlineData("game.bin")]
     [InlineData("game.txt")]
@@ -212,6 +257,11 @@ public class SupportedFilesTests
     [InlineData("game.2.cso")]
     [InlineData("GAME.2.CSO")]
     [InlineData(@"C:\folder\my.game.12.cso")]
+    [InlineData("game.cci")]
+    [InlineData("game.1.cci")]
+    [InlineData("game.2.cci")]
+    [InlineData("GAME.2.CCI")]
+    [InlineData(@"C:\folder\my.game.12.cci")]
     [InlineData("game.zar")]
     [InlineData("game.chd")]
     public void IsImageAllImageExtensionsIncludingSplitContinuationPartsReturnTrue(string path)

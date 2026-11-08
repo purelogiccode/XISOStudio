@@ -1,3 +1,4 @@
+using CCISharp;
 using XISOSharp;
 using XISOSharp.Models;
 using XISOStudio.Services;
@@ -126,6 +127,27 @@ public sealed class ImageMetadataTests : IDisposable
         Assert.NotNull(image);
         Assert.NotNull(image.Png);
         Assert.Equal([0x89, 0x50, 0x4E, 0x47], image.Png![..4]);
+    }
+
+    [Fact]
+    public void CciExplorer_ReportsTitleMetadataAndXbeAssets()
+    {
+        var isoPath = CreateXbeXiso("cci-source.iso");
+        var cciPath = Path.Combine(_tempRoot, "game.cci");
+        Assert.Equal(CciError.None, CciWriter.Compress(isoPath, cciPath,
+            new CciWriteOptions { SplitBytes = 0 }));
+
+        using var explorer = ImageExplorerFactory.Open(cciPath);
+
+        var metadata = explorer.GetMetadata();
+        Assert.Equal("Cci", metadata.Format);
+        Assert.Equal("Metadata Test", metadata.TitleName);
+        Assert.Equal("0x4D530123", metadata.TitleIdHex);
+        Assert.Equal("/default.xbe", metadata.ExecutablePath);
+
+        var image = explorer.GetXbeImage("/default.xbe", XbeImageKind.Title);
+        Assert.NotNull(image);
+        Assert.NotNull(image.Png);
     }
 
     [Fact]

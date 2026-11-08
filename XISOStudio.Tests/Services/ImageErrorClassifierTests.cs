@@ -1,3 +1,4 @@
+using CCISharp;
 using XISOSharp;
 using XISOSharp.Models;
 using XISOStudio.Services;
@@ -125,6 +126,7 @@ public class ImageErrorClassifierTests
             new XisoFileTooLargeException("file too large"),
             new ExtractFileException("Failed to extract file"),
             new TruncatedCopyException(1, 2),
+            new CciException(CciError.CorruptSector),
             new InvalidDataException("not an Xbox DVD image"),
             new EndOfStreamException(),
             new IOException("Read error while reading sector 0")

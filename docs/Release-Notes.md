@@ -12,7 +12,7 @@
 
 | Version | Date | Summary |
 |:---|:---|:---|
-| [Unreleased](#unreleased) | — | Xbox 360 GOD/SVOD explorer input, title metadata panel, XBE logo/title/save preview, XISOSharp 1.8.0 (1,561 tests passing) |
+| [Unreleased](#unreleased) | — | Xbox 360 GOD/SVOD explorer input, title metadata panel, XBE logo/title/save preview, CCI validation, XISOSharp 1.8.0 + direct StfsSharp/CCISharp (1,582 tests passing) |
 | [3.1.2](#312) | October 2026 | Reliability patch: Explorer drag-and-drop no longer crashes on X11, Linux temp-space detection uses the real temp filesystem with a per-user fallback, failed extractions remove partial output, and expected I/O failures stay out of bug reports (1,512 tests passing) |
 | [3.1.1](#311) | October 2026 | Reliability patch: 373 false archive reports eliminated, 7-Zip fallback for every archive format, locked and missing archives handled, documentation/wiki/Pages and bundle validation in CI (1,509 tests passing) |
 | [3.1.0](#310) | October 2026 | Reliability release: game-specific Xbox archives (XMem LZX / ZIP method 21), images held open by another program, and extracted files with no registered application no longer generate bug reports; the explorer browses images while another process keeps them open; dependency, analyzer, and CI maintenance (1,494 tests passing) |
@@ -36,9 +36,11 @@
 
 - **GOD/SVOD input** — open the content-hash header with **Browse...** or a `.data`/parent folder with **Folder...**. The game partition is mapped through XISOSharp 1.8 `XisoImageSource` and StfsSharp; no extraction.
 - **Title panel** — format, size, title name/ID, region, disc number/count, version, publisher, developer, genre and description from the XBE certificate, XEX XDBF/XSRC or the GOD XContent header.
-- **XBE preview** — Microsoft logo, `$$XTIMAGE` title image and `$$XSIMAGE` save image, decoded to PNG in-process by `XbeAssets`.
-- **Tests** — 1,561 tests, including synthetic GOD containers and XBE image assets.
-- **Dependencies** — XISOSharp 1.8.0 (StfsSharp 1.0.0 and CCISharp 1.1.0 transitively).
+- **XBE preview** - Microsoft logo, `$$XTIMAGE` title image and `$$XSIMAGE` save image, decoded to PNG in-process by `XbeAssets`.
+- **CCI support** - `.cci` images open in the Explorer and pass through the same XDVDFS view; the integrity test validates the CCI header, split set and LZ4 sectors through CCISharp before the filesystem audit.
+- **Direct package references** - GOD/SVOD parsing uses `StfsSharp.GodHeader` directly, CCI validation uses `CCISharp.CciFile`, and both packages are pinned explicitly alongside XISOSharp 1.8.0.
+- **Tests** - 1,582 tests, including synthetic GOD containers, CCI containers and XBE image assets.
+- **Dependencies** - XISOSharp 1.8.0, StfsSharp 1.0.0, CCISharp 1.1.0 and CHDSharp 1.6.0 (StfsSharp and CCISharp referenced directly).
 
 ## 3.1.2
 

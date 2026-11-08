@@ -32,7 +32,7 @@ CSharp_XISOStudio.sln
 │       ├── SupportedFiles.cs            Extension filters shared by the UI lists and folder scans
 │       ├── XisoSharpService.cs          XISO/ZAR/CSO conversion via the XISOSharp library
 │       ├── ChdService.cs                CHD conversion via the CHDSharp library
-│       ├── XisoIntegrityService.cs      Structural audit + deep scan via XISOSharp / ZArchiveSharp / CHDSharp
+│       ├── XisoIntegrityService.cs      Structural audit + deep scan via XISOSharp / CCISharp / ZArchiveSharp / CHDSharp
 │       ├── ImageExplorerFactory.cs      Opens the right IImageExplorer (XISO/CISO/CCI/GOD, ZAR or CHD)
 │       ├── XisoImageExplorer.cs         IImageExplorer over ISO/CSO/CCI/GOD via XisoImage + metadata/XBE assets
 │       ├── ZarImageExplorer.cs          IImageExplorer over ZAR via ZArchiveReader (zip-slip safe)
@@ -65,7 +65,7 @@ The bundled 7-Zip CLI fallback (`7za.exe`/`7za_arm64.exe` on Windows, `7zz_linux
 | `IOrchestratorService` | Singleton | Batch pipeline: per-file dispatch for the selected files, progress, cancellation |
 | `IXisoSharpService` | Singleton | XISO/ZAR/CSO conversion via the XISOSharp library |
 | `IChdService` | Singleton | CHD conversion via the CHDSharp library (rewrites non-optimized inputs through `IXisoSharpService`, then encodes and verifies) |
-| `IXisoIntegrityService` | Singleton | Structural audit + deep scan via XISOSharp (ISO/CSO), ZArchiveSharp (ZAR) and CHDSharp (CHD container + Xbox filesystem) |
+| `IXisoIntegrityService` | Singleton | Structural audit + deep scan via XISOSharp (ISO/CSO), CCISharp (CCI container + LZ4 sectors), ZArchiveSharp (ZAR) and CHDSharp (CHD container + Xbox filesystem) |
 | `IImageExplorer` | Per open image | Explorer over ISO/CSO/CCI/GOD (`XisoImage`), ZAR (`ZArchiveReader`) or CHD (`ChdImageStream` + XISOSharp), built by `ImageExplorerFactory`; exposes title metadata and XBE assets for the details panel |
 | `IFileExtractor` | Transient | Archive extraction with fallbacks and lock retries |
 | `IFileMover` | Transient | Move/copy operations with retry + backoff |
@@ -112,11 +112,12 @@ orchestrator to discover files itself; the UI always passes the explicit list of
 The test pipeline (`TestAsync`/`TestFilesAsync` → `IXisoIntegrityService`) dispatches by extension:
 `.iso` and `.cso` (single or split `.1.cso`) go through `XisoReader.AuditXiso(...,
 requireOptimizedTag: false)` and, with the deep scan enabled, a sequential read of the whole
-decompressed image; `.zar` is opened, tree-walked, and (deep scan) fully decompressed through
-`ZArchiveReader`; `.chd` (Xbox DVD images only) is verified with `Chd.CheckFile` (header-only, or
-every hunk and checksum with the deep scan) and the Xbox filesystem is audited through
-`XisoReader.AuditXiso(IBlockDevice)` over a `ChdImageStream`. Split CISO continuation parts are
-hidden from the list and move together with part 1.
+decompressed image; `.cci` is validated with `CciFile.Validate` (header/index, or every LZ4 sector
+with the deep scan) before the same XDVDFS audit; `.zar` is opened, tree-walked, and (deep scan)
+fully decompressed through `ZArchiveReader`; `.chd` (Xbox DVD images only) is verified with
+`Chd.CheckFile` (header-only, or every hunk and checksum with the deep scan) and the Xbox filesystem
+is audited through `XisoReader.AuditXiso(IBlockDevice)` over a `ChdImageStream`. Split CISO/CCI
+continuation parts are hidden from the list and move together with part 1.
 
 Safety characteristics of the pipeline:
 

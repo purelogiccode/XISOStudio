@@ -1,6 +1,6 @@
-using XISOSharp;
 using XISOStudio.Interfaces;
 using Serilog;
+using GodHeader = StfsSharp.GodHeader;
 
 namespace XISOStudio.Services;
 

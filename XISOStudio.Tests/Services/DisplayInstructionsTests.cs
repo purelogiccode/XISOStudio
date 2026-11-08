@@ -133,7 +133,7 @@ public class DisplayInstructionsTests
         DisplayInstructions.DisplayInitialInstructions();
 
         Assert.True(logger.HasMessage(
-            "2. Test Integrity: Verifies ISO/CSO (XDVDFS), ZAR, and Xbox CHD structure and readability."));
+            "2. Test Integrity: Verifies ISO/CSO/CCI (XDVDFS), ZAR, and Xbox CHD structure and readability."));
         Assert.True(logger.HasMessage("does NOT perform data checksum (MD5/SHA) verification."));
     }
 
@@ -146,7 +146,7 @@ public class DisplayInstructionsTests
         DisplayInstructions.DisplayInitialInstructions();
 
         Assert.True(logger.HasMessage(
-            "3. Explorer: Explore the content of .iso, .cso, .zar, .chd and GOD/SVOD containers, with title metadata and XBE image previews."));
+            "3. Explorer: Explore the content of .iso, .cso, .cci, .zar, .chd and GOD/SVOD containers, with title metadata and XBE image previews."));
     }
 
     [Fact]

@@ -8,18 +8,19 @@
 
 ---
 
-The **Explorer** tab provides a native file browser for Xbox and Xbox 360 images and archives. It reads the XDVDFS filesystem directly from ISO/CISO/CCI and GOD/SVOD images through the [XISOSharp](https://github.com/purelogiccode/XISOSharp) 1.8 `XisoImage`/`XisoImageSource` facade (StfsSharp-backed for GOD), the CHD image through [CHDSharp](https://github.com/purelogiccode/CHDSharp) (decompressed on demand), and the ZAR archive tree through ZArchiveSharp, so you can inspect images without extracting anything. The file picker sits at the top with the explorer list below it, and the right-hand details panel shows title metadata and XBE image previews.
+The **Explorer** tab provides a native file browser for Xbox and Xbox 360 images and archives. It reads the XDVDFS filesystem directly from ISO/CISO/CCI and GOD/SVOD images through the [XISOSharp](https://github.com/purelogiccode/XISOSharp) 1.8 `XisoImage`/`XisoImageSource` facade (StfsSharp-backed for GOD and CCISharp-backed for CCI), the CHD image through [CHDSharp](https://github.com/purelogiccode/CHDSharp) (decompressed on demand), and the ZAR archive tree through ZArchiveSharp, so you can inspect images without extracting anything. The file picker sits at the top with the explorer list below it, and the right-hand details panel shows title metadata and XBE image previews.
 
 ## Opening an Image
 
 1. Switch to the **Explorer** tab.
-2. Click **Browse...** and select a `.iso`, `.cso`, `.zar`, `.chd` or GOD/SVOD header file, or **Folder...** for a GOD/SVOD `.data` directory or its parent folder.
+2. Click **Browse...** and select a `.iso`, `.cso`, `.cci`, `.zar`, `.chd` or GOD/SVOD header file, or **Folder...** for a GOD/SVOD `.data` directory or its parent folder.
 3. The root of the image appears in the file list and the details panel fills in.
 
 Supported inputs:
 
 - **`.iso`** — standard XISO and Redump ISOs; the explorer automatically locates the game partition.
 - **`.cso`** — CISO containers (single file or a split `.1.cso` part set); the game partition is read through the decompressed view.
+- **`.cci`** — CCI/CCIM containers (single file or a split part set, including multi-digit parts); the game partition is read through the CCISharp decompressed view.
 - **`.zar`** — ZAR archives (ZArchive/zstd); the game tree is read directly from the compressed container. A ZAR tree has no disc geometry, so the title panel reports metadata as unavailable and the preview is disabled.
 - **`.chd`** — CHD v5 images; the Xbox filesystem is read from the on-demand decompressed view. Parsing is limited to Xbox DVD images — CD/GD-ROM/hard-disk CHDs are rejected with a clear error.
 - **GOD/SVOD** — Xbox 360 Games-on-Demand containers (a content-hash header beside a `<header>.data` directory). The fragment mapping is handled by `XisoImageSource`/StfsSharp, and the XDVDFS game partition is browsed without extraction. Plain STFS/XBLA packages are not disc images and are rejected.
