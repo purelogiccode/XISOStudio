@@ -229,7 +229,7 @@ public sealed class XisoIntegrityServiceTests : IDisposable
     public async Task InvalidCciFailsCleanly()
     {
         var cciPath = Path.Combine(_tempRoot, "bad.cci");
-        await File.WriteAllBytesAsync(cciPath, [0x43, 0x43, 0x49, 0x4D]);
+        await File.WriteAllBytesAsync(cciPath, "CCIM"u8.ToArray());
 
         var service = CreateService();
         var progress = new CollectingProgress();
