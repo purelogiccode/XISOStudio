@@ -74,6 +74,20 @@ public static class ImageErrorClassifier
     }
 
     /// <summary>
+    /// Errors reported by XISOSharp's CCI writer when the underlying host I/O operation
+    /// fails (for example a disconnected, full, or failing source/output drive). CCISharp
+    /// reports these failures with a generic error code, which XISOSharp wraps in an
+    /// <see cref="IOException" /> whose message starts with <c>CCI I/O error for</c>.
+    /// </summary>
+    /// <param name="exception">Exception to inspect.</param>
+    /// <returns><c>true</c> when the exception reports a CCI host I/O failure; otherwise <c>false</c>.</returns>
+    public static bool IsCciIoError(Exception exception)
+    {
+        return exception is IOException &&
+               exception.Message.StartsWith("CCI I/O error for", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Errors caused by a missing or damaged application assembly (for example a truncated
     /// download or a partially deleted installation). These are installation problems, not
     /// image-input problems or application defects, and the user can fix them by reinstalling.

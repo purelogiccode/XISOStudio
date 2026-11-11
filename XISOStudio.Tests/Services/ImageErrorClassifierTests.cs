@@ -75,6 +75,27 @@ public class ImageErrorClassifierTests
     }
 
     [Fact]
+    public void IsCciIoErrorWithWriterIoFailureReturnsTrue()
+    {
+        var exception = new IOException("CCI I/O error for 'X:\\Games\\game.cci': I/O error");
+
+        Assert.True(ImageErrorClassifier.IsCciIoError(exception));
+    }
+
+    [Fact]
+    public void IsCciIoErrorWithImageFormatErrorReturnsFalse()
+    {
+        Assert.False(ImageErrorClassifier.IsCciIoError(
+            new InvalidDataException("Invalid CCI image 'game.cci': corrupt sector")));
+    }
+
+    [Fact]
+    public void IsCciIoErrorWithReadErrorReturnsFalse()
+    {
+        Assert.False(ImageErrorClassifier.IsCciIoError(new IOException("Read error while reading sector 0")));
+    }
+
+    [Fact]
     public void IsMissingApplicationComponentErrorWithAssemblyLoadFailureReturnsTrue()
     {
         var exception = new FileNotFoundException(

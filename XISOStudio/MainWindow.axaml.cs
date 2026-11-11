@@ -332,7 +332,7 @@ public partial class MainWindow : Window
             }
 
             // No operation running, safe to close immediately
-            CleanupResources();
+            TryCleanupResources();
             _isForceClosing = true;
             Close();
         }
@@ -383,7 +383,7 @@ public partial class MainWindow : Window
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     _isForceClosing = true;
-                    CleanupResources();
+                    TryCleanupResources();
                     Close();
                     Volatile.Write(ref dispatcherCompleted, 1);
                 });
@@ -393,7 +393,7 @@ public partial class MainWindow : Window
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 _isForceClosing = true;
-                CleanupResources();
+                TryCleanupResources();
                 Close();
             });
         }
@@ -402,6 +402,29 @@ public partial class MainWindow : Window
             // The window did not close: allow a future close attempt.
             _isClosingInProgress = false;
             _logger.Error(ex, "Error while waiting for the current operation to cancel");
+        }
+    }
+
+    /// <summary>
+    /// Runs <see cref="CleanupResources"/> without letting a failed cleanup keep the window open.
+    /// A missing or damaged application assembly is an installation problem rather than an
+    /// application defect, so it stays below the automatic bug-report threshold.
+    /// </summary>
+    private void TryCleanupResources()
+    {
+        try
+        {
+            CleanupResources();
+        }
+        catch (Exception ex) when (ImageErrorClassifier.IsMissingApplicationComponentError(ex))
+        {
+            _logger.Information(ex,
+                "A required image engine component could not be loaded during shutdown. " +
+                "The application files may be incomplete or damaged; please reinstall XISO Studio.");
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(ex, "Error during resource cleanup");
         }
     }
 
@@ -424,6 +447,14 @@ public partial class MainWindow : Window
             _processingTimer.Stop();
             _memoryTimer.Stop();
             StopPerformanceCounter();
+        }
+        catch (Exception ex) when (ImageErrorClassifier.IsMissingApplicationComponentError(ex))
+        {
+            // A missing or damaged application assembly is an installation problem, not an
+            // application defect; keep it below the automatic bug-report threshold.
+            _logger.Information(ex,
+                "A required image engine component could not be loaded during shutdown. " +
+                "The application files may be incomplete or damaged; please reinstall XISO Studio.");
         }
         catch (Exception ex)
         {

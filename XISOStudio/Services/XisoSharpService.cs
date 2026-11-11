@@ -685,6 +685,17 @@ public class XisoSharpService : IXisoSharpService
                 "may be corrupt, or contains a file too large for XISO.", fileName, formatName);
             return FileProcessingStatus.InvalidInput;
         }
+        catch (Exception ex) when (ImageErrorClassifier.IsCciIoError(ex))
+        {
+            DeletePartialOutput(outputPath);
+            // Host I/O failures are environmental, not application defects; Warning or higher
+            // would auto-upload the failure as a bug report.
+            _logger.Information(ex,
+                "The source or output drive reported an I/O error while compressing '{FileName}' to CCI.\n\n" +
+                "This usually means the drive is disconnected, full, or failing. Check the drive connection " +
+                "and health (for example, run chkdsk), then try again.", fileName);
+            return FileProcessingStatus.Failed;
+        }
         catch (Exception ex)
         {
             DeletePartialOutput(outputPath);
