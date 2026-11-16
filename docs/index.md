@@ -13,8 +13,8 @@ Welcome to the official documentation for **XISO Studio** — a high-performance
 - **Repository:** <https://github.com/purelogiccode/XISOStudio>
 - **Website:** <https://www.purelogiccode.com>
 - **License:** GNU General Public License v3.0
-- **Current version:** 3.2.1 (November 2026) - see the [Release Notes](Release-Notes.md#321)
-- **Platform:** Windows, Linux, and macOS (x64 / ARM64), .NET 10.0 Runtime
+- **Current version:** 3.2.2 (November 2026) - see the [Release Notes](Release-Notes.md#322)
+- **Platform:** Windows, Linux, and macOS (x64 / ARM64), .NET 11.0 Runtime
 
 ---
 
@@ -80,7 +80,7 @@ Whether you are managing a large collection of game backups, preparing files for
 ## Quick Start
 
 1. **Download** the release archive for your platform from the [Releases](https://github.com/purelogiccode/XISOStudio/releases) page and extract it — the application is fully portable, no installer required.
-2. **Launch** `XISOStudio.exe` on Windows or `./XISOStudio` on Linux/macOS (requires the [.NET 10.0 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)).
+2. **Launch** `XISOStudio.exe` on Windows or `./XISOStudio` on Linux/macOS (requires the [.NET 11.0 Runtime](https://dotnet.microsoft.com/download/dotnet/11.0)).
 3. On the **Convert** tab, select an **input folder** containing your ISO files and an **output folder** for the converted XISOs.
 4. Optionally enable **Skip $SystemUpdate** and **Check output integrity**, then click **Start Conversion** and monitor progress in real time.
 

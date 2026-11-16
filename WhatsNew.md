@@ -2,6 +2,27 @@
 
 <!-- Keep this file focused on the newest release. Full history lives in docs/Release-Notes.md. -->
 
+## Version 3.2.2
+
+**Release date:** November 2026
+
+Version 3.2.2 moves the application to **.NET 11** and **C# 15**. It is a
+platform update only: every feature, format, and reliability fix from 3.2.1 is
+unchanged, and the same six platform bundles are published.
+
+### Highlights
+
+- **.NET 11 runtime** - the application and its test suite now target
+  `net11.0`. Install the [.NET 11.0 Runtime](https://dotnet.microsoft.com/download/dotnet/11.0)
+  before launching the framework-dependent bundles.
+- **C# 15** - the projects compile with `<LangVersion>15</LangVersion>` on the
+  .NET 11 SDK.
+- **CI on .NET 11** - the CI and Release workflows use `dotnet-version: '11.0.x'`
+  for every platform job.
+- **No behavioural changes** - 3.2.1's STFS conversion, FAT32 pre-flight,
+  truncated-image and CCI I/O handling are all included as-is.
+- **Tests** - 1,687 tests passing; InspectCode remains clean.
+
 ## Version 3.2.1
 
 **Release date:** November 2026

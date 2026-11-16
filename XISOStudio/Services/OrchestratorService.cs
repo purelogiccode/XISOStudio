@@ -50,10 +50,12 @@ public class OrchestratorService : IOrchestratorService
         internal int GlobalFileIndex { get; set; } = 1;
 
         /// <summary>Output paths already reserved by processed files in this batch.</summary>
-        private readonly HashSet<string> _reservedOutputPaths = new(
-            OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+        private readonly HashSet<string> _reservedOutputPaths =
+        [
+            with(OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
                 ? StringComparer.OrdinalIgnoreCase
-                : StringComparer.Ordinal);
+                : StringComparer.Ordinal),
+        ];
 
         /// <summary>
         ///     Returns an output path for the given base name that no other file in this batch

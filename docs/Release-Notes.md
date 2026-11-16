@@ -12,6 +12,7 @@
 
 | Version | Date | Summary |
 |:---|:---|:---|
+| [3.2.2](#322) | November 2026 | Platform update: the application and test suite target .NET 11 (`net11.0`) and C# 15, and CI/Release build on the .NET 11 SDK; no behavioural changes from 3.2.1 (1,687 tests passing) |
 | [3.2.1](#321) | November 2026 | Reliability patch: STFS packages convert to XISO/CSO/CCI/ZAR, FAT32 4 GB destinations are refused up front, truncated images and CCI I/O failures stay out of bug reports, and XISOSharp 2.1.0 is adopted (1,687 tests passing) |
 | [3.2.0](#320) | November 2026 | Format-complete release: CCI output, Decompress view, real conversion validation, image checksums, STFS/XBLA package support, repair/salvage, extract-all, split/join, GOD/SVOD explorer and decompression input, XBE/XDBF previews, and fixes for GOD deletion and split cloud copies (1,671 tests passing) |
 | [3.1.2](#312) | October 2026 | Reliability patch: Explorer drag-and-drop no longer crashes on X11, Linux temp-space detection uses the real temp filesystem with a per-user fallback, failed extractions remove partial output, and expected I/O failures stay out of bug reports (1,512 tests passing) |
@@ -26,6 +27,33 @@
 | [2.7.0](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.7.0) | June 2026 | Improved ISO compatibility, disk-space detection, cancellation and performance |
 | [2.6.1](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.6.1) | June 2026 | XGD1/XGD2/XGD3 partition offsets, dark-theme tooltip fix |
 | [2.6.0](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.6.0) | June 2026 | 7-Zip CLI fallback, multilingual network errors, disk-space handling |
+
+---
+
+## 3.2.2
+
+*November 2026*
+
+**Platform update: .NET 11 and C# 15.** This release moves the application and
+its test suite to `net11.0` and C# 15. It contains no behavioural changes; every
+feature and reliability fix from 3.2.1 is included unchanged.
+
+### Highlights
+
+- **.NET 11** - `XISOStudio` and `XISOStudio.Tests` target `net11.0`, and
+  `global.json` pins the .NET 11 SDK. The published bundles remain
+  framework-dependent, so the [.NET 11.0 Runtime](https://dotnet.microsoft.com/download/dotnet/11.0)
+  is required.
+- **C# 15** - both projects set `<LangVersion>15</LangVersion>`.
+- **CI and Release on .NET 11** - every workflow job uses
+  `dotnet-version: '11.0.x'`.
+- **Dependencies** - the 3.2.1 dependency set is unchanged: XISOSharp 2.1.0,
+  CHDSharp 1.7.0, Avalonia 12.1.6, SharpCompress 0.50.9 and
+  Microsoft.Extensions 11.0.0.
+
+### Tests
+
+- **1,687 tests passing**, InspectCode clean, solution builds with 0 warnings.
 
 ---
 

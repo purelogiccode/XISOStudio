@@ -8,7 +8,7 @@ contribution workflow.
 
 XISO Studio is a cross-platform desktop application for the Xbox preservation and emulation
 community. It converts, verifies, and explores Xbox and Xbox 360 disc images (ISO/XISO, CSO, ZAR,
-and CHD). The UI is **Avalonia** on **.NET 10**, and the conversion engines are the managed
+and CHD). The UI is **Avalonia** on **.NET 11** with **C# 15**, and the conversion engines are the managed
 **XISOSharp**, **ZArchiveSharp**, and **CHDSharp** libraries. The application runs on Windows,
 Linux, and macOS (x64 and ARM64).
 
@@ -28,7 +28,7 @@ XISOStudio/bin/Release/  Append-only local archive of release bundles
 
 ## Build and test
 
-Run `dotnet` commands from the repository root (`global.json` pins the .NET 10 SDK).
+Run `dotnet` commands from the repository root (`global.json` pins the .NET 11 SDK).
 
 - Build: `dotnet build CSharp_XISOStudio.sln -c Release`
 - Test: `dotnet test CSharp_XISOStudio.sln -c Release --no-build`
@@ -59,9 +59,11 @@ change as the code.
 
 ## Release bundles (do not delete)
 
-- **NEVER delete, move, or overwrite any file inside `XISOStudio/bin/Release/`** (or any of its
-  subfolders). That folder is the release-bundle archive; bundles from previous versions are kept
-  there on purpose. A previous session deleted them and they had to be recovered from GitHub.
+- **NEVER delete, move, rename, or overwrite any file inside
+  `D:\repo\CSharp_XISOStudio\XISOStudio\bin\Release\`** (or `XISOStudio/bin/Release/` in any
+  checkout, including all of its subfolders). That folder is the permanent archive of every
+  released bundle; bundles from previous versions are kept there on purpose. A previous session
+  deleted them and they had to be recovered from GitHub.
 - Always add new bundles alongside the existing ones. Never clean the folder, never `rm`/`Remove-Item`
   a glob there, and never publish directly into it.
 - Build to a staging folder outside the repository (for example

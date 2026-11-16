@@ -109,7 +109,7 @@ public partial class MainWindow : Window
     private int _totalProcessedFiles;
 
     /// <summary>Paths of the files that failed in the current operation.</summary>
-    private readonly HashSet<string> _failedFilePaths = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _failedFilePaths = [with(StringComparer.OrdinalIgnoreCase)];
 
     // Image Explorer State
     /// <summary>Explorer for the image currently open in the explorer view.</summary>

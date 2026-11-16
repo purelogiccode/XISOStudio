@@ -13,7 +13,7 @@
 | Component | Minimum Requirement |
 |:---|:---|
 | Operating System | Windows 10 (1809)+ / Windows 11, modern Linux, or macOS 12+ |
-| Runtime | [.NET 10.0 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) |
+| Runtime | [.NET 11.0 Runtime](https://dotnet.microsoft.com/download/dotnet/11.0) |
 | Architecture | x64 (64-bit) or ARM64 |
 | RAM | 4 GB recommended |
 | Storage | Varies based on ISO collection size |
@@ -59,9 +59,9 @@ Do not delete or rename the bundled helper files — the corresponding features 
 
 ## .NET Runtime
 
-The application targets **.NET 10.0**. If it fails to start with a message about a missing runtime:
+The application targets **.NET 11.0**. If it fails to start with a message about a missing runtime:
 
-1. Download and install the **.NET 10.0 Runtime** for your platform and architecture from <https://dotnet.microsoft.com/download/dotnet/10.0>.
+1. Download and install the **.NET 11.0 Runtime** for your platform and architecture from <https://dotnet.microsoft.com/download/dotnet/11.0>.
 2. Re-launch the application.
 
 Alternatively, some releases may be published as self-contained builds that bundle the runtime — check the release notes on the [Releases](https://github.com/purelogiccode/XISOStudio/releases) page.

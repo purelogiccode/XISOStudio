@@ -4,7 +4,7 @@
 [![Windows 10 | 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6.svg?logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![Linux](https://img.shields.io/badge/Linux-x64%20%7C%20ARM64-FCC624.svg?logo=linux&logoColor=black)](https://github.com/purelogiccode/XISOStudio/releases)
 [![macOS](https://img.shields.io/badge/macOS-Intel%20%7C%20Apple%20Silicon-000000.svg?logo=apple&logoColor=white)](https://github.com/purelogiccode/XISOStudio/releases)
-[![.NET 10.0](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![.NET 11.0](https://img.shields.io/badge/.NET-11.0-blue.svg)](https://dotnet.microsoft.com/download/dotnet/11.0)
 [![Avalonia](https://img.shields.io/badge/UI-Avalonia-8A2BE2.svg)](https://avaloniaui.net/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE.txt)
 [![GitHub release](https://img.shields.io/github/v/release/purelogiccode/XISOStudio)](https://github.com/purelogiccode/XISOStudio/releases)
@@ -66,6 +66,13 @@ Whether you're managing a large collection of Xbox game backups or verifying the
 ---
 
 ## What's New
+
+### v3.2.2 - .NET 11 and C# 15
+
+- **.NET 11** - the application and test suite target `net11.0`; install the [.NET 11.0 Runtime](https://dotnet.microsoft.com/download/dotnet/11.0) before launching a framework-dependent bundle.
+- **C# 15** - both projects compile with `<LangVersion>15</LangVersion>`.
+- **CI on .NET 11** - the CI and Release workflows use `dotnet-version: '11.0.x'` on Windows, Linux, and macOS.
+- **No behavioural changes** - all 3.2.1 features and fixes are included unchanged; 1,687 tests pass and InspectCode is clean.
 
 ### v3.2.1 - STFS conversion and safer large-file output
 
@@ -215,7 +222,7 @@ Read the full [What's New](WhatsNew.md) or browse the [Release Notes](docs/Relea
 
 ### Prerequisites
 - **Operating System**: Windows 10 (version 1809) or later / Windows 11, a modern x64/ARM64 Linux distribution, or macOS 12+ (Intel or Apple Silicon)
-- **Runtime**: [.NET 10.0 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)
+- **Runtime**: [.NET 11.0 Runtime](https://dotnet.microsoft.com/download/dotnet/11.0)
 - **Architecture Support**:
     - **Windows**: x64 and ARM64.
     - **Linux**: x64 and ARM64.
@@ -325,7 +332,7 @@ For a deep dive into the XDVDFS format, binary file structures, and the conversi
 | Component    | Minimum Requirement                                                   |
 |:-------------|:----------------------------------------------------------------------|
 | OS           | Windows 10 (1809)+ / Windows 11, modern Linux (x64/ARM64), macOS 12+  |
-| .NET Runtime | .NET 10.0 Runtime                                                     |
+| .NET Runtime | .NET 11.0 Runtime                                                     |
 | Processor    | x64 or ARM64 architecture                                             |
 | RAM          | 4 GB recommended                                                      |
 | Storage      | Varies based on ISO collection size                                   |

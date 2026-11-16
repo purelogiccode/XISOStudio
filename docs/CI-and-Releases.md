@@ -63,12 +63,12 @@ Every release publishes six archives. The name is part of the update contract:
 
 ```text
 release_MAJOR.MINOR.PATCH_<rid>.zip
-release_3.2.1_win-x64.zip
-release_3.2.1_win-arm64.zip
-release_3.2.1_linux-x64.zip
-release_3.2.1_linux-arm64.zip
-release_3.2.1_osx-x64.zip
-release_3.2.1_osx-arm64.zip
+release_3.2.2_win-x64.zip
+release_3.2.2_win-arm64.zip
+release_3.2.2_linux-x64.zip
+release_3.2.2_linux-arm64.zip
+release_3.2.2_osx-x64.zip
+release_3.2.2_osx-arm64.zip
 ```
 
 The application does not download a specific asset; `UpdateChecker` reads the latest release tag,
@@ -81,7 +81,7 @@ Each archive contains these files at its root (no wrapping folder):
 
 | File | Notes |
 |:---|:---|
-| `XISOStudio.exe` / `XISOStudio` | Framework-dependent single-file executable; the .NET 10 runtime is **not** embedded |
+| `XISOStudio.exe` / `XISOStudio` | Framework-dependent single-file executable; the .NET 11 runtime is **not** embedded |
 | `7za.exe` + `7za_arm64.exe` | Windows bundles only; 7-Zip CLI fallback for x64 and ARM64 |
 | `7zz_linux_x64` / `7zz_linux_arm64` | Matching Linux bundle only |
 | `7zz_osx` | Both macOS bundles (universal binary) |
@@ -143,9 +143,9 @@ absent, the sync step is skipped with a notice.
 4. Tag and push:
 
    ```bash
-   git tag release_3.2.1
+   git tag release_3.2.2
    git push origin master
-   git push origin release_3.2.1
+   git push origin release_3.2.2
    ```
 
 5. The tag triggers the *Release* workflow, which tests, validates, builds the six bundles, and

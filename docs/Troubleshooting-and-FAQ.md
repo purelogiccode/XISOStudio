@@ -69,7 +69,7 @@ The release is a framework-dependent single-file build: the managed image engine
 
 - Download the release archive again from the official GitHub release page and extract it to a fresh, writable folder. Do not run the executable from inside the ZIP.
 - Verify the archive against the published `SHA256SUMS.txt` before running it.
-- Make sure the [.NET 10.0 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) is installed; the framework-dependent build cannot start without it.
+- Make sure the [.NET 11.0 Runtime](https://dotnet.microsoft.com/download/dotnet/11.0) is installed; the framework-dependent build cannot start without it.
 - If the message persists after a clean download, reinstall the application.
 
 This is an installation problem rather than an image-input problem or an application defect, so it is logged at Information level and is **not** sent as an automatic bug report.

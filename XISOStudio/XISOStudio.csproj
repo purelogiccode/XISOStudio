@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
-        <TargetFramework>net10.0</TargetFramework>
+        <TargetFramework>net11.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
@@ -10,13 +10,14 @@
         <Authors>PureLogicCode</Authors>
         <Company>PureLogicCode.com</Company>
         <IsPackable>false</IsPackable>
-        <Version>3.2.1</Version>
-        <AssemblyVersion>3.2.1</AssemblyVersion>
-        <FileVersion>3.2.1</FileVersion>
+        <Version>3.2.2</Version>
+        <AssemblyVersion>3.2.2</AssemblyVersion>
+        <FileVersion>3.2.2</FileVersion>
         <NeutralLanguage>en</NeutralLanguage>
         <DebugType>embedded</DebugType>
         <DebugSymbols>true</DebugSymbols>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <LangVersion>15</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>
@@ -84,9 +85,6 @@
         <PackageReference Include="CHDSharp" Version="1.7.0" />
         <PackageReference Include="SharpCompress" Version="0.50.9" />
         <PackageReference Include="StfsSharp" Version="1.0.0" />
-        <!-- XISOSharp 2.1.0 references ILLink 11; the .NET 10 SDK otherwise
-             injects ILLink 10.0.15 and publish fails with NU1605. -->
-        <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="11.0.0" PrivateAssets="all" />
         <PackageReference Include="XISOSharp" Version="2.1.0" />
         <PackageReference Include="ZArchiveSharp" Version="1.4.0" />
         <PackageReference Include="Avalonia" Version="12.1.6" />

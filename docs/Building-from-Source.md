@@ -13,7 +13,7 @@
 | Requirement | Notes |
 |:---|:---|
 | **Windows 10/11, Linux, or macOS** (x64 or ARM64) | Avalonia application; builds and runs on all three platforms |
-| **.NET 10 SDK** | Matches the `net10.0` target; `global.json` pins the required SDK version |
+| **.NET 11 SDK** | Matches the `net11.0` target; `global.json` pins the required SDK version |
 | **Git** | To clone the repository |
 
 Verify your SDK:
@@ -107,13 +107,15 @@ LICENSE.txt
 ```
 
 The Linux and macOS executables keep the Unix execute bit (`0755`) inside the ZIP, and the bundles are
-framework-dependent: end users need the [.NET 10.0 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0).
+framework-dependent: end users need the [.NET 11.0 Runtime](https://dotnet.microsoft.com/download/dotnet/11.0).
 A local `SHA256SUMS.txt` is published with every release. Finished bundles are archived in
-`XISOStudio/bin/Release/`; that folder is append-only, so never delete or overwrite existing ZIPs.
+`XISOStudio/bin/Release/` (or the absolute path `D:\repo\CSharp_XISOStudio\XISOStudio\bin\Release\`);
+that folder is a permanent append-only archive, so never delete, move, rename, or overwrite any
+existing bundle.
 
 ## Project Notes
 
-- **Target framework:** `net10.0` with **Avalonia** (`Avalonia`, `Avalonia.Desktop`, `Avalonia.Themes.Fluent`, `Avalonia.Controls.DataGrid`).
+- **Target framework:** `net11.0` with **Avalonia** (`Avalonia`, `Avalonia.Desktop`, `Avalonia.Themes.Fluent`, `Avalonia.Controls.DataGrid`); C# 15.
 - **Nullable + implicit usings** are enabled.
 - The `References/` folder (vendored sources such as the xdvdfs Rust workspace, if present) is excluded from compilation.
 - Version numbers are maintained in `XISOStudio.csproj` (`AssemblyVersion` / `FileVersion`); the update checker compares against GitHub release tags.

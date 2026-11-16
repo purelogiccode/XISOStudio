@@ -233,8 +233,8 @@ public sealed class ChdServiceTests : IDisposable
     private static HashSet<string> SnapshotChdTempFolders()
     {
         return Directory.Exists(ChdTempRoot)
-            ? new HashSet<string>(Directory.GetDirectories(ChdTempRoot), StringComparer.OrdinalIgnoreCase)
-            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            ? [with(StringComparer.OrdinalIgnoreCase), .. Directory.GetDirectories(ChdTempRoot)]
+            : [with(StringComparer.OrdinalIgnoreCase)];
     }
 
     private static List<int> ParsePercents(IReadOnlyList<BatchOperationProgress> reports, string prefix)

@@ -8,7 +8,7 @@
 
 ---
 
-The application is a cross-platform **Avalonia** (.NET 10, `net10.0`) desktop app — one codebase for Windows, Linux, and macOS — built on modern software engineering principles: dependency injection, service-oriented design, interface-driven contracts, and a comprehensive xUnit test suite.
+The application is a cross-platform **Avalonia** (.NET 11, `net11.0`, C# 15) desktop app — one codebase for Windows, Linux, and macOS — built on modern software engineering principles: dependency injection, service-oriented design, interface-driven contracts, and a comprehensive xUnit test suite.
 
 ## Solution Layout
 
