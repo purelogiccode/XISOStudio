@@ -84,6 +84,9 @@
         <PackageReference Include="CHDSharp" Version="1.7.0" />
         <PackageReference Include="SharpCompress" Version="0.50.9" />
         <PackageReference Include="StfsSharp" Version="1.0.0" />
+        <!-- XISOSharp 2.1.0 references ILLink 11; the .NET 10 SDK otherwise
+             injects ILLink 10.0.15 and publish fails with NU1605. -->
+        <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="11.0.0" PrivateAssets="all" />
         <PackageReference Include="XISOSharp" Version="2.1.0" />
         <PackageReference Include="ZArchiveSharp" Version="1.4.0" />
         <PackageReference Include="Avalonia" Version="12.1.6" />
