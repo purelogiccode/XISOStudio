@@ -8,7 +8,7 @@
 
 ---
 
-All conversion is performed in-process by the **[XISOSharp](https://github.com/purelogiccode/XISOSharp)** library, with **[CHDSharp](https://github.com/purelogiccode/CHDSharp)** handling CHD output. No external conversion binaries are required or bundled. The Convert tab can produce optimized **XISO**, compressed **ZAR**, compressed **CSO**, compressed **CCI**, or compressed **CHD** output from the same packing pipeline, and the **Decompress** tab turns any of those containers back into a plain ISO.
+All conversion is performed in-process by the **[XISOSharp](https://github.com/purelogiccode/XISOSharp)** library, with **[CHDSharp](https://github.com/purelogiccode/CHDSharp)** handling CHD output. No external conversion binaries are required or bundled. The Convert tab can produce optimized **XISO**, compressed **ZAR**, compressed **CSO**, compressed **CCI**, or compressed **CHD** output from the same packing pipeline. XBLA/XBLIG **STFS packages** are accepted as input and converted through a temporary optimized ISO (extensionless packages included); CHD output is not available for STFS input. The **Decompress** tab turns the sector-image containers back into a plain ISO.
 
 ## How It Works
 
@@ -76,9 +76,10 @@ The **Decompress** tab turns container images back into a plain sector image:
 | `.chd` | the decompressed `ChdImageStream` is copied to an ISO |
 | GOD/SVOD header (its `.data` folder is resolved automatically) | the mapped logical image is copied to an ISO |
 
-Plain `.iso`/`.xiso`/`.img` inputs are listed but skipped as already uncompressed. Each result can be
-structurally audited before it is reported as successful, and **Delete Originals** removes the source
-image (including every part of a split set) only after a successful decompression.
+Plain `.iso`/`.xiso`/`.img` inputs are listed but skipped as already uncompressed. Single-file
+XBLA/XBLIG STFS packages are not sector images and are rejected with a pointer to the Convert tab.
+Each result can be structurally audited before it is reported as successful, and **Delete Originals**
+removes the source image (including every part of a split set) only after a successful decompression.
 
 ---
 

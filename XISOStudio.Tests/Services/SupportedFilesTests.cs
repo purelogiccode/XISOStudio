@@ -359,7 +359,7 @@ public class SupportedFilesTests
     }
 
     [Fact]
-    public void ExtensionlessStfsPackageIsTestableButNotDecompressible()
+    public void ExtensionlessStfsPackageIsTestableAndConvertibleButNotDecompressible()
     {
         var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(directory);
@@ -371,7 +371,7 @@ public class SupportedFilesTests
             Assert.True(SupportedFiles.IsImage(packagePath));
             Assert.True(SupportedFiles.IsTestable(packagePath));
             Assert.False(SupportedFiles.IsDecompressible(packagePath));
-            Assert.False(SupportedFiles.IsConvertible(packagePath));
+            Assert.True(SupportedFiles.IsConvertible(packagePath));
         }
         finally
         {

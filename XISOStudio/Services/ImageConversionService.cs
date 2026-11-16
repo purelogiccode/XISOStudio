@@ -49,6 +49,16 @@ public sealed class ImageConversionService : IImageConversionService
             return FileProcessingStatus.Failed;
         }
 
+        // A misnamed STFS package must not be mistaken for a plain ISO: it is a
+        // file table, not a sector image, and belongs in the Convert view.
+        if (StfsSharp.StfsPackage.IsStfsPackage(inputFile))
+        {
+            _logger.Information(
+                "'{FileName}' is an XBLA/XBLIG STFS package, not a compressed sector image. " +
+                "Use the Convert tab to convert it to ISO.", fileName);
+            return FileProcessingStatus.Failed;
+        }
+
         // Plain images are already the target format.
         if (SupportedFiles.IsIso(inputFile))
         {

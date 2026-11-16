@@ -5,6 +5,7 @@ using System.Security.Principal;
 using XISOStudio.Interfaces;
 using XISOStudio.Models;
 using XISOStudio.Services;
+using XISOStudio.Tests.Fixtures;
 using Moq;
 using Serilog.Events;
 using XISOSharp;
@@ -1001,6 +1002,86 @@ public sealed class XisoSharpServiceTests : IDisposable
 
         // CHD encoding is owned by IChdService: no mislabeled XISO may be written.
         Assert.False(File.Exists(Path.Combine(outputFolder, "game.chd")));
+    }
+
+    [Fact]
+    public async Task StfsPackageConvertsToXiso()
+    {
+        // XISOSharp 2.1.0 converts STFS packages by extracting their file table and
+        // packing an optimized XISO; the package is commonly misnamed `.iso`.
+        var packagePath = Path.Combine(_tempRoot, "xbla-game.iso");
+        SyntheticStfsPackage.Create(packagePath, [
+            new SyntheticStfsFile("default.xex", [1, 2, 3]),
+            new SyntheticStfsFile("data/payload.bin", new byte[5000]),
+        ], xblig: true);
+
+        var service = CreateService();
+        var outputFolder = Path.Combine(_tempRoot, "out");
+
+        var status = await service.ConvertIsoAsync(packagePath, outputFolder, "xbla-game.iso", OutputFormat.Xiso,
+            false, true, new CollectingProgress(), CancellationToken.None);
+
+        Assert.Equal(FileProcessingStatus.Converted, status);
+        var output = Path.Combine(outputFolder, "xbla-game.iso");
+        Assert.True(File.Exists(output));
+        Assert.True(XisoReader.AuditXiso(output).IsValid);
+        Assert.True(File.Exists(packagePath));
+    }
+
+    [Fact]
+    public async Task StfsPackageWithSkipSystemUpdateConvertsToXiso()
+    {
+        var packagePath = Path.Combine(_tempRoot, "xbla-su.iso");
+        SyntheticStfsPackage.Create(packagePath, [
+            new SyntheticStfsFile("default.xex", [1, 2, 3]),
+        ], xblig: true);
+
+        var service = CreateService();
+        var outputFolder = Path.Combine(_tempRoot, "out");
+
+        var status = await service.ConvertIsoAsync(packagePath, outputFolder, "xbla-su.iso", OutputFormat.Xiso,
+            true, false, new CollectingProgress(), CancellationToken.None);
+
+        Assert.Equal(FileProcessingStatus.Converted, status);
+        Assert.True(File.Exists(Path.Combine(outputFolder, "xbla-su.iso")));
+    }
+
+    [Fact]
+    public async Task StfsPackageConvertsToCso()
+    {
+        var packagePath = Path.Combine(_tempRoot, "xbla-cso.iso");
+        SyntheticStfsPackage.Create(packagePath, [
+            new SyntheticStfsFile("default.xex", [1, 2, 3]),
+            new SyntheticStfsFile("data/payload.bin", new byte[5000]),
+        ], xblig: true);
+
+        var service = CreateService();
+        var outputFolder = Path.Combine(_tempRoot, "out");
+
+        var status = await service.ConvertIsoAsync(packagePath, outputFolder, "xbla-cso.cso", OutputFormat.Cso,
+            false, false, new CollectingProgress(), CancellationToken.None);
+
+        Assert.Equal(FileProcessingStatus.Converted, status);
+        Assert.True(File.Exists(Path.Combine(outputFolder, "xbla-cso.cso")));
+    }
+
+    [Fact]
+    public async Task StfsPackageConvertsToZar()
+    {
+        var packagePath = Path.Combine(_tempRoot, "xbla-zar.iso");
+        SyntheticStfsPackage.Create(packagePath, [
+            new SyntheticStfsFile("default.xex", [1, 2, 3]),
+            new SyntheticStfsFile("data/payload.bin", new byte[5000]),
+        ], xblig: true);
+
+        var service = CreateService();
+        var outputFolder = Path.Combine(_tempRoot, "out");
+
+        var status = await service.ConvertIsoAsync(packagePath, outputFolder, "xbla-zar.zar", OutputFormat.Zar,
+            false, false, new CollectingProgress(), CancellationToken.None);
+
+        Assert.Equal(FileProcessingStatus.Converted, status);
+        Assert.True(File.Exists(Path.Combine(outputFolder, "xbla-zar.zar")));
     }
 
     [Fact]

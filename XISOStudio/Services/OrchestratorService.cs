@@ -167,7 +167,9 @@ public class OrchestratorService : IOrchestratorService
                 try
                 {
                     topLevelEntries = await Task.Run(
-                        () => Directory.GetFiles(inputFolder, "*.*", enumOptions)
+                        // "*" rather than "*.*": extensionless XBLA/XBLIG STFS
+                        // packages are convertible inputs on every platform.
+                        () => Directory.GetFiles(inputFolder, "*", enumOptions)
                             .Where(SupportedFiles.IsConvertible).ToList(), token);
                     break;
                 }

@@ -192,7 +192,9 @@ public partial class MainWindow
                     AttributesToSkip = FileAttributes.System | FileAttributes.Hidden
                 };
 
-                return Directory.GetFiles(inputFolder, "*.*", enumerationOptions)
+                // "*" rather than "*.*": extensionless STFS packages are valid
+                // conversion inputs on every platform.
+                return Directory.GetFiles(inputFolder, "*", enumerationOptions)
                     .Where(filter)
                     .Select(file => new FileItem
                     {

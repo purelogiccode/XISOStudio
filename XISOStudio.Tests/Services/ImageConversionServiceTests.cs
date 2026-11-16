@@ -131,6 +131,22 @@ public sealed class ImageConversionServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task StfsPackageNamedIsoIsRejectedInsteadOfSkippedAsPlainIso()
+    {
+        var packagePath = Path.Combine(_tempRoot, "xbla.iso");
+        SyntheticStfsPackage.Create(packagePath, [
+            new SyntheticStfsFile("default.xex", [1, 2, 3]),
+        ], xblig: true);
+
+        var outputFolder = Path.Combine(_tempRoot, "out");
+        var status = await _service.DecompressToIsoAsync(packagePath, outputFolder, "result.iso", false,
+            new Progress<BatchOperationProgress>(), CancellationToken.None);
+
+        Assert.Equal(FileProcessingStatus.Failed, status);
+        Assert.False(File.Exists(Path.Combine(outputFolder, "result.iso")));
+    }
+
+    [Fact]
     public async Task InvalidInputIsRejected()
     {
         var badPath = Path.Combine(_tempRoot, "bad.cso");

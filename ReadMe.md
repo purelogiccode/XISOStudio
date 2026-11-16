@@ -24,7 +24,7 @@
 [![Powered by ZArchiveSharp](https://img.shields.io/badge/Powered%20by-ZArchiveSharp-8A2BE2.svg)](https://github.com/purelogiccode/ZArchiveSharp)
 [![Powered by SharpCompress](https://img.shields.io/badge/Powered%20by-SharpCompress-8A2BE2.svg)](https://github.com/adamhathcock/sharpcompress)
 [![Formats](https://img.shields.io/badge/formats-ISO%20%7C%20XISO%20%7C%20ZAR%20%7C%20CSO%20%7C%20CCI%20%7C%20CHD%20%7C%20GOD-orange.svg)](#supported-formats)
-[![Tests](https://img.shields.io/badge/tests-1671%20passing-brightgreen.svg)](https://github.com/purelogiccode/XISOStudio/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-1687%20passing-brightgreen.svg)](https://github.com/purelogiccode/XISOStudio/actions/workflows/ci.yml)
 [![Code analyzers](https://img.shields.io/badge/analyzers-Meziantou%20%7C%20Roslynator-blueviolet)](docs/Architecture.md)
 [![Made with C#](https://img.shields.io/badge/Made%20with-C%23-239120.svg?logo=csharp&logoColor=white)](https://dotnet.microsoft.com/languages/csharp)
 [![Nullable](https://img.shields.io/badge/nullable-enabled-blue.svg)](https://learn.microsoft.com/dotnet/csharp/nullable-references)
@@ -66,6 +66,15 @@ Whether you're managing a large collection of Xbox game backups or verifying the
 ---
 
 ## What's New
+
+### v3.2.1 - STFS conversion and safer large-file output
+
+- **STFS packages convert** - single-file XBLA/XBLIG packages now convert to XISO, CSO, CCI or ZAR from the Convert tab. Extensionless packages are accepted directly, and the `$SystemUpdate` filter works for packages too.
+- **FAT32 is checked up front** - the Decompress and Convert views detect a FAT32 destination that cannot hold the output and explain that NTFS or exFAT is required. A late host file-too-large failure is also treated as an environmental condition.
+- **Truncated images stay quiet** - extracting a file whose data lies past the end of the image is expected input, logged at Information, and does not upload a report.
+- **CCI I/O failures are environmental** - disconnected, full or failing drives during CCI compression are explained at Information.
+- **Dependencies** - XISOSharp 2.1.0, CHDSharp 1.7.0, Avalonia 12.1.6, SharpCompress 0.50.9 and Microsoft.Extensions 11.0.0.
+- **Tests** - 1,687 tests.
 
 ### v3.2.0 - the format-complete release
 

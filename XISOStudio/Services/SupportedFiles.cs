@@ -15,17 +15,23 @@ public static class SupportedFiles
     ///     Returns true when the path has an extension the conversion engine can process.
     ///     Compressed containers are deliberately excluded: converting a CISO/CCI/ZAR/CHD
     ///     directly to another container requires decompressing it first, which is the job
-    ///     of the Decompress view.
+    ///     of the Decompress view. Extensionless XBLA/XBLIG STFS packages are accepted
+    ///     because XISOSharp converts them to an ISO (or a compressed container) directly.
     /// </summary>
     /// <param name="path">Path to inspect.</param>
     /// <returns>
-    ///     <c>true</c> for <c>.iso</c>, <c>.xiso</c>, <c>.img</c>, <c>.zip</c>, <c>.7z</c>
-    ///     or <c>.rar</c>; otherwise <c>false</c>.
+    ///     <c>true</c> for <c>.iso</c>, <c>.xiso</c>, <c>.img</c>, <c>.zip</c>, <c>.7z</c>,
+    ///     <c>.rar</c> or an extensionless XBLA/XBLIG STFS package; otherwise <c>false</c>.
     /// </returns>
     public static bool IsConvertible(string path)
     {
         var extension = Path.GetExtension(path).ToLowerInvariant();
-        return extension is ".iso" or ".xiso" or ".img" or ".zip" or ".7z" or ".rar";
+        if (extension is ".iso" or ".xiso" or ".img" or ".zip" or ".7z" or ".rar")
+        {
+            return true;
+        }
+
+        return extension.Length == 0 && File.Exists(path) && StfsSharp.StfsPackage.IsStfsPackage(path);
     }
 
     /// <summary>

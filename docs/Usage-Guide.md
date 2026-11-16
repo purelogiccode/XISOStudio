@@ -12,7 +12,7 @@ The main window is organized into four views, selectable from the navigation but
 
 | View | Purpose |
 |:---|:---|
-| **Convert** | Batch-convert ISOs (and archives containing ISOs) into trimmed XISO, ZAR, CSO, CCI, or CHD files |
+| **Convert** | Batch-convert ISOs, archives containing ISOs and XBLA/XBLIG STFS packages into trimmed XISO, ZAR, CSO or CCI files, or ISOs into CHD |
 | **Test Integrity** | Validate ISO, XISO, IMG, CSO, CCI, ZAR, Xbox CHD images and XBLA/XBLIG STFS packages, and repair or salvage failures |
 | **Decompress** | Turn CSO, CCI, ZAR, CHD or GOD/SVOD images back into plain ISO files |
 | **Explorer** | Browse the contents of an Xbox ISO, XISO, IMG, CSO, CCI, ZAR, CHD, GOD/SVOD container or XBLA/XBLIG STFS package without extracting it, with metadata, container details, checksums, extract-all, and split/join tools |

@@ -8,7 +8,7 @@
 
 ---
 
-The **Explorer** tab provides a native file browser for Xbox and Xbox 360 images and archives. It reads the XDVDFS filesystem directly from ISO/CISO/CCI and GOD/SVOD images through the [XISOSharp](https://github.com/purelogiccode/XISOSharp) 1.9 `XisoImage`/`XisoImageSource` facade (StfsSharp-backed for GOD and CCISharp-backed for CCI), the CHD image through [CHDSharp](https://github.com/purelogiccode/CHDSharp) (decompressed on demand, with an LRU hunk cache and background read-ahead), the ZAR archive tree through ZArchiveSharp, and single-file XBLA/XBLIG **STFS packages** through StfsSharp, so you can inspect images without extracting anything. The file picker sits at the top with the explorer list below it, and the right-hand details panel shows title metadata, container details, checksums and image previews.
+The **Explorer** tab provides a native file browser for Xbox and Xbox 360 images and archives. It reads the XDVDFS filesystem directly from ISO/CISO/CCI and GOD/SVOD images through the [XISOSharp](https://github.com/purelogiccode/XISOSharp) 2.1 `XisoImage`/`XisoImageSource` facade (StfsSharp-backed for GOD and CCISharp-backed for CCI), the CHD image through [CHDSharp](https://github.com/purelogiccode/CHDSharp) (decompressed on demand, with an LRU hunk cache and background read-ahead), the ZAR archive tree through ZArchiveSharp, and single-file XBLA/XBLIG **STFS packages** through StfsSharp, so you can inspect images without extracting anything. The file picker sits at the top with the explorer list below it, and the right-hand details panel shows title metadata, container details, checksums and image previews.
 
 ## Opening an Image
 
@@ -24,7 +24,7 @@ Supported inputs:
 - **`.zar`** — ZAR archives (ZArchive/zstd); the game tree is read directly from the compressed container. A ZAR tree has no disc geometry, so the title panel reports metadata as unavailable and the preview is disabled.
 - **`.chd`** — CHD v5 images; the Xbox filesystem is read from the on-demand decompressed view. Parsing is limited to Xbox DVD images — CD/GD-ROM/hard-disk CHDs are rejected with a clear error.
 - **GOD/SVOD** — Xbox 360 Games-on-Demand containers (a content-hash header beside a `<header>.data` directory). The fragment mapping is handled by `XisoImageSource`/StfsSharp, and the XDVDFS game partition is browsed without extraction.
-- **XBLA/XBLIG STFS packages** — extensionless single-file packages (a `CON `/`LIVE`/`PIRS` signature) containing a small hash-tree filesystem. StfsSharp reads the file table, title metadata and XDBF artwork; the tree can be browsed, extracted and hashed. STFS packages are not sector images, so conversion to XISO/ZAR/CSO/CHD is not offered — extract the package instead.
+- **XBLA/XBLIG STFS packages** — extensionless single-file packages (a `CON `/`LIVE`/`PIRS` signature) containing a small hash-tree filesystem. StfsSharp reads the file table, title metadata and XDBF artwork; the tree can be browsed, extracted and hashed. STFS packages are not sector images, but the Convert view turns them into XISO, CSO, CCI or ZAR (CHD is not supported).
 
 ## Browsing
 

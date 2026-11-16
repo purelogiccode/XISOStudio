@@ -106,6 +106,7 @@ public class XisoSharpService : IXisoSharpService
         }
 
         outputFileName = Path.GetFileName(outputFileName);
+        bool isStfsPackage = StfsSharp.StfsPackage.IsStfsPackage(inputFile);
 
         string outputPath;
         try
@@ -124,7 +125,8 @@ public class XisoSharpService : IXisoSharpService
             // XISO output skips images that are already optimized — unless $SystemUpdate must be
             // stripped, which requires a rewrite. Compressed formats still have to pack those
             // images (the container is what changes).
-            if (outputFormat == OutputFormat.Xiso && !skipSystemUpdate && XisoReader.IsOptimizedImage(inputFile))
+            if (outputFormat == OutputFormat.Xiso && !isStfsPackage && !skipSystemUpdate &&
+                XisoReader.IsOptimizedImage(inputFile))
             {
                 _logger.Information("'{FileName}' is already an optimized XISO. Skipping conversion.", fileName);
                 return FileProcessingStatus.AlreadyOptimized;
@@ -210,6 +212,7 @@ public class XisoSharpService : IXisoSharpService
         CancellationToken token)
     {
         var fileName = Path.GetFileName(inputFile);
+        bool isStfsPackage = StfsSharp.StfsPackage.IsStfsPackage(inputFile);
         string? outIsoPath = null;
 
         var previousRemoveSystemUpdate = Logger.RemoveSystemUpdate;
@@ -231,12 +234,16 @@ public class XisoSharpService : IXisoSharpService
 
             var progressAdapter = CreateRewriteProgressAdapter(progress);
 
-            if (skipSystemUpdate)
+            if (skipSystemUpdate && !isStfsPackage)
             {
                 // Rewrite applies the filter to the folder's contents but leaves the folder
                 // entry behind in XISOSharp 1.4.1, so use extract+repack for the filter.
                 return RepackWithoutSystemUpdate(inputFile, outputPath, checkIntegrity, progress, token);
             }
+
+            // An STFS package is not a sector image; Rewrite converts its file table to an
+            // ISO and applies the $SystemUpdate filter itself, so the extract+repack path
+            // above cannot be used for it.
 
             // Pass the computed output name explicitly so the result always matches
             // the path checked above and shown in progress output.
@@ -269,7 +276,9 @@ public class XisoSharpService : IXisoSharpService
                     audit.FilesChecked, audit.DirsChecked);
             }
 
-            if (checkIntegrity &&
+            // The validator compares two sector images; an STFS source is not one. The
+            // output XISO was already audited above, so skip the source-tree comparison.
+            if (checkIntegrity && !isStfsPackage &&
                 !ValidateConversionOutput(inputFile, resultPath, fileName, systemUpdateRemoved: false))
             {
                 DeletePartialOutput(resultPath);
@@ -488,6 +497,7 @@ public class XisoSharpService : IXisoSharpService
         IProgress<BatchOperationProgress> progress, CancellationToken token)
     {
         var fileName = Path.GetFileName(inputFile);
+        bool isStfsPackage = StfsSharp.StfsPackage.IsStfsPackage(inputFile);
         var formatName = outputFormat switch
         {
             OutputFormat.Zar => "ZAR",
@@ -510,6 +520,32 @@ public class XisoSharpService : IXisoSharpService
             // log viewer with thousands of "[xiso] ?" entries.
             Logger.ForwardInfo = new LibraryOutputLineBuffer(_logger, "  [xiso] ").Append;
             Logger.ForwardError = new LibraryOutputLineBuffer(_logger, "  [xiso] ERROR: ").Append;
+
+            if (isStfsPackage)
+            {
+                // STFS is a file table, not a sector image. Convert it to a temporary
+                // optimized ISO first; the rest of the pipeline (CSO/CCI/ZAR) then
+                // works on a normal image. Rewrite applies the $SystemUpdate filter.
+                tempDir = PathHelper.ResolveTempDirectory(new FileInfo(inputFile).Length,
+                    "XISOStudio_Stfs", _diskMonitorService);
+                Directory.CreateDirectory(tempDir);
+
+                progress.Report(new BatchOperationProgress
+                    { StatusText = "Converting STFS package to ISO..." });
+
+                var stfsResult = XisoReader.Rewrite(inputFile, tempDir, out var rewrittenStfs, token,
+                    outputName: "source.iso", progress: CreateRewriteProgressAdapter(progress));
+                if (stfsResult != 0 || string.IsNullOrEmpty(rewrittenStfs) || !File.Exists(rewrittenStfs))
+                {
+                    _logger.Information(
+                        "XISOSharp could not convert the STFS package '{FileName}' to ISO (result code {ResultCode}).",
+                        fileName, stfsResult);
+                    return FileProcessingStatus.Failed;
+                }
+
+                inputFile = rewrittenStfs;
+                skipSystemUpdate = false; // Rewrite already applied the filter.
+            }
 
             if (outputFormat is OutputFormat.Cso or OutputFormat.Cci)
             {

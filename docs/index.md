@@ -13,7 +13,7 @@ Welcome to the official documentation for **XISO Studio** — a high-performance
 - **Repository:** <https://github.com/purelogiccode/XISOStudio>
 - **Website:** <https://www.purelogiccode.com>
 - **License:** GNU General Public License v3.0
-- **Current version:** 3.2.0 (November 2026) - see the [Release Notes](Release-Notes.md#320)
+- **Current version:** 3.2.1 (November 2026) - see the [Release Notes](Release-Notes.md#321)
 - **Platform:** Windows, Linux, and macOS (x64 / ARM64), .NET 10.0 Runtime
 
 ---
@@ -37,7 +37,7 @@ Whether you are managing a large collection of game backups, preparing files for
 
 | Area | Capabilities |
 |---|---|
-| **Batch Conversion** | XISOSharp and CHDSharp conversion engines, XISO/ZAR/CSO/CCI/CHD output formats, ISO/XISO/IMG input (Redump full-disc images or optimized XISO files), archive input (`.zip`, `.7z`, `.rar`), optional `$SystemUpdate` removal, replace-originals mode, source-vs-output validation with per-file SHA-256 |
+| **Batch Conversion** | XISOSharp and CHDSharp conversion engines, XISO/ZAR/CSO/CCI/CHD output formats, ISO/XISO/IMG input (Redump full-disc images or optimized XISO files), XBLA/XBLIG STFS package input, archive input (`.zip`, `.7z`, `.rar`), optional `$SystemUpdate` removal, replace-originals mode, source-vs-output validation with per-file SHA-256 |
 | **Decompression** | CSO, CCI, ZAR, Xbox DVD CHD and GOD/SVOD back to plain ISO, with optional output audit and safe removal of the source (split sets deleted as a whole) |
 | **Integrity Testing** | Structural XDVDFS validation for ISO/XISO/IMG/CSO/CCI and the Xbox filesystem inside CHD images, ZAR archive validation, STFS/XBLA package SHA-1 hash-tree validation, optional deep scan, in-place repair (with `.old` backup) and salvage to a fresh ISO, automatic move of passed/failed files into organized subfolders |
 | **Image Explorer** | Native browsing inside ISO/XISO/IMG/CSO/CCI/ZAR/CHD/GOD-SVOD images and XBLA/XBLIG STFS packages, title metadata and container details, image/XDBF artwork, CRC-32/MD5/SHA-1/SHA-256/SHA3-256 and xdvdfs tree hashes, whole-image extraction with resume, FATX split/join, file metadata, double-click to open, drag-and-drop extraction |

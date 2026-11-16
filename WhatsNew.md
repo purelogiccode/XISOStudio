@@ -2,6 +2,32 @@
 
 <!-- Keep this file focused on the newest release. Full history lives in docs/Release-Notes.md. -->
 
+## Version 3.2.1
+
+**Release date:** November 2026
+
+Version 3.2.1 is a reliability patch for the 3.2 line. It adds STFS package
+conversion, refuses FAT32 destinations before a 4 GB write, and keeps truncated
+images and expected CCI I/O failures out of the bug-report pipeline.
+
+### Highlights
+
+- **STFS packages convert** - single-file XBLA/XBLIG packages can now be converted
+  to XISO, CSO, CCI or ZAR from the Convert tab. Extensionless packages are
+  accepted directly, and the `$SystemUpdate` filter works for packages too.
+- **FAT32 is checked up front** - the Decompress and Convert views detect a FAT32
+  destination that cannot hold the output and explain that NTFS or exFAT is
+  required. A late host `ERROR_FILE_TOO_LARGE`/`EFBIG` failure is also reported as
+  an environmental condition instead of a bug report.
+- **Truncated images stay quiet** - extracting a file whose data lies past the end
+  of the image is treated as expected input, logged at Information, and does not
+  upload a report.
+- **CCI I/O failures are environmental** - disconnected, full or failing drives
+  during CCI compression are explained and logged at Information.
+- **Dependencies** - XISOSharp 2.1.0, CHDSharp 1.7.0, Avalonia 12.1.6,
+  SharpCompress 0.50.9 and Microsoft.Extensions 11.0.0.
+- **Tests** - 1,687 tests passing; InspectCode remains clean.
+
 ## Version 3.2.0
 
 **Release date:** November 2026

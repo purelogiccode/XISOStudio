@@ -12,6 +12,7 @@
 
 | Version | Date | Summary |
 |:---|:---|:---|
+| [3.2.1](#321) | November 2026 | Reliability patch: STFS packages convert to XISO/CSO/CCI/ZAR, FAT32 4 GB destinations are refused up front, truncated images and CCI I/O failures stay out of bug reports, and XISOSharp 2.1.0 is adopted (1,687 tests passing) |
 | [3.2.0](#320) | November 2026 | Format-complete release: CCI output, Decompress view, real conversion validation, image checksums, STFS/XBLA package support, repair/salvage, extract-all, split/join, GOD/SVOD explorer and decompression input, XBE/XDBF previews, and fixes for GOD deletion and split cloud copies (1,671 tests passing) |
 | [3.1.2](#312) | October 2026 | Reliability patch: Explorer drag-and-drop no longer crashes on X11, Linux temp-space detection uses the real temp filesystem with a per-user fallback, failed extractions remove partial output, and expected I/O failures stay out of bug reports (1,512 tests passing) |
 | [3.1.1](#311) | October 2026 | Reliability patch: 373 false archive reports eliminated, 7-Zip fallback for every archive format, locked and missing archives handled, documentation/wiki/Pages and bundle validation in CI (1,509 tests passing) |
@@ -25,6 +26,40 @@
 | [2.7.0](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.7.0) | June 2026 | Improved ISO compatibility, disk-space detection, cancellation and performance |
 | [2.6.1](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.6.1) | June 2026 | XGD1/XGD2/XGD3 partition offsets, dark-theme tooltip fix |
 | [2.6.0](https://github.com/purelogiccode/XISOStudio/releases/tag/release_2.6.0) | June 2026 | 7-Zip CLI fallback, multilingual network errors, disk-space handling |
+
+---
+
+## 3.2.1
+
+*November 2026*
+
+**Reliability patch for the 3.2 line.** It adopts XISOSharp 2.1.0, adds STFS
+package conversion, refuses FAT32 destinations before a 4 GB write, and keeps
+truncated images and expected CCI I/O failures out of the bug-report pipeline.
+
+### Highlights
+
+- **STFS package conversion** - single-file XBLA/XBLIG packages can be converted
+  to XISO, CSO, CCI or ZAR from the Convert tab. Extensionless packages are
+  accepted directly, and the `$SystemUpdate` filter applies to packages too.
+- **FAT32 pre-flight** - Decompress and Convert check the destination filesystem
+  and expected output size before writing. A FAT32 destination that cannot hold
+  the file is refused with an actionable NTFS/exFAT message.
+- **Late file-size failures** - a host `ERROR_FILE_TOO_LARGE`/`EFBIG` failure is
+  logged at Information and does not generate a bug report.
+- **Truncated/corrupt entries** - extracting an image entry whose data lies past
+  the end of the image is treated as expected input, logged at Information, and
+  does not upload a report.
+- **CCI I/O failures** - disconnected, full or failing drives during CCI
+  compression are explained and logged at Information.
+- **Shutdown cleanup** - a missing or damaged image-engine assembly during
+  shutdown is treated as an installation problem, not an application defect.
+- **Dependencies** - XISOSharp 2.1.0, CHDSharp 1.7.0, Avalonia 12.1.6,
+  SharpCompress 0.50.9 and Microsoft.Extensions 11.0.0.
+
+### Tests
+
+- **1,687 tests passing**, InspectCode clean, solution builds with 0 warnings.
 
 ---
 
