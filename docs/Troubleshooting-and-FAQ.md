@@ -29,6 +29,8 @@ FAT32 cannot store files larger than 4 GB. Modern game images routinely exceed t
 
 - Use an **NTFS** or **exFAT** drive as the output destination.
 
+Both conversion and decompression pre-check the destination's filesystem before writing, so a FAT32 output is refused with a clear message instead of failing after the 4 GB mark. This is an environmental condition: it is logged at Information level and does **not** generate a bug report.
+
 ### Access to the path is denied
 
 The output folder (or the application folder itself) does not grant write permission.

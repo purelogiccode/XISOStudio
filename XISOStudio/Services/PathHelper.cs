@@ -258,6 +258,51 @@ public static class PathHelper
     }
 
     /// <summary>
+    /// Win32 error code ERROR_FILE_TOO_LARGE: the file exceeds the destination
+    /// filesystem's per-file limit (FAT32's 4 GB limit).
+    /// </summary>
+    private const int ErrorFileTooLarge = 0xDF;
+
+    /// <summary>
+    /// Unix errno EFBIG: the file exceeds the destination filesystem's size limit.
+    /// </summary>
+    private const int UnixErrorFileTooLarge = 27;
+
+    /// <summary>
+    /// Determines whether an exception reports that the destination filesystem
+    /// cannot store a file of the requested size. Windows reports
+    /// <c>ERROR_FILE_TOO_LARGE</c> (223) for FAT32's 4 GB limit; Unix reports
+    /// <c>EFBIG</c>. The check walks inner exceptions and also recognizes the
+    /// common localized/raw message text.
+    /// </summary>
+    /// <param name="exception">Exception to inspect; may be <c>null</c>.</param>
+    /// <returns><c>true</c> when the destination filesystem's file-size limit was hit; otherwise <c>false</c>.</returns>
+    public static bool IsFileTooLargeError(Exception? exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is IOException ioException)
+            {
+                var hResult = ioException.HResult & 0xFFFF;
+                if (hResult == ErrorFileTooLarge) return true;
+
+                // Unix exposes EFBIG as the raw errno in HResult.
+                if (!OperatingSystem.IsWindows() && ioException.HResult == UnixErrorFileTooLarge) return true;
+            }
+
+            var message = current.Message;
+            if (message.Contains("file size exceeds the limit", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("file too large", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("value too large for defined data type", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Win32 error code ERROR_IO_DEVICE: the request could not be performed because
     /// of an I/O device error (e.g. a failing or disconnected drive).
     /// </summary>

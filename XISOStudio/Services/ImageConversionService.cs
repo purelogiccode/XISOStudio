@@ -86,6 +86,15 @@ public sealed class ImageConversionService : IImageConversionService
             return FileProcessingStatus.Failed;
         }
 
+        // Refuse a FAT32 destination before writing gigabytes: the library would
+        // only surface the OS file-too-large error after the copy reached 4 GB.
+        string? sizeLimitError = CheckOutputFileSizeLimit(inputFile, outputPath, fileName);
+        if (sizeLimitError != null)
+        {
+            _logger.Information("{Message:l}", sizeLimitError);
+            return FileProcessingStatus.Failed;
+        }
+
         if (File.Exists(outputPath) &&
             !await PathHelper.TryDeleteExistingFileWithRetryAsync(outputPath, _logger, token))
         {
@@ -94,6 +103,56 @@ public sealed class ImageConversionService : IImageConversionService
 
         return await Task.Run(
             () => DecompressCore(inputFile, outputPath, checkIntegrity, progress, token), token);
+    }
+
+    /// <summary>
+    /// Returns an actionable message when the output folder is on a FAT32 volume
+    /// that cannot store the decompressed image; otherwise <c>null</c>.
+    /// </summary>
+    /// <param name="inputFile">Path of the compressed or container image.</param>
+    /// <param name="outputPath">Full path of the ISO to produce.</param>
+    /// <param name="fileName">Display name used in the message.</param>
+    /// <returns>An actionable message, or <c>null</c> when the output can hold the image.</returns>
+    private string? CheckOutputFileSizeLimit(string inputFile, string outputPath, string fileName)
+    {
+        // A CHD's decompressed size is not known until it is read; the host error
+        // catch below still covers that case.
+        if (Path.GetExtension(inputFile).Equals(".chd", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (!XisoImageSource.TryDetect(inputFile, out var sourceInfo) || sourceInfo is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var fullPath = Path.GetFullPath(outputPath);
+            if (PathHelper.IsUncPath(fullPath)) return null;
+
+            var root = Path.GetPathRoot(fullPath);
+            if (string.IsNullOrEmpty(root)) return null;
+
+            var drive = new DriveInfo(root);
+            if (drive.IsReady &&
+                drive.DriveFormat.Equals("FAT32", StringComparison.OrdinalIgnoreCase) &&
+                sourceInfo.Length > (4L * 1024 * 1024 * 1024) - 1)
+            {
+                return $"The output drive '{drive.Name}' uses FAT32, which cannot store files larger than 4 GB. " +
+                       $"'{fileName}' decompresses to {Formatter.FormatBytes(sourceInfo.Length)}. " +
+                       "Please choose an NTFS or exFAT formatted output drive.";
+            }
+        }
+        catch (Exception ex)
+        {
+            // Pre-check failures are non-fatal; the decompressor surfaces real
+            // errors if the write still fails.
+            _logger.Debug(ex, "Could not check the output drive for '{OutputPath}'", outputPath);
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -211,6 +270,15 @@ public sealed class ImageConversionService : IImageConversionService
             _logger.Information("Decompression of '{FileName}' was canceled. Cleaning up partial output...", fileName);
             DeletePartialOutput(outputPath);
             throw;
+        }
+        catch (Exception ex) when (PathHelper.IsFileTooLargeError(ex))
+        {
+            DeletePartialOutput(outputPath);
+            _logger.Information(ex,
+                "The output ISO is too large for the destination filesystem while decompressing '{FileName}'.\n\n" +
+                "FAT32 cannot store a single file larger than 4 GB. " +
+                "Please choose an NTFS or exFAT formatted output folder, then try again.", fileName);
+            return FileProcessingStatus.Failed;
         }
         catch (Exception ex) when (PathHelper.IsDiskSpaceError(ex))
         {

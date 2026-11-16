@@ -69,6 +69,15 @@ public class ImageErrorClassifierTests
     }
 
     [Fact]
+    public void IsEnvironmentalIoErrorWithTruncatedEntryAndInnerIoReturnsTrue()
+    {
+        var exception = new ExtractFileException(ExtractError.ErrFileTruncated,
+            "truncated entry", new EndOfStreamException("image data ended early"));
+
+        Assert.True(ImageErrorClassifier.IsEnvironmentalIoError(exception));
+    }
+
+    [Fact]
     public void IsEnvironmentalIoErrorWithUnexpectedErrorReturnsFalse()
     {
         Assert.False(ImageErrorClassifier.IsEnvironmentalIoError(new InvalidOperationException("bug")));

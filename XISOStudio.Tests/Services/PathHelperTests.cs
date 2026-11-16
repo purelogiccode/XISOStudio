@@ -204,6 +204,42 @@ public class PathHelperTests
     }
 
     [Fact]
+    public void IsFileTooLargeErrorWithFat32HResultReturnsTrue()
+    {
+        var ex = new IOException("The file size exceeds the limit allowed and cannot be saved.")
+        {
+            HResult = OperatingSystem.IsWindows() ? unchecked((int)0x800700DF) : 27,
+        };
+
+        Assert.True(PathHelper.IsFileTooLargeError(ex));
+    }
+
+    [Theory]
+    [InlineData("The file size exceeds the limit allowed and cannot be saved.", true)]
+    [InlineData("File too large", true)]
+    [InlineData("Value too large for defined data type", true)]
+    [InlineData("file not found", false)]
+    public void IsFileTooLargeErrorWithKnownPatternsReturnsExpectedResult(string message, bool expected)
+    {
+        var ex = new IOException(message);
+        Assert.Equal(expected, PathHelper.IsFileTooLargeError(ex));
+    }
+
+    [Fact]
+    public void IsFileTooLargeErrorChecksInnerException()
+    {
+        var inner = new IOException("The file size exceeds the limit allowed and cannot be saved.");
+        var ex = new IOException("outer", inner);
+        Assert.True(PathHelper.IsFileTooLargeError(ex));
+    }
+
+    [Fact]
+    public void IsFileTooLargeErrorWithNullReturnsFalse()
+    {
+        Assert.False(PathHelper.IsFileTooLargeError(null));
+    }
+
+    [Fact]
     public void IsDeviceIoErrorWithNullReturnsFalse()
     {
         Assert.False(PathHelper.IsDeviceIoError(null));

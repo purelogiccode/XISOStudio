@@ -285,6 +285,15 @@ public class XisoSharpService : IXisoSharpService
             DeletePartialOutput(outIsoPath ?? outputPath);
             throw;
         }
+        catch (Exception ex) when (PathHelper.IsFileTooLargeError(ex))
+        {
+            DeletePartialOutput(outIsoPath ?? outputPath);
+            _logger.Information(ex,
+                "The output XISO is too large for the destination filesystem while converting '{FileName}'.\n\n" +
+                "FAT32 cannot store a single file larger than 4 GB. " +
+                "Please choose an NTFS or exFAT formatted output folder, then try again.", fileName);
+            return FileProcessingStatus.Failed;
+        }
         catch (Exception ex) when (PathHelper.IsDiskSpaceError(ex))
         {
             DeletePartialOutput(outIsoPath ?? outputPath);

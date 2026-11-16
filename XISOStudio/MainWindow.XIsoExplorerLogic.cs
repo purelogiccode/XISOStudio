@@ -1018,10 +1018,12 @@ public partial class MainWindow
             {
                 _logger.Debug("Extracting and opening file from image was canceled: {FileName}", fileName);
             }
-            catch (Exception ex) when (ImageErrorClassifier.IsEnvironmentalIoError(ex))
+            catch (Exception ex) when (ImageErrorClassifier.IsEnvironmentalIoError(ex) ||
+                                       ImageErrorClassifier.IsUserInputImageError(ex))
             {
-                // Disk-full, access-denied, and unreadable-path failures are environmental,
-                // not defects, so they are logged below the automatic bug-report threshold.
+                // Disk-full, access-denied, unreadable-path and truncated/corrupt
+                // image entries are expected conditions, not application defects,
+                // so they are logged below the automatic bug-report threshold.
                 _logger.Information(ex, "Could not extract and open the file from the image: {FileName}", fileName);
                 await ShowErrorSafeAsync($"Could not extract and open the file: {ex.Message}");
             }
